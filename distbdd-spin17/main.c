@@ -17,38 +17,95 @@
 // TODO: clean up comments, whitespace, etc.
 
 
+/* < bit structure of (MT)BDD nodes in Sylvan >*/
+// mtbdd_complement = 0x8000000000000000LL;
+// mtbdd_false      = 0;
+// mtbdd_true       = 0x8000000000000000LL;
+// mtbdd_invalid    = 0xffffffffffffffffLL;
+// MTBDDs are assumed to have 40 bits for the pointer part. We'll put these 
+// "metadata bits" from the distdd implementation directly left of these 40 bits.
+
 /* < from bddnode.h > */
 // bitmaps for BDD references with memory layout:
 // - 3 bits metadata ("done" flag, "lock" flag, and "local" flag)
 // - 1 bit for complement edges
 // - 42 bits for storing the index in 'data'
-#define bdd_metadata       ((BDD)0xE000000000000000) // 3 bits for metadata:
-#define bdd_metadata_done  ((BDD)0x8000000000000000) // - 1 bit, "done" flag
-#define bdd_metadata_lock  ((BDD)0x4000000000000000) // - 1 bit, "lock" flag
-#define bdd_metadata_local ((BDD)0x2000000000000000) // - 1 bit, "local" flag
-#define bdd_complement     ((BDD)0x1000000000000000) // 1 bit for complement edges
-#define bdd_false          ((BDD)0x0000000000000000)
-#define bdd_true           (bdd_false|bdd_complement)
-#define bdd_invalid        ((BDD)0x0FFFFFFFFFFFFFFF) // 60 bits
+#define distdd_bdd_metadata       ((BDD)0xE000000000000000) // 3 bits for metadata:
+#define distdd_bdd_metadata_done  ((BDD)0x8000000000000000) // - 1 bit, "done" flag
+#define distdd_bdd_metadata_lock  ((BDD)0x4000000000000000) // - 1 bit, "lock" flag
+#define distdd_bdd_metadata_local ((BDD)0x2000000000000000) // - 1 bit, "local" flag
+#define distdd_bdd_complement     ((BDD)0x1000000000000000) // 1 bit for complement edges
+#define distdd_bdd_false          ((BDD)0x0000000000000000)
+#define distdd_bdd_true           (distdd_bdd_false|distdd_bdd_complement)
+#define distdd_bdd_invalid        ((BDD)0x0FFFFFFFFFFFFFFF) // 60 bits
 
-#define bdd_strip_metadata(s) ((s)&~bdd_metadata)
-#define bdd_strip_mark(s) ((s)&~bdd_complement)
-#define bdd_strip_mark_metadata(s) bdd_strip_mark(bdd_strip_metadata(s))
 
-#define bdd_istrue(bdd) (bdd_strip_metadata(bdd) == bdd_true)
-#define bdd_isfalse(bdd) (bdd_strip_metadata(bdd) == bdd_false)
-#define bdd_isconst(bdd) (bdd_isfalse(bdd) || bdd_istrue(bdd))
-#define bdd_isnode(bdd) (!bdd_isfalse(bdd) && !bdd_istrue(bdd))
-#define bdd_islocal(bdd) ((bdd) & bdd_metadata_local)
-#define bdd_isdone(bdd) ((bdd) & bdd_metadata_done)
+#define distdd_bdd_strip_metadata(s) ((s)&~distdd_bdd_metadata)
+#define distdd_bdd_strip_mark(s) ((s)&~distdd_bdd_complement)
+//#define distdd_bdd_strip_mark_metadata(s) distdd_bdd_strip_mark(distdd_bdd_strip_metadata(s))
 
-#define bdd_not(a) (((BDD)a)^bdd_complement)
-#define bdd_hasmark(s) (((s)&bdd_complement) ? 1 : 0)
+#define distdd_bdd_istrue(bdd) (distdd_bdd_strip_metadata(bdd) == distdd_bdd_true)
+#define distdd_bdd_isfalse(bdd) (distdd_bdd_strip_metadata(bdd) == distdd_bdd_false)
+//#define distdd_bdd_isconst(bdd) (distdd_bdd_isfalse(bdd) || distdd_bdd_istrue(bdd))
+#define distdd_bdd_isnode(bdd) (!distdd_bdd_isfalse(bdd) && !distdd_bdd_istrue(bdd))
+//#define distdd_bdd_islocal(bdd) ((bdd) & distdd_bdd_metadata_local)
+//#define distdd_bdd_isdone(bdd) ((bdd) & distdd_bdd_metadata_done)
 
-#define bdd_transfermark(from, to) ((to) ^ ((from) & bdd_complement))
-#define bdd_set_data(bdd, data) (((bdd) & 0xF00003FFFFFFFFFF) | (((uint64_t)((data) & 0x0000FFFF)) << 42))
-#define bdd_set_done(bdd) ((bdd) | bdd_metadata_done)
+#define distdd_bdd_not(a) (((BDD)a)^distdd_bdd_complement)
+#define distdd_bdd_hasmark(s) (((s)&distdd_bdd_complement) ? 1 : 0)
+
+#define distdd_bdd_transfermark(from, to) ((to) ^ ((from) & distdd_bdd_complement))
+//#define distdd_bdd_set_data(bdd, data) (((bdd) & 0xF00003FFFFFFFFFF) | (((uint64_t)((data) & 0x0000FFFF)) << 42))
+//#define distdd_bdd_set_done(bdd) ((bdd) | distdd_bdd_metadata_done)
 /* </ from bddnode.h > */
+
+
+BDD
+_distdd_to_sylvan(BDD a)
+{
+    // TODO: move these "metadata" flags?
+    // For now, assume no metadata
+    if (a != distdd_bdd_strip_metadata(a)) {
+        printf("WARNING: currently ignoring metadata\n");
+        a = distdd_bdd_strip_metadata(a);
+    }
+
+    //if (a == distdd_bdd_invalid) return sylvan_invalid;
+    //if (a == distdd_bdd_false) return sylvan_false;
+    //if (a == distdd_bdd_true) return sylvan_true;
+
+    // move complement flag
+    if ((a & distdd_bdd_complement) != 0) { // if complement flag is set
+        a &= ~distdd_bdd_complement; // set to 0
+        a |= sylvan_complement; // set Sylvan complement flag instead
+    }
+    
+    return a;
+}
+
+// temp wrapper for debugging
+int change_counter = 0;
+BDD
+distdd_to_sylvan(BDD a)
+{
+    BDD res = _distdd_to_sylvan(a);
+    if (res != a) {
+        printf("changed %lx -> %lx (%d total)\n", a, res, ++change_counter);
+    }
+    return res;
+}
+
+
+BDD
+sylvan_to_distdd(BDD a)
+{
+    if (a == sylvan_false) return distdd_bdd_false;
+    if (a == sylvan_invalid) return distdd_bdd_invalid;
+    if (a == sylvan_true) return distdd_bdd_true;
+    if (a == sylvan_complement) return distdd_bdd_complement;
+
+    return a;
+}
 
 /* < from bdd.h > */
 struct bdd_ser {
@@ -108,19 +165,21 @@ static double wctime() {
 */
 
 
+/* returns a DistDD BDD */
 BDD serialize_get_reversed(uint64_t value) {
     //printf("value: %lx\n", value);
     
-    if (!bdd_isnode(value)) {
+    if (!distdd_bdd_isnode(value)) {
+        
         return value;
     }
 
     struct bdd_ser s, *ss;
-    s.assigned = bdd_strip_mark(value);
+    s.assigned = distdd_bdd_strip_mark(value);
     ss = ser_reversed_search(ser_reversed_set, &s);
     assert(ss != NULL);
-    return bdd_transfermark(value, ss->bdd);
-   return sylvan_false;
+    
+    return distdd_bdd_transfermark(value, ss->bdd);
 }
 
 //static int counter = 0;
@@ -150,16 +209,20 @@ void serialize_fromfile(FILE *in) {
         BDDVAR node_level = (BDDVAR)(b >> 40);
         
         // we changed the position of the 'comp' bit, which must be fixed...
-        if ((node_high & bdd_metadata_done) != 0) {
-            node_high &= ~bdd_metadata_done;
-            node_high |= bdd_complement;
+        if ((node_high & distdd_bdd_metadata_done) != 0) {
+            node_high &= ~distdd_bdd_metadata_done;
+            node_high |= distdd_bdd_complement;
         }
         
         BDD low = serialize_get_reversed(node_low);
         BDD high = serialize_get_reversed(node_high);
+
+        // change to Sylvan bit structure after reading
+        low = distdd_to_sylvan(low);
+        high = distdd_to_sylvan(high);
         
         struct bdd_ser s;
-        s.bdd = mtbdd_makenode(node_level, low, high); //bdd_makenode_local(node_level, low, high);
+        s.bdd = sylvan_makenode(node_level, low, high); //bdd_makenode_local(node_level, low, high);
         s.assigned = ++ser_done;
         
         ser_reversed_insert(&ser_reversed_set, &s);
@@ -181,6 +244,7 @@ static rel_t rel_load(FILE* f) {
     // get states
     rel_t rel = (rel_t)malloc(sizeof(struct relation));
     rel->bdd = serialize_get_reversed(rel_bdd);
+    rel->bdd = distdd_to_sylvan(rel->bdd);
 
     // get and process variables
     rel->variables = serialize_get_reversed(rel_vars); //CALL_SUPPORT(serialize_get_reversed(rel_vars));
@@ -209,8 +273,8 @@ static void set_load(FILE* f) {
     states->bdd = serialize_get_reversed(set_bdd);
 
     // get and process variables
-    printf("variables %ld (%lx)\n",  set_state_vars,  set_state_vars);
     states->variables = serialize_get_reversed(set_state_vars); //CALL_SUPPORT(serialize_get_reversed(set_state_vars));
+    printf("variables: %ld <- serialize_get_reversed(%ld)\n", states->variables,  set_state_vars);
     //states->varchain = bdd_to_chain(states->variables); 
     //states->vararray = chain_to_array(states->varchain);
     //states->varcount = chain_count(states->varchain);
@@ -220,7 +284,6 @@ static void set_load(FILE* f) {
 
 
 /*
-
 BDD extend_relation(BDD relation, BDDSET variables) {
     // first determine which state BDD variables are in rel
     int *has = (int*)alloca(statebits * sizeof(int));
@@ -245,12 +308,44 @@ BDD extend_relation(BDD relation, BDDSET variables) {
     // finally extend the transition relation
     return CALL_AND(relation, eq, 0);
 }
-
 */
+
+// extend relations from bddmc.c example
+#define extend_relation(rel, vars) RUN(extend_relation, rel, vars)
+TASK_2(BDD, extend_relation, MTBDD, relation, MTBDD, variables)
+{
+    /* first determine which state BDD variables are in rel */
+    int has[statebits]; // totalbits
+    for (int i = 0; i < statebits; i++) has[i] = 0; // totalbits
+    MTBDD s = variables;
+    while (!sylvan_set_isempty(s)) { //  === (s != mtbdd_true);
+        uint32_t v = sylvan_set_first(s);
+        if (v/2 >= (unsigned)statebits) break; // action labels // total bits
+        has[v/2] = 1;
+        s = sylvan_set_next(s);
+        //printf("s = %lx\n", s);
+    }
+
+    /* create "s=s'" for all variables not in rel */
+    BDD eq = sylvan_true;
+    for (int i = statebits - 1; i>=0; i--) { // totalbits
+        if (has[i]) continue;
+        BDD low = sylvan_makenode(2*i+1, eq, sylvan_false);
+        bdd_refs_push(low);
+        BDD high = sylvan_makenode(2*i+1, sylvan_false, eq);
+        bdd_refs_pop(1);
+        eq = sylvan_makenode(2*i, low, high);
+    }
+
+    bdd_refs_push(eq);
+    BDD result = sylvan_and(relation, eq);
+    bdd_refs_pop(1);
+
+    return result;
+}
 
 
 /*
-
 BDD big_union(int first, int count) {
     // terminal case
     if (count == 1) return next[first]->bdd;
@@ -262,9 +357,21 @@ BDD big_union(int first, int count) {
     // return the union of left and right
     return bdd_or(left, right);
 }
-
 */
 
+// big union from bddmc.c
+#define big_union(first, count) RUN(big_union, first, count)
+TASK_2(BDD, big_union, int, first, int, count)
+{
+    if (count == 1) return next[first]->bdd;
+
+    bdd_refs_spawn(SPAWN(big_union, first, count/2));
+    BDD right = bdd_refs_push(CALL(big_union, first+count/2, count-count/2));
+    BDD left = bdd_refs_push(bdd_refs_sync(SYNC(big_union)));
+    BDD result = sylvan_or(left, right);
+    bdd_refs_pop(2);
+    return result;
+}
 
 /*
 void merge_relations() {
@@ -274,8 +381,6 @@ void merge_relations() {
         prime_variables = bdd_set_add(prime_variables, i*2+1);
     }
 
-    
-    
     
     for (i = 0; i < next_count; i++) {
         next[i]->bdd = extend_relation(next[i]->bdd, next[i]->variables);
@@ -290,6 +395,47 @@ void merge_relations() {
     
 }
 */
+
+
+// merge relations from bddmc.c example
+void merge_relations() {
+    /* merge all relations to one big transition relation */
+    BDD newvars = sylvan_set_empty();
+    bdd_refs_pushptr(&newvars);
+    for (int i = statebits - 1; i >= 0; i--) { //totalbits
+        newvars = sylvan_set_add(newvars, i*2+1);
+        newvars = sylvan_set_add(newvars, i*2);
+    }
+
+    printf("Extending transition relations to full domain...\n");
+
+    for (int i=0; i<next_count; i++) {
+        printf("%d/%d\n", i,next_count);
+        next[i]->bdd = extend_relation(next[i]->bdd, next[i]->variables);
+        next[i]->variables = newvars;
+    }
+
+
+    bdd_refs_popptr(1);
+
+
+    printf("Taking union of all transition relations.\n");
+    next[0]->bdd = big_union(0, next_count);
+
+    for (int i=1; i<next_count; i++) {
+        next[i]->bdd = sylvan_false;
+        next[i]->variables = sylvan_true;
+    }
+    next_count = 1;
+
+
+
+    printf("BDD nodes:\n");
+    printf("Initial states: %zu BDD nodes\n", sylvan_nodecount(states->bdd));
+    for (int i=0; i<next_count; i++) {
+        printf("Transition %d: %zu BDD nodes\n", i, sylvan_nodecount(next[i]->bdd));
+    }
+}
 
 
 
@@ -346,14 +492,17 @@ int read_model() {
     // done reading from file..
     fclose(f);
 
-    //merge_relations();
-
+    // TODO: parameterize this
+    merge_relations();
 
 	printf("%d integers per state, %d bits per integer, %d transition groups\n", vector_size, bits_per_integer, next_count);
 	printf("BDD nodes:\n");
 
     
 	printf("Initial states: %lu BDD nodes\n", sylvan_nodecount(states->bdd)); //bdd_nodecount(states->bdd)
+    f = fopen("initial_states.dot", "w");
+    sylvan_fprintdot(f, states->bdd);
+    fclose(f);
 
 	for (i = 0; i < next_count; i++) {
 		printf("Transition %d: %lu BDD nodes\n", i, sylvan_nodecount(next[i]->bdd)); // bdd_nodecount(next[i]->bdd)
@@ -450,10 +599,6 @@ int main(int argc, char *argv[])
     // read model file from disk
     filename = poptGetArg(con);
     read_model();
-
-    printf("we are here now\n");
-    exit(1);
-
 
     // perform reachability
     //ws_comp_out_t parout = COMPUTE_PAR(states->bdd);
