@@ -5,3 +5,9 @@
 .cproject
 .project
 .settings
+
+# Build
+/build
+
+# ignore 2GB of models for now
+/distbdd-spin17/models

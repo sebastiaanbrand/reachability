@@ -14,7 +14,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
 # Some info
@@ -23,8 +23,10 @@ message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID}")
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
 
-set(CMAKE_C_FLAGS "-O2 -Wextra -Wall -Werror -fno-strict-aliasing ${CMAKE_C_FLAGS}")
-set(CMAKE_CXX_FLAGS "-O2 -Wextra -Wall -Werror -fno-strict-aliasing -Wno-deprecated ${CMAKE_CXX_FLAGS}")
+#set(CMAKE_C_FLAGS "-O2 -Wextra -Wall -Werror -fno-strict-aliasing ${CMAKE_C_FLAGS}")
+#set(CMAKE_CXX_FLAGS "-O2 -Wextra -Wall -Werror -fno-strict-aliasing -Wno-deprecated ${CMAKE_CXX_FLAGS}")
+set(CMAKE_C_FLAGS "-O2 -Wextra -Wall -fno-strict-aliasing ${CMAKE_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "-O2 -Wextra -Wall -fno-strict-aliasing -Wno-deprecated ${CMAKE_CXX_FLAGS}")
 
 option(WITH_COVERAGE "Add generation of test coverage" OFF)
 if(WITH_COVERAGE)
@@ -55,6 +57,7 @@ include(CTest)
 
 add_subdirectory(src)
 add_subdirectory(test)
+add_subdirectory(distbdd-spin17)
 
 option(SYLVAN_BUILD_EXAMPLES "Build example tools" OFF)
 if(SYLVAN_BUILD_EXAMPLES)
