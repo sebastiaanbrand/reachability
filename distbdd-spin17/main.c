@@ -63,6 +63,7 @@
 BDD
 _distdd_to_sylvan(BDD a)
 {
+    return a;
     // TODO: move these "metadata" flags?
     // For now, assume no metadata
     if (a != distdd_bdd_strip_metadata(a)) {
@@ -190,10 +191,11 @@ void serialize_fromfile(FILE *in) {
     size_t count;
     if (fread(&count, sizeof(size_t), 1, in) != 1) {
         printf("serialize_fromfile: file format error, giving up\n");
-      exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
-    unsigned long i; for (i = 1; i <= count; i++) {
+    //unsigned long i; 
+    for (unsigned long i = 1; i <= count; i++) {
         uint64_t a, b;
         
         // read node from file
@@ -207,12 +209,20 @@ void serialize_fromfile(FILE *in) {
         BDD node_high = a & 0x800000ffffffffff;
         BDD node_low = b & 0x000000ffffffffff;
         BDDVAR node_level = (BDDVAR)(b >> 40);
-        
-        // we changed the position of the 'comp' bit, which must be fixed...
-        if ((node_high & distdd_bdd_metadata_done) != 0) {
-            node_high &= ~distdd_bdd_metadata_done;
-            node_high |= distdd_bdd_complement;
+        printf("a = [%016lx], b = [%016lx] ", a, b);
+        if (node_level > 1000) {
+            printf("var: %d (%x)", node_level, node_level);
         }
+        printf("\n");
+        
+        
+        
+        // THIS is the thing which messes up the bit structure it seems
+        // we changed the position of the 'comp' bit, which must be fixed...
+        //if ((node_high & distdd_bdd_metadata_done) != 0) {
+        //    node_high &= ~distdd_bdd_metadata_done;
+        //    node_high |= distdd_bdd_complement;
+        //}
         
         BDD low = serialize_get_reversed(node_low);
         BDD high = serialize_get_reversed(node_high);
@@ -409,11 +419,14 @@ void merge_relations() {
 
     printf("Extending transition relations to full domain...\n");
 
-    for (int i=0; i<next_count; i++) {
-        printf("%d/%d\n", i,next_count);
+    printf("%d/%d", 0, next_count); fflush(stdout);
+    for (int i = 0; i < next_count; i++) {
         next[i]->bdd = extend_relation(next[i]->bdd, next[i]->variables);
         next[i]->variables = newvars;
+        printf("\r%d/%d", i+1, next_count); fflush(stdout);
     }
+    printf("\n");
+
 
 
     bdd_refs_popptr(1);
@@ -502,6 +515,10 @@ int read_model() {
 	printf("Initial states: %lu BDD nodes\n", sylvan_nodecount(states->bdd)); //bdd_nodecount(states->bdd)
     f = fopen("initial_states.dot", "w");
     sylvan_fprintdot(f, states->bdd);
+    fclose(f);
+
+    f = fopen("transition0.dot", "w");
+    sylvan_fprintdot(f, next[0]->bdd);
     fclose(f);
 
 	for (i = 0; i < next_count; i++) {
