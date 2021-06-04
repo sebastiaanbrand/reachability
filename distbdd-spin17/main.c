@@ -209,11 +209,12 @@ void serialize_fromfile(FILE *in) {
         BDD node_high = a & 0x800000ffffffffff;
         BDD node_low = b & 0x000000ffffffffff;
         BDDVAR node_level = (BDDVAR)(b >> 40);
-        printf("a = [%016lx], b = [%016lx] ", a, b);
         if (node_level > 1000) {
+            printf("a = [%016lx], b = [%016lx] ", a, b);
             printf("var: %d (%x)", node_level, node_level);
+            printf("\n");
         }
-        printf("\n");
+        
         
         
         
@@ -513,19 +514,36 @@ int read_model() {
 
     
 	printf("Initial states: %lu BDD nodes\n", sylvan_nodecount(states->bdd)); //bdd_nodecount(states->bdd)
-    f = fopen("initial_states.dot", "w");
-    sylvan_fprintdot(f, states->bdd);
-    fclose(f);
+    //f = fopen("initial_states.dot", "w");
+    //sylvan_fprintdot(f, states->bdd);
+    //fclose(f);
 
-    f = fopen("transition0.dot", "w");
-    sylvan_fprintdot(f, next[0]->bdd);
-    fclose(f);
+    //f = fopen("transition0.dot", "w");
+    //sylvan_fprintdot(f, next[0]->bdd);
+    //fclose(f);
 
 	for (i = 0; i < next_count; i++) {
 		printf("Transition %d: %lu BDD nodes\n", i, sylvan_nodecount(next[i]->bdd)); // bdd_nodecount(next[i]->bdd)
 	}
 
     return 1;
+}
+
+void reachability(BDD initial, BDD R)
+{
+    // compute the closure of input states under the transition relation
+    // (assume single merged transition relation for now)
+    BDD prev = sylvan_false;
+    BDD reachable = initial;
+    BDD successors = sylvan_false;
+    int k = 0;
+    printf("it %d, nodecount = %ld\n", k, sylvan_nodecount(reachable));
+    while (prev != reachable) {
+        prev = reachable;
+        successors = sylvan_relnext(reachable, R, sylvan_false);
+        reachable = mtbdd_set_union(reachable, successors); // sylan_or doesn't seem to work here?
+        printf("it %d, nodecount = %ld\n", k++, sylvan_nodecount(reachable));
+    }
 }
 
 
@@ -618,7 +636,8 @@ int main(int argc, char *argv[])
     read_model();
 
     // perform reachability
-    //ws_comp_out_t parout = COMPUTE_PAR(states->bdd);
+    printf("Doing reachability\n");
+    reachability(states->bdd, next[0]->bdd);
 
     //printf("PAR Time: %f\n", parout.time);
 
