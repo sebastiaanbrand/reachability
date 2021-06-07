@@ -57,6 +57,7 @@ include(CTest)
 
 add_subdirectory(src)
 add_subdirectory(test)
+add_subdirectory(examples)
 add_subdirectory(distbdd-spin17)
 
 option(SYLVAN_BUILD_EXAMPLES "Build example tools" OFF)
