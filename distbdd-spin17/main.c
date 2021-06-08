@@ -14,6 +14,8 @@
 
 #include "lace.h"
 
+#include "relnext.h"
+
 long read_nodes;
 
 // TODO: clean up comments, whitespace, etc.
@@ -86,7 +88,11 @@ typedef struct relation {
 	//varchain_t *varchain;
 	//varchain_t **vararray;
 	//uint64_t varcount;
+    BDDSET primed;
+    BDDSET unprimed;
 } *rel_t;
+
+MTBDDMAP xp_to_x; // map from primed vars to unprimed vars
 
 set_t states;
 rel_t *next; // each partition of the transition relation
@@ -361,12 +367,30 @@ void merge_relations() {
 // merge relations from bddmc.c example
 void merge_relations() {
     /* merge all relations to one big transition relation */
-    BDD newvars = sylvan_set_empty();
-    bdd_refs_pushptr(&newvars);
+    //BDD newvars = sylvan_set_empty();
+    BDD primed   = sylvan_set_empty();
+    BDD unprimed = sylvan_set_empty();
+    xp_to_x = mtbdd_map_empty();
+    bdd_refs_pushptr(&primed);
+    bdd_refs_pushptr(&unprimed);
+    bdd_refs_pushptr(&xp_to_x);
     for (int i = statebits - 1; i >= 0; i--) { //totalbits
-        newvars = sylvan_set_add(newvars, i*2+1);
-        newvars = sylvan_set_add(newvars, i*2);
+        primed = mtbdd_set_add(primed, i*2+1);
+        unprimed = mtbdd_set_add(unprimed, i*2);
+        xp_to_x = mtbdd_map_add(xp_to_x, (i*2+1), mtbdd_int64(i*2));
     }
+
+    FILE *f;
+    f = fopen("map.dot", "w");
+    sylvan_fprintdot(f, xp_to_x);
+    fclose(f);
+
+    if (sylvan_map_isempty(xp_to_x)) {
+        printf("map is empty\n");
+        exit(1);
+    }
+
+    BDD newvars = mtbdd_set_union(primed, unprimed);
 
     printf("Extending transition relations to full domain...\n");
 
@@ -380,11 +404,14 @@ void merge_relations() {
 
 
 
-    bdd_refs_popptr(1);
+    bdd_refs_popptr(3);
 
 
     printf("Taking union of all transition relations.\n");
     next[0]->bdd = big_union(0, next_count);
+    next[0]->variables = newvars;
+    next[0]->primed = primed;
+    next[0]->unprimed = unprimed;
 
     for (int i=1; i<next_count; i++) {
         next[i]->bdd = sylvan_false;
@@ -486,7 +513,7 @@ void reachability(BDD initial, BDD R)
     printf("(%'0.0f states)\n", sylvan_satcount(visited, states->variables));
     while (prev != visited) {
         prev = visited;
-        successors = sylvan_relnext(visited, R, next[0]->variables);//sylvan_false);
+        successors = my_relnext(visited, R, next[0]->unprimed, next[0]->primed, xp_to_x);
         visited = sylvan_or(visited, successors); //mtbdd_set_union(visited, successors); // in bddmc.c 'sylvan_or' is used
         printf("it %d, nodecount = %ld ", ++k, sylvan_nodecount(visited)); fflush(stdout);
         printf("(%'0.0f states)\n", sylvan_satcount(visited, states->variables));
