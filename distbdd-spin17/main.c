@@ -377,7 +377,7 @@ void merge_relations() {
     for (int i = statebits - 1; i >= 0; i--) { //totalbits
         primed = mtbdd_set_add(primed, i*2+1);
         unprimed = mtbdd_set_add(unprimed, i*2);
-        xp_to_x = mtbdd_map_add(xp_to_x, (i*2+1), mtbdd_int64(i*2));
+        xp_to_x = mtbdd_map_add(xp_to_x, (i*2+1), sylvan_ithvar(i*2));
     }
 
     FILE *f;
