@@ -34,17 +34,15 @@ struct bdd_ser {
 
 typedef struct set {
 	BDD bdd;
-	BDD variables; // all (unprimed) variables in the set
+	BDDSET variables; // all (unprimed) variables in the set
 } *set_t;
 
 typedef struct relation {
 	BDD bdd;
-	BDD variables; // all variables (primed and unprimed) in the relation
-    BDDSET primed;
-    BDDSET unprimed;
+	BDDSET variables; // all variables (primed and unprimed) in the relation
 } *rel_t;
 
-MTBDDMAP xp_to_x; // map from primed vars to unprimed vars
+MTBDDMAP unprime_map; // maps from primed to unprimed vars
 
 set_t states;
 rel_t *next; // each partition of the transition relation
@@ -180,20 +178,19 @@ static void set_load(FILE* f) {
 TASK_2(BDD, extend_relation, MTBDD, relation, MTBDD, variables)
 {
     // first determine which state BDD variables are in rel
-    int has[statebits]; // totalbits
-    for (int i = 0; i < statebits; i++) has[i] = 0; // totalbits
+    int has[statebits];
+    for (int i = 0; i < statebits; i++) has[i] = 0;
     MTBDD s = variables;
-    while (!sylvan_set_isempty(s)) { //  === (s != mtbdd_true);
+    while (!sylvan_set_isempty(s)) {
         uint32_t v = sylvan_set_first(s);
         if (v/2 >= (unsigned)statebits) break; // action labels // total bits
         has[v/2] = 1;
         s = sylvan_set_next(s);
-        //printf("s = %lx\n", s);
     }
 
     // create "s=s'" for all variables not in rel
     BDD eq = sylvan_true;
-    for (int i = statebits - 1; i>=0; i--) { // totalbits
+    for (int i = statebits - 1; i>=0; i--) {
         if (has[i]) continue;
         BDD low = sylvan_makenode(2*i+1, eq, sylvan_false);
         bdd_refs_push(low);
@@ -210,7 +207,7 @@ TASK_2(BDD, extend_relation, MTBDD, relation, MTBDD, variables)
 }
 
 /**
- * Computes union the list of input bdds
+ * Computes union the list of input BDDs.
  */
 #define big_union(first, count) RUN(big_union, first, count)
 TASK_2(BDD, big_union, int, first, int, count)
@@ -226,23 +223,18 @@ TASK_2(BDD, big_union, int, first, int, count)
 }
 
 /**
- *  Merge all relations to one big transition relation
+ *  Merge all relations to one big transition relation.
  */
 void merge_relations() {
-    //BDD newvars = sylvan_set_empty();
-    BDD primed   = sylvan_set_empty();
-    BDD unprimed = sylvan_set_empty();
-    xp_to_x = mtbdd_map_empty();
-    bdd_refs_pushptr(&primed);
-    bdd_refs_pushptr(&unprimed);
-    bdd_refs_pushptr(&xp_to_x);
+    BDDSET newvars = sylvan_set_empty();
+    unprime_map = sylvan_map_empty();
+    bdd_refs_pushptr(&newvars);
+    bdd_refs_pushptr(&unprime_map);
     for (int i = statebits - 1; i >= 0; i--) {
-        primed = mtbdd_set_add(primed, i*2+1);
-        unprimed = mtbdd_set_add(unprimed, i*2);
-        xp_to_x = mtbdd_map_add(xp_to_x, (i*2+1), sylvan_ithvar(i*2));
+        newvars = sylvan_set_add(newvars, i*2+1);
+        newvars = sylvan_set_add(newvars, i*2);
+        unprime_map = sylvan_map_add(unprime_map, (i*2+1), sylvan_ithvar(i*2));
     }
-
-    BDD newvars = mtbdd_set_union(primed, unprimed);
 
     printf("Extending transition relations to full domain...\n");
 
@@ -254,16 +246,11 @@ void merge_relations() {
     }
     printf("\n");
 
-
-
-    bdd_refs_popptr(3);
-
+    bdd_refs_popptr(2);
 
     printf("Taking union of all transition relations.\n");
     next[0]->bdd = big_union(0, next_count);
     next[0]->variables = newvars;
-    next[0]->primed = primed;
-    next[0]->unprimed = unprimed;
 
     for (int i=1; i<next_count; i++) {
         next[i]->bdd = sylvan_false;
@@ -333,8 +320,7 @@ int read_model() {
 	printf("BDD nodes:\n");
 
     
-	printf("Initial states: %lu BDD nodes", sylvan_nodecount(states->bdd)); //bdd_nodecount(states->bdd)
-    //printf(" (%.0f states)", mtbdd_satcount(states->bdd, states->variables));
+	printf("Initial states: %lu BDD nodes", sylvan_nodecount(states->bdd));
     printf(" (%ld variables)", sylvan_set_count(states->variables));
     printf("\n");
     f = fopen("initial_states.dot", "w");
@@ -346,13 +332,13 @@ int read_model() {
     fclose(f);
 
 	for (i = 0; i < next_count; i++) {
-		printf("Transition %d: %lu BDD nodes\n", i, sylvan_nodecount(next[i]->bdd)); // bdd_nodecount(next[i]->bdd)
+		printf("Transition %d: %lu BDD nodes\n", i, sylvan_nodecount(next[i]->bdd));
 	}
 
     return 1;
 }
 
-void reachability(BDD initial, BDD R)
+void bfs_reachability(BDD initial, BDD R)
 {
     // compute the closure of input states under the transition relation
     // (assume single merged transition relation for now)
@@ -360,12 +346,15 @@ void reachability(BDD initial, BDD R)
     BDD visited = initial;
     BDD successors = sylvan_false;
     int k = 0;
+    BDDSET unprimed = states->variables;
+    BDDSET primed = mtbdd_set_minus(next[0]->variables, states->variables);
+
     printf("it %d, nodecount = %ld ", k, sylvan_nodecount(visited)); fflush(stdout);
     printf("(%'0.0f states)\n", sylvan_satcount(visited, states->variables));
     while (prev != visited) {
         prev = visited;
-        successors = my_relnext(visited, R, next[0]->unprimed, next[0]->primed, xp_to_x);
-        visited = sylvan_or(visited, successors); //mtbdd_set_union(visited, successors); // in bddmc.c 'sylvan_or' is used
+        successors = my_relnext(visited, R, unprimed, primed, unprime_map);
+        visited = sylvan_or(visited, successors);
         printf("it %d, nodecount = %ld ", ++k, sylvan_nodecount(visited)); fflush(stdout);
         printf("(%'0.0f states)\n", sylvan_satcount(visited, states->variables));
     }
@@ -447,8 +436,7 @@ int main(int argc, char *argv[])
     printf("using a BDD table of 2^%d = %lu entries (~%lu MB) per thread\n", tablesize, tableentries, tablemem);
 
 
-    //bdd_init(granularity, tableentries, cacheentries, flag_qp, chunksize);
-	printf("init sylvan and lace\n");
+    // init lace and sylvan
 	lace_start(1, 0);
 	sylvan_set_granularity(granularity);
     sylvan_set_sizes(tableentries, tableentries, cacheentries, cacheentries);
@@ -462,7 +450,7 @@ int main(int argc, char *argv[])
 
     // perform reachability
     printf("Doing reachability\n");
-    reachability(states->bdd, next[0]->bdd);
+    bfs_reachability(states->bdd, next[0]->bdd);
 
     //printf("PAR Time: %f\n", parout.time);
 
@@ -480,10 +468,8 @@ int main(int argc, char *argv[])
         printf("Final states: %llu BDD nodes\n", bdd_nodecount(parout.output));
     }
     */
-   	printf("stopping lace\n");
     
     lace_stop();
-	printf("lace stopped\n");
     return 0;
 }
 

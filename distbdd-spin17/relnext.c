@@ -1,7 +1,7 @@
 #include "relnext.h"
 
 
-BDD my_relnext(BDD s, BDD r, BDDSET x, BDDSET xp, MTBDDMAP xp_to_x)
+BDD my_relnext(BDD s, BDD r, BDDSET x, BDDSET xp, MTBDDMAP unprime_map)
 {
     BDD res;
     //BDDSET all_vars = mtbdd_set_union(x, xp);
@@ -14,7 +14,7 @@ BDD my_relnext(BDD s, BDD r, BDDSET x, BDDSET xp, MTBDDMAP xp_to_x)
     res = sylvan_exists(res, x);
 
     // 3. s' = s'[x' := x] (relabel primed to unprimed)
-    res = sylvan_compose(res, xp_to_x);
+    res = sylvan_compose(res, unprime_map);
 
     return res;
 }
