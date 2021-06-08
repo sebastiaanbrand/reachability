@@ -1,122 +1,21 @@
 #include <assert.h>
 #include <getopt.h>
 #include <stdio.h>
-#include "avl.h"
-#include "sylvan.h"
-//#include <localstore.h>
-//#include <nodecache.h>
-//#include <varchain.h>
-//#include <wstealer.h>
 #include <sys/time.h>
 #include <popt.h>
-
 #include <math.h>
 
+#include "avl.h"
+#include "sylvan.h"
 #include "lace.h"
-
 #include "relnext.h"
-
-long read_nodes;
-
-// TODO: clean up comments, whitespace, etc.
-
-
-/* < bit structure of (MT)BDD nodes in Sylvan >*/
-// mtbdd_complement = 0x8000000000000000LL;
-// mtbdd_false      = 0;
-// mtbdd_true       = 0x8000000000000000LL;
-// mtbdd_invalid    = 0xffffffffffffffffLL;
-// MTBDDs are assumed to have 40 bits for the pointer part. We'll put these 
-// "metadata bits" from the distdd implementation directly left of these 40 bits.
-
-/* < from bddnode.h > */
-// bitmaps for BDD references with memory layout:
-// - 3 bits metadata ("done" flag, "lock" flag, and "local" flag)
-// - 1 bit for complement edges
-// - 42 bits for storing the index in 'data'
-//#define distdd_bdd_metadata       ((BDD)0xE000000000000000) // 3 bits for metadata:
-//#define distdd_bdd_metadata_done  ((BDD)0x8000000000000000) // - 1 bit, "done" flag
-//#define distdd_bdd_metadata_lock  ((BDD)0x4000000000000000) // - 1 bit, "lock" flag
-//#define distdd_bdd_metadata_local ((BDD)0x2000000000000000) // - 1 bit, "local" flag
-//#define distdd_bdd_complement     ((BDD)0x1000000000000000) // 1 bit for complement edges
-#define distdd_bdd_complement     0x8000000000000000LL // sylvan
-#define distdd_bdd_false          ((BDD)0x0000000000000000)
-#define distdd_bdd_true           (distdd_bdd_false|distdd_bdd_complement)
-//#define distdd_bdd_invalid        ((BDD)0x0FFFFFFFFFFFFFFF) // 60 bits
-
-
-//#define distdd_bdd_strip_metadata(s) ((s)&~distdd_bdd_metadata)
-#define distdd_bdd_strip_mark(s) ((s)&~distdd_bdd_complement)
-//#define distdd_bdd_strip_mark_metadata(s) distdd_bdd_strip_mark(distdd_bdd_strip_metadata(s))
-
-//#define distdd_bdd_istrue(bdd) (distdd_bdd_strip_metadata(bdd) == distdd_bdd_true)
-//#define distdd_bdd_isfalse(bdd) (distdd_bdd_strip_metadata(bdd) == distdd_bdd_false)
-#define distdd_bdd_istrue(bdd) (bdd == distdd_bdd_true)
-#define distdd_bdd_isfalse(bdd) (bdd == distdd_bdd_false)
-//#define distdd_bdd_isconst(bdd) (distdd_bdd_isfalse(bdd) || distdd_bdd_istrue(bdd))
-#define distdd_bdd_isnode(bdd) (!distdd_bdd_isfalse(bdd) && !distdd_bdd_istrue(bdd))
-//#define distdd_bdd_islocal(bdd) ((bdd) & distdd_bdd_metadata_local)
-//#define distdd_bdd_isdone(bdd) ((bdd) & distdd_bdd_metadata_done)
-
-#define distdd_bdd_not(a) (((BDD)a)^distdd_bdd_complement)
-#define distdd_bdd_hasmark(s) (((s)&distdd_bdd_complement) ? 1 : 0)
-
-#define distdd_bdd_transfermark(from, to) ((to) ^ ((from) & distdd_bdd_complement))
-//#define distdd_bdd_set_data(bdd, data) (((bdd) & 0xF00003FFFFFFFFFF) | (((uint64_t)((data) & 0x0000FFFF)) << 42))
-//#define distdd_bdd_set_done(bdd) ((bdd) | distdd_bdd_metadata_done)
-/* </ from bddnode.h > */
-
-
-/* < from bdd.h > */
-struct bdd_ser {
-	BDD bdd;
-	uint64_t assigned;
-	uint64_t fix;
-};
-
-typedef struct set {
-	BDD bdd;
-	BDD variables; // all variables in the set (used by satcount)
-	//varchain_t *varchain;
-	//varchain_t **vararray;
-	//uint64_t varcount;
-} *set_t;
-
-typedef struct relation {
-	BDD bdd;
-	BDD variables; // all variables in the relation (used by relprod)
-	//varchain_t *varchain;
-	//varchain_t **vararray;
-	//uint64_t varcount;
-    BDDSET primed;
-    BDDSET unprimed;
-} *rel_t;
-
-MTBDDMAP xp_to_x; // map from primed vars to unprimed vars
-
-set_t states;
-rel_t *next; // each partition of the transition relation
-int next_count; // number of partitions of the transition relation
-/* </ from bdd.h */
 
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-
-static size_t ser_done = 0;
-static int vector_size; // size of vector
-static int statebits, actionbits; // number of bits for state, number of bits for action
-static int bits_per_integer; // number of bits per integer in the vector
-const char *filename;
-
-
-AVL(ser_reversed, struct bdd_ser) {
-    return left->assigned - right->assigned;
-}
-
-
-static avl_node_t *ser_reversed_set = NULL;
+#define strip_comp_mark(dd) ((dd)&~sylvan_complement)
+#define transfer_comp_mark(from, to) ((to) ^ ((from) & sylvan_complement))
 
 /*
 static double wctime() {
@@ -127,20 +26,61 @@ static double wctime() {
 */
 
 
-/* returns a DistDD BDD */
+struct bdd_ser {
+	BDD bdd;
+	uint64_t assigned;
+	uint64_t fix;
+};
+
+typedef struct set {
+	BDD bdd;
+	BDD variables; // all (unprimed) variables in the set
+} *set_t;
+
+typedef struct relation {
+	BDD bdd;
+	BDD variables; // all variables (primed and unprimed) in the relation
+    BDDSET primed;
+    BDDSET unprimed;
+} *rel_t;
+
+MTBDDMAP xp_to_x; // map from primed vars to unprimed vars
+
+set_t states;
+rel_t *next; // each partition of the transition relation
+int next_count; // number of partitions of the transition relation
+
+
+
+static size_t ser_done = 0;
+static int vector_size; // size of vector
+static int statebits, actionbits; // number of bits for state, number of bits for action
+static int bits_per_integer; // number of bits per integer in the vector
+const char *filename;
+
+
+/**
+ * AVL tree for rebuilding the loaded BDDs
+ */
+AVL(ser_reversed, struct bdd_ser) {
+    return left->assigned - right->assigned;
+}
+static avl_node_t *ser_reversed_set = NULL;
+
+
+
 BDD serialize_get_reversed(uint64_t value) {
-    //printf("value: %lx\n", value);
-    
-    if (!distdd_bdd_isnode(value)) {
+
+    if (!sylvan_isnode(value)) {
         return value;
     }
 
     struct bdd_ser s, *ss;
-    s.assigned = distdd_bdd_strip_mark(value);
+    s.assigned = strip_comp_mark(value);
     ss = ser_reversed_search(ser_reversed_set, &s);
     assert(ss != NULL);
     
-    return distdd_bdd_transfermark(value, ss->bdd);
+    return transfer_comp_mark(value, ss->bdd);
 }
 
 
@@ -167,14 +107,6 @@ void serialize_fromfile(FILE *in) {
         BDD node_high = a & 0x800000ffffffffff;
         BDD node_low = b & 0x000000ffffffffff;
         BDDVAR node_level = (BDDVAR)(b >> 40);
-        read_nodes++;
-
-        // THIS is the thing which messes up the bit structure it seems
-        // we changed the position of the 'comp' bit, which must be fixed...
-        //if ((node_high & distdd_bdd_metadata_done) != 0) {
-        //    node_high &= ~distdd_bdd_metadata_done;
-        //    node_high |= distdd_bdd_complement;
-        //}
 
         // some sanity check on the read data
         assert((a & ~0x800000ffffffffff) == 0 && "read invalid bits");
@@ -214,11 +146,8 @@ static rel_t rel_load(FILE* f) {
     rel->bdd = serialize_get_reversed(rel_bdd);
 
     // get and process variables
-    rel->variables = serialize_get_reversed(rel_vars); //CALL_SUPPORT(serialize_get_reversed(rel_vars));
-    //rel->varchain = bdd_to_chain(rel->variables); 
-    //rel->vararray = chain_to_array(rel->varchain);
-    //rel->varcount = chain_count(rel->varchain);
-    // TODO: figure out what the 3 lines above are supposed to do
+    rel->variables = serialize_get_reversed(rel_vars);
+
     return rel;
 }
 
@@ -240,44 +169,13 @@ static void set_load(FILE* f) {
     states->bdd = serialize_get_reversed(set_bdd);
 
     // get and process variables
-    states->variables = serialize_get_reversed(set_state_vars); //CALL_SUPPORT(serialize_get_reversed(set_state_vars));
-    //printf("variables: %ld <- serialize_get_reversed(%ld)\n", states->variables,  set_state_vars);
-    //states->varchain = bdd_to_chain(states->variables); 
-    //states->vararray = chain_to_array(states->varchain);
-    //states->varcount = chain_count(states->varchain);
-    // TODO: figure out what the 3 lines above are supposed to do
+    states->variables = serialize_get_reversed(set_state_vars);
 }
 
 
-
-/*
-BDD extend_relation(BDD relation, BDDSET variables) {
-    // first determine which state BDD variables are in rel
-    int *has = (int*)alloca(statebits * sizeof(int));
-    int i; for (i = 0; i < statebits; i++) has[i] = 0;
-    BDDSET s = variables;
-    while (bdd_strip_metadata(s) == bdd_true) {
-        BDDVAR v = bdd_var(s);
-        if (v/2 >= (unsigned)statebits) break; // action labels
-        has[v/2] = 1;
-        s = bdd_high(s);
-    }
-    
-    // then determine the extension to the transition relation
-    BDD eq = bdd_true;
-    for (i = statebits - 1; i >= 0; i--) {
-        if (has[i]) continue;
-        BDD low = bdd_makenode(2*i+1, eq, bdd_true);
-        BDD high = bdd_makenode(2*i+1, bdd_false, eq);
-        eq = bdd_makenode(2*i, low, high);
-    }
-    
-    // finally extend the transition relation
-    return CALL_AND(relation, eq, 0);
-}
-*/
-
-// extend relations from bddmc.c example
+/**
+ * Extends a transition relation to the domain of all given vars.
+ */
 #define extend_relation(rel, vars) RUN(extend_relation, rel, vars)
 TASK_2(BDD, extend_relation, MTBDD, relation, MTBDD, variables)
 {
@@ -311,22 +209,9 @@ TASK_2(BDD, extend_relation, MTBDD, relation, MTBDD, variables)
     return result;
 }
 
-
-/*
-BDD big_union(int first, int count) {
-    // terminal case
-    if (count == 1) return next[first]->bdd;
-    
-    // recursive computation
-    BDD left = big_union(first, count/2);
-    BDD right = big_union(first+count/2, count-count/2);
-    
-    // return the union of left and right
-    return bdd_or(left, right);
-}
-*/
-
-// big union from bddmc.c
+/**
+ * Computes union the list of input bdds
+ */
 #define big_union(first, count) RUN(big_union, first, count)
 TASK_2(BDD, big_union, int, first, int, count)
 {
@@ -340,33 +225,10 @@ TASK_2(BDD, big_union, int, first, int, count)
     return result;
 }
 
-/*
+/**
+ *  Merge all relations to one big transition relation
+ */
 void merge_relations() {
-    BDD prime_variables = sylvan_true; //bdd_true;
-    
-    int i; for (i = statebits - 1; i >= 0; i--) {
-        prime_variables = bdd_set_add(prime_variables, i*2+1);
-    }
-
-    
-    for (i = 0; i < next_count; i++) {
-        next[i]->bdd = extend_relation(next[i]->bdd, next[i]->variables);
-        next[i]->variables = prime_variables;
-        //next[i]->varchain = bdd_to_chain(next[i]->variables); 
-        //next[i]->vararray = chain_to_array(next[i]->varchain);
-        //next[i]->varcount = chain_count(next[i]->varchain);
-    }
-    
-    next[0]->bdd = big_union(0, next_count);
-    next_count = 1;
-    
-}
-*/
-
-
-// merge relations from bddmc.c example
-void merge_relations() {
-    /* merge all relations to one big transition relation */
     //BDD newvars = sylvan_set_empty();
     BDD primed   = sylvan_set_empty();
     BDD unprimed = sylvan_set_empty();
@@ -374,20 +236,10 @@ void merge_relations() {
     bdd_refs_pushptr(&primed);
     bdd_refs_pushptr(&unprimed);
     bdd_refs_pushptr(&xp_to_x);
-    for (int i = statebits - 1; i >= 0; i--) { //totalbits
+    for (int i = statebits - 1; i >= 0; i--) {
         primed = mtbdd_set_add(primed, i*2+1);
         unprimed = mtbdd_set_add(unprimed, i*2);
         xp_to_x = mtbdd_map_add(xp_to_x, (i*2+1), sylvan_ithvar(i*2));
-    }
-
-    FILE *f;
-    f = fopen("map.dot", "w");
-    sylvan_fprintdot(f, xp_to_x);
-    fclose(f);
-
-    if (sylvan_map_isempty(xp_to_x)) {
-        printf("map is empty\n");
-        exit(1);
     }
 
     BDD newvars = mtbdd_set_union(primed, unprimed);
@@ -473,7 +325,6 @@ int read_model() {
 
     // done reading from file..
     fclose(f);
-    printf("%ld nodes read from file\n", read_nodes);
 
     // TODO: parameterize this
     merge_relations();
@@ -607,7 +458,6 @@ int main(int argc, char *argv[])
 
     // read model file from disk
     filename = poptGetArg(con);
-    read_nodes = 0;
     read_model();
 
     // perform reachability

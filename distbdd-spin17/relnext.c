@@ -1,10 +1,5 @@
 #include "relnext.h"
 
-int fourtytwo()
-{
-    return 42;
-}
-
 
 BDD my_relnext(BDD s, BDD r, BDDSET x, BDDSET xp, MTBDDMAP xp_to_x)
 {
@@ -22,5 +17,4 @@ BDD my_relnext(BDD s, BDD r, BDDSET x, BDDSET xp, MTBDDMAP xp_to_x)
     res = sylvan_compose(res, xp_to_x);
 
     return res;
-    
 }
