@@ -483,13 +483,13 @@ void reachability(BDD initial, BDD R)
     BDD successors = sylvan_false;
     int k = 0;
     printf("it %d, nodecount = %ld ", k, sylvan_nodecount(visited)); fflush(stdout);
-    printf("(%'0.0f states)\n", sylvan_satcount(states->bdd, states->variables));
+    printf("(%'0.0f states)\n", sylvan_satcount(visited, states->variables));
     while (prev != visited) {
         prev = visited;
         successors = sylvan_relnext(visited, R, next[0]->variables);//sylvan_false);
         visited = sylvan_or(visited, successors); //mtbdd_set_union(visited, successors); // in bddmc.c 'sylvan_or' is used
         printf("it %d, nodecount = %ld ", ++k, sylvan_nodecount(visited)); fflush(stdout);
-        printf("(%'0.0f states)\n", sylvan_satcount(states->bdd, states->variables));
+        printf("(%'0.0f states)\n", sylvan_satcount(visited, states->variables));
     }
 }
 
