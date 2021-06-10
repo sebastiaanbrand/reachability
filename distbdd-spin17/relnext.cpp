@@ -38,21 +38,17 @@ sylvan::Bdd SmartExist(const sylvan::Bdd In, const sylvan::BddSet &Vars, int n) 
     return Set;
 }
 
-BDD my_relnext(BDD s, BDD r, BDDSET x, BDDSET xp, BDD unprime_map)
+BDD my_relnext(BDD s, BDD r, BDDSET x, BDD unprime_map)
 {
     BDD res;
-    //BDDSET all_vars = mtbdd_set_union(x, xp);
-    //res = sylvan_relnext(s, r, all_vars);
 
     // 1. s' = s ^ r (apply relation)
-    //res = sylvan_and(s, r);
     res = sylvan_and(s, r);
 
     // 2. s' = \exists x: s' (quantify unprimed vars away)
     res = SmartExist(Bdd(res), BddSet(x), 1).GetBDD();
 
     // 3. s' = s'[x' := x] (relabel primed to unprimed)
-    //res = res.Compose(Bdd(unprime_map));
     res = sylvan_compose(res, unprime_map);
 
     return res;

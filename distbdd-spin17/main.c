@@ -343,9 +343,7 @@ void bfs_reachability(BDD initial, BDD R)
     BDD relation = R;
     int k = 0;
     BDDSET unprimed = states->variables;
-    BDDSET primed = mtbdd_set_minus(next[0]->variables, states->variables);
 
-    sylvan_protect(&primed);
     sylvan_protect(&unprimed);
     sylvan_protect(&unprime_map);
     sylvan_protect(&prev);
@@ -357,13 +355,12 @@ void bfs_reachability(BDD initial, BDD R)
     printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
     while (prev != visited) {
         prev = visited;
-        successors = my_relnext(visited, relation, unprimed, primed, unprime_map);
+        successors = my_relnext(visited, relation, unprimed, unprime_map);
         visited = sylvan_or(visited, successors);
         printf("it %d, nodecount = %ld ", ++k, sylvan_nodecount(visited)); fflush(stdout);
         printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
     }
 
-    sylvan_unprotect(&primed);
     sylvan_unprotect(&unprimed);
     sylvan_unprotect(&unprime_map);
     sylvan_unprotect(&prev);
