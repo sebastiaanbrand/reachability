@@ -4,11 +4,13 @@
 #include <sys/time.h>
 #include <popt.h>
 #include <math.h>
+#include <stdbool.h>
+#include <libgen.h>
 
 #include "avl.h"
 #include "sylvan.h"
 #include "lace.h"
-#include "relnext.h"
+#include "smartexists.h"
 
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -25,6 +27,9 @@ static double wctime() {
 }
 */
 
+const char *statsfilename = "spin17bench_stats.csv";
+const char *stats_header = "benchmark, time, peaknodes";
+FILE *statsfile = NULL;
 
 struct bdd_ser {
 	BDD bdd;
@@ -54,7 +59,7 @@ static size_t ser_done = 0;
 static int vector_size; // size of vector
 static int statebits, actionbits; // number of bits for state, number of bits for action
 static int bits_per_integer; // number of bits per integer in the vector
-const char *filename;
+const char *filepath;
 
 
 /**
@@ -262,19 +267,19 @@ void merge_relations() {
 
 
 int read_model() {
-    if (filename == NULL) {
+    if (filepath == NULL) {
         fprintf(stderr, "No model has been given!\n");
         return -1;
     }
 
-    FILE *f = fopen(filename, "r");
+    FILE *f = fopen(filepath, "r");
 
     if (f == NULL) {
-        fprintf(stderr, "Cannot open file '%s'!\n", filename);
+        fprintf(stderr, "Cannot open file '%s'!\n", filepath);
         return -1;
     }
 
-    printf("Initializing %s!\n", filename);
+    printf("Initializing %s!\n", filepath);
     
     if ((fread(&vector_size, sizeof(int), 1, f) != 1) ||
             (fread(&statebits, sizeof(int), 1, f) != 1) ||
@@ -333,7 +338,7 @@ int read_model() {
 
 
 // TODO: do this entire thing in the C++ interface?
-void bfs_reachability(BDD initial, BDD R)
+void bfs_reachability(BDD initial, BDD R, bool smartexists)
 {
     // compute the closure of input states under the transition relation
     // (assume single merged transition relation for now)
@@ -355,7 +360,7 @@ void bfs_reachability(BDD initial, BDD R)
     printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
     while (prev != visited) {
         prev = visited;
-        successors = my_relnext(visited, relation, unprimed, unprime_map);
+        successors = my_relnext(visited, relation, unprimed, unprime_map, smartexists);
         visited = sylvan_or(visited, successors);
         printf("it %d, nodecount = %ld ", ++k, sylvan_nodecount(visited)); fflush(stdout);
         printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
@@ -379,6 +384,8 @@ int main(int argc, char *argv[])
     int chunksize = 8;
     int granularity = 8;
     int tablesize = 23;
+    int smartexists = 0;
+    int appendstats = 0;
 
     poptContext con;
 	struct poptOption optiontable[] = {
@@ -388,6 +395,8 @@ int main(int argc, char *argv[])
 		{ "help", 'h', POPT_ARG_NONE, &flag_help, 'h', "Display available options", NULL },
 		{ "quadratic-probing", 'q', POPT_ARG_NONE, &flag_qp, 'q', "Use quadratic probing instead of linear probing as collision strategy for the BDD table. This prevents clustering issues, but it hits performance in distributed runs.", NULL },
 		{ "tablesize", 't', POPT_ARG_INT, &tablesize, 't', "Sets the size of the BDD table to 1<<N nodes. Defaults to 23. Maximum of 32.", NULL },
+        { "smartexists", 's', POPT_ARG_NONE, &smartexists, 's', "If set, use local greedy search strategy during existential quantification in relnext.", NULL },
+        { "append-results", 'a', POPT_ARG_NONE, &appendstats, 'a', "If set, append gathered stats (time, nodecount) to default file.", NULL },
 		{NULL, 0, 0, NULL, 0, NULL, NULL}
 	};
 
@@ -410,6 +419,16 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (appendstats) {
+        statsfile = fopen(statsfilename, "a");
+    }
+    if (statsfile != NULL) {
+        // write header if file is empty
+        fseek (statsfile, 0, SEEK_END);
+		long size = ftell(statsfile);
+        if (size == 0)
+            fprintf(statsfile, "%s\n", stats_header);
+    }
 
     // make sure that: 4 <= cachegran
     granularity = MAX(granularity, 4);
@@ -452,14 +471,13 @@ int main(int argc, char *argv[])
     sylvan_init_package();
     sylvan_init_bdd();
 
-
     // read model file from disk
-    filename = poptGetArg(con);
+    filepath = poptGetArg(con);
     read_model();
 
     // perform reachability
     printf("Doing reachability\n");
-    bfs_reachability(states->bdd, next[0]->bdd);
+    bfs_reachability(states->bdd, next[0]->bdd, smartexists);
 
     //printf("PAR Time: %f\n", parout.time);
 
@@ -477,7 +495,15 @@ int main(int argc, char *argv[])
         printf("Final states: %llu BDD nodes\n", bdd_nodecount(parout.output));
     }
     */
-    
+
+    // write stats
+    if (statsfile != NULL) {
+        char* benchname = basename((char*)filepath);
+        fprintf(statsfile, "%s, \n", benchname);
+        fclose(statsfile);
+    }
+
+    sylvan_quit();
     lace_stop();
     return 0;
 }

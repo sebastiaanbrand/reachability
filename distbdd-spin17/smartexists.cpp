@@ -1,7 +1,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "relnext.h"
+#include "smartexists.h"
 #include "sylvan.h"
 #include "sylvan_obj.hpp"
 
@@ -38,7 +38,7 @@ sylvan::Bdd SmartExist(const sylvan::Bdd In, const sylvan::BddSet &Vars, int n) 
     return Set;
 }
 
-BDD my_relnext(BDD s, BDD r, BDDSET x, BDD unprime_map)
+BDD my_relnext(BDD s, BDD r, BDDSET x, BDD unprime_map, bool smartexists)
 {
     BDD res;
 
@@ -46,7 +46,11 @@ BDD my_relnext(BDD s, BDD r, BDDSET x, BDD unprime_map)
     res = sylvan_and(s, r);
 
     // 2. s' = \exists x: s' (quantify unprimed vars away)
-    res = SmartExist(Bdd(res), BddSet(x), 1).GetBDD();
+    if (smartexists)
+        res = SmartExist(Bdd(res), BddSet(x), 1).GetBDD();
+    else 
+        res = sylvan_exists(res, x);
+    
 
     // 3. s' = s'[x' := x] (relabel primed to unprimed)
     res = sylvan_compose(res, unprime_map);
