@@ -323,13 +323,6 @@ int read_model() {
 	printf("Initial states: %lu BDD nodes", sylvan_nodecount(states->bdd));
     printf(" (%ld variables)", sylvan_set_count(states->variables));
     printf("\n");
-    f = fopen("initial_states.dot", "w");
-    sylvan_fprintdot(f, states->bdd);
-    fclose(f);
-
-    f = fopen("transition0.dot", "w");
-    sylvan_fprintdot(f, next[0]->bdd);
-    fclose(f);
 
 	for (i = 0; i < next_count; i++) {
 		printf("Transition %d: %lu BDD nodes\n", i, sylvan_nodecount(next[i]->bdd));
