@@ -338,6 +338,8 @@ int read_model() {
     return 1;
 }
 
+
+// TODO: do this entire thing in the C++ interface?
 void bfs_reachability(BDD initial, BDD R)
 {
     // compute the closure of input states under the transition relation
@@ -345,19 +347,36 @@ void bfs_reachability(BDD initial, BDD R)
     BDD prev = sylvan_false;
     BDD visited = initial;
     BDD successors = sylvan_false;
+    BDD relation = R;
     int k = 0;
     BDDSET unprimed = states->variables;
     BDDSET primed = mtbdd_set_minus(next[0]->variables, states->variables);
 
+    sylvan_protect(&primed);
+    sylvan_protect(&unprimed);
+    sylvan_protect(&unprime_map);
+    sylvan_protect(&prev);
+    sylvan_protect(&successors);
+    sylvan_protect(&visited);
+    sylvan_protect(&relation);
+
     printf("it %d, nodecount = %ld ", k, sylvan_nodecount(visited)); fflush(stdout);
-    printf("(%'0.0f states)\n", sylvan_satcount(visited, states->variables));
+    printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
     while (prev != visited) {
         prev = visited;
-        successors = my_relnext(visited, R, unprimed, primed, unprime_map);
+        successors = my_relnext(visited, relation, unprimed, primed, unprime_map);
         visited = sylvan_or(visited, successors);
         printf("it %d, nodecount = %ld ", ++k, sylvan_nodecount(visited)); fflush(stdout);
-        printf("(%'0.0f states)\n", sylvan_satcount(visited, states->variables));
+        printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
     }
+
+    sylvan_unprotect(&primed);
+    sylvan_unprotect(&unprimed);
+    sylvan_unprotect(&unprime_map);
+    sylvan_unprotect(&prev);
+    sylvan_unprotect(&successors);
+    sylvan_unprotect(&visited);
+    sylvan_unprotect(&relation);
 }
 
 
