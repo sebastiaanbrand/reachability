@@ -19,17 +19,19 @@
 #define strip_comp_mark(dd) ((dd)&~sylvan_complement)
 #define transfer_comp_mark(from, to) ((to) ^ ((from) & sylvan_complement))
 
-/*
+
 static double wctime() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (tv.tv_sec + 1E-6 * tv.tv_usec);
 }
-*/
+
 
 const char *statsfilename = "spin17bench_stats.csv";
-const char *stats_header = "benchmark, time, peaknodes";
+const char *stats_header = "benchmark, smartexists, time, peaknodes";
 FILE *statsfile = NULL;
+uint64_t peaknodes = 0;
+
 
 struct bdd_ser {
 	BDD bdd;
@@ -348,6 +350,7 @@ void bfs_reachability(BDD initial, BDD R, bool smartexists)
     BDD relation = R;
     int k = 0;
     BDDSET unprimed = states->variables;
+    uint64_t nodecount;
 
     sylvan_protect(&unprimed);
     sylvan_protect(&unprime_map);
@@ -361,8 +364,12 @@ void bfs_reachability(BDD initial, BDD R, bool smartexists)
     while (prev != visited) {
         prev = visited;
         successors = my_relnext(visited, relation, unprimed, unprime_map, smartexists);
+        peaknodes = MAX(peaknodes, smartexists_get_peaknodes());
+
         visited = sylvan_or(visited, successors);
-        printf("it %d, nodecount = %ld ", ++k, sylvan_nodecount(visited)); fflush(stdout);
+        nodecount = sylvan_nodecount(visited);
+        peaknodes = MAX(peaknodes, smartexists_get_peaknodes());
+        printf("it %d, nodecount = %ld ", ++k, nodecount); fflush(stdout);
         printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
     }
 
@@ -477,29 +484,14 @@ int main(int argc, char *argv[])
 
     // perform reachability
     printf("Doing reachability\n");
+    double time = wctime();
     bfs_reachability(states->bdd, next[0]->bdd, smartexists);
-
-    //printf("PAR Time: %f\n", parout.time);
-
-    /*
-
-    // show statistics
-    nodecache_show_stats();
-    ws_statistics();
-
-    // determine the size of the state space
-    ws_comp_out_t satout = COMPUTE_SATCOUNT(parout.output, 0, 0);
-
-    if (MYTHREAD == 0) {
-        printf("Final states: %llu states\n", satout.output);
-        printf("Final states: %llu BDD nodes\n", bdd_nodecount(parout.output));
-    }
-    */
+    time = wctime() - time;
 
     // write stats
     if (statsfile != NULL) {
         char* benchname = basename((char*)filepath);
-        fprintf(statsfile, "%s, \n", benchname);
+        fprintf(statsfile, "%s, %d, %f, %ld\n", benchname, smartexists, time, peaknodes);
         fclose(statsfile);
     }
 
