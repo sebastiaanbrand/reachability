@@ -402,7 +402,7 @@ int main(int argc, char *argv[])
 		{ "help", 'h', POPT_ARG_NONE, &flag_help, 'h', "Display available options", NULL },
 		{ "quadratic-probing", 'q', POPT_ARG_NONE, &flag_qp, 'q', "Use quadratic probing instead of linear probing as collision strategy for the BDD table. This prevents clustering issues, but it hits performance in distributed runs.", NULL },
 		{ "tablesize", 't', POPT_ARG_INT, &tablesize, 't', "Sets the size of the BDD table to 1<<N nodes. Defaults to 23. Maximum of 32.", NULL },
-        { "smartexists", 's', POPT_ARG_NONE, &smartexists, 's', "If set, use local greedy search strategy during existential quantification in relnext.", NULL },
+        { "smartexists", 's', POPT_ARG_INT, &smartexists, 's', "= 0 standard exists (default), 1 = local greedy, 2 = greedy oracle.", NULL },
         { "append-results", 'a', POPT_ARG_NONE, &appendstats, 'a', "If set, append gathered stats (time, nodecount) to default file.", NULL },
 		{NULL, 0, 0, NULL, 0, NULL, NULL}
 	};
