@@ -11,6 +11,7 @@
 #include "sylvan.h"
 #include "lace.h"
 #include "smartexists.h"
+#include "recursive_reachability.h"
 
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -340,7 +341,7 @@ int read_model() {
 
 
 // TODO: do this entire thing in the C++ interface?
-void bfs_reachability(BDD initial, BDD R, bool smartexists)
+void bfs_reachability(BDD initial, BDD R, int smartexists)
 {
     // compute the closure of input states under the transition relation
     // (assume single merged transition relation for now)
@@ -379,6 +380,11 @@ void bfs_reachability(BDD initial, BDD R, bool smartexists)
     sylvan_unprotect(&successors);
     sylvan_unprotect(&visited);
     sylvan_unprotect(&relation);
+}
+
+void rec_reachablity()
+{
+    reachable_rec(states->bdd, next[0]->bdd, states->variables, sylvan_set_count(states->variables));
 }
 
 
@@ -465,6 +471,7 @@ int main(int argc, char *argv[])
     // make sure that: 23 <= tablesize <= 32
     tablesize = MAX(tablesize, 23);
     tablesize = MIN(tablesize, 32);
+    tablesize = 20;
 
     uint64_t tableentries = (((uint64_t)1) << tablesize);
     uint64_t tablemem = (24 * tableentries) / (1048576);
@@ -485,7 +492,8 @@ int main(int argc, char *argv[])
     // perform reachability
     printf("Doing reachability\n");
     double time = wctime();
-    bfs_reachability(states->bdd, next[0]->bdd, smartexists);
+    //bfs_reachability(states->bdd, next[0]->bdd, smartexists);
+    rec_reachablity();
     time = wctime() - time;
 
     // write stats
