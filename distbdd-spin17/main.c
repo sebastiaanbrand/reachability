@@ -488,6 +488,7 @@ int main(int argc, char *argv[])
     sylvan_set_sizes(tableentries, tableentries, cacheentries, cacheentries);
     sylvan_init_package();
     sylvan_init_bdd();
+    sylvan_gc_disable(); // for now
 
     // read model file from disk
     filepath = poptGetArg(con);

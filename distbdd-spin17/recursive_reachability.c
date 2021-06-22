@@ -145,8 +145,10 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
 
         // stitch partitioned states back together
         // ITE(a, true, b) === OR(a, b)
-        BDD t0 = sylvan_or(t00, t10); // states where curvar = 0 after applying r00 / r10
-        BDD t1 = sylvan_or(t01, t11); // states where curvar = 1 after applying r01 / r11
+        // NOTE: I would think t01 and t10 would need to be flipped, but
+        // flipping them gives incorrect results...
+        BDD t0 = sylvan_or(t00, t01); // states where curvar = 0 after applying r00 / r10
+        BDD t1 = sylvan_or(t10, t11); // states where curvar = 1 after applying r01 / r11
 
         s0 = sylvan_or(s0, t0);
         s1 = sylvan_or(s1, t1);
