@@ -3,25 +3,18 @@
 
 TASK_IMPL_2(BDD, reachable_bfs, BDD, s, BDD, r)
 {
-    printf("reachable bfs\n");
     BDD prev = sylvan_false;
     BDD successors = sylvan_false;
-    int k = 0;
-    uint64_t nodecount;
 
     sylvan_protect(&s);
     sylvan_protect(&r);
     sylvan_protect(&prev);
     sylvan_protect(&successors);
 
-    printf("it %d, nodecount = %ld\n", k, sylvan_nodecount(s));
     while (prev != s) {
         prev = s;
         successors = sylvan_relnext(s, r, sylvan_false);
-
         s = sylvan_or(s, successors);
-        nodecount = sylvan_nodecount(s);
-        printf("it %d, nodecount = %ld\n", ++k, nodecount);
     }
 
     sylvan_unprotect(&s);
@@ -101,15 +94,12 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
     assert(curvar % 2 == 0);
 
     /* TODO: better terminals */
-    if (curvar > 0) {//((nvars-1)*2 == curvar ) { // at last variable
-        printf("curvar = %d\n", curvar);
+    if (curvar > 10) {//((nvars-1)*2 == curvar ) { // at last variable
         return reachable_bfs(s, r);
     }
 
-    printf("curvar = %d\n", curvar);
-
     /* Consult cache */
-    int cachenow = 0;
+    int cachenow = 1;
     if (cachenow) {
         BDD res;
         if (cache_get3(CACHE_BDD_REACHABLE, s, r, 0, &res)) {
@@ -129,7 +119,6 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
 
     // TODO: maybe we can do this saturation-like loop more efficiently
     while (s0 != prev0 || s1 != prev1) {
-        printf("loop\n");
         prev0 = s0;
         prev1 = s1;
 
@@ -143,18 +132,17 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
         BDD t11 = CALL(reachable_rec, s1, r11, nvars, nextvar);
         bdd_refs_push(t11);
 
-        // stitch partitioned states back together
-        // ITE(a, true, b) === OR(a, b)
         // NOTE: I would think t01 and t10 would need to be flipped, but
         // flipping them gives incorrect results...
         BDD t0 = sylvan_or(t00, t01); // states where curvar = 0 after applying r00 / r10
         BDD t1 = sylvan_or(t10, t11); // states where curvar = 1 after applying r01 / r11
 
+        /* Union with previously reachable set */
         s0 = sylvan_or(s0, t0);
         s1 = sylvan_or(s1, t1);
     }
 
-    // s = ((!curvar) ^ s0)  v  ((curvar) ^ s1)
+    /* res = ((!curvar) ^ s0)  v  ((curvar) ^ s1) */
     BDD res = sylvan_makenode(curvar, s0, s1);
 
     /* Put in cache */
