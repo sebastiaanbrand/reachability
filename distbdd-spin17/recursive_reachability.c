@@ -94,9 +94,7 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
     assert(curvar % 2 == 0);
 
     /* TODO: better terminals */
-    if (curvar > 10) {//((nvars-1)*2 == curvar ) { // at last variable
-        return reachable_bfs(s, r);
-    }
+    
 
     /* Consult cache */
     int cachenow = 1;
@@ -106,6 +104,13 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
             return res;
         }
     }
+
+    //if ((nvars-1)*2 == curvar ) { // at last variable
+    if (curvar > 0) {
+        printf("base case\n");
+        return reachable_bfs(s, r);
+    }
+
 
     // Relations, states, and var for next level of recursion
     BDDVAR nextvar = curvar + 2;
@@ -132,17 +137,27 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
         BDD t11 = CALL(reachable_rec, s1, r11, nvars, nextvar);
         bdd_refs_push(t11);
 
+        printf("nodecounts:\n");
+        printf("t00 = %ld\n", sylvan_nodecount(t00));
+        printf("t01 = %ld\n", sylvan_nodecount(t01));
+        printf("t10 = %ld\n", sylvan_nodecount(t10));
+        printf("t11 = %ld\n", sylvan_nodecount(t11));
+
         // NOTE: I would think t01 and t10 would need to be flipped, but
         // flipping them gives incorrect results...
-        BDD t0 = sylvan_or(t00, t01); // states where curvar = 0 after applying r00 / r10
-        BDD t1 = sylvan_or(t10, t11); // states where curvar = 1 after applying r01 / r11
+        BDD t0 = sylvan_or(t00, t10); // states where curvar = 0 after applying r00 / r10
+        BDD t1 = sylvan_or(t01, t11); // states where curvar = 1 after applying r01 / r11
+        bdd_refs_pop(4);
 
         /* Union with previously reachable set */
+        //s0 = t0; // this should suffice because reachable(R,S) (should) return 
+        //s1 = t1; // S.R* \union S, not just S.R*
         s0 = sylvan_or(s0, t0);
         s1 = sylvan_or(s1, t1);
     }
 
     /* res = ((!curvar) ^ s0)  v  ((curvar) ^ s1) */
+    //assert(s0 != s1);
     BDD res = sylvan_makenode(curvar, s0, s1);
 
     /* Put in cache */
