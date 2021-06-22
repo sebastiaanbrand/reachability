@@ -124,16 +124,14 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
     partition_state(s, curvar, &s0, &s1);
 
     // TODO: protect relevant BDDs
-    BDD reach0 = s0;
-    BDD reach1 = s1;
     BDD prev0 = sylvan_false;
     BDD prev1 = sylvan_false;
 
     // TODO: maybe we can do this saturation-like loop more efficiently
-    while (reach0 != prev0 || reach1 != prev1) {
+    while (s0 != prev0 || s1 != prev1) {
         printf("loop\n");
-        prev0 = reach0;
-        prev1 = reach1;
+        prev0 = s0;
+        prev1 = s1;
 
         // TODO: spawn tasks
         BDD t00 = CALL(reachable_rec, s0, r00, nvars, nextvar);
@@ -146,14 +144,16 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
         bdd_refs_push(t11);
 
         // stitch partitioned states back together
+        // ITE(a, true, b) === OR(a, b)
         BDD t0 = sylvan_or(t00, t10); // states where curvar = 0 after applying r00 / r10
-        BDD t1 = sylvan_or(t10, t11); // states where curvar = 1 after applying r01 / r11
-        
-        reach0 = sylvan_or(reach0, t0);
-        reach1 = sylvan_or(reach1, t1);
+        BDD t1 = sylvan_or(t01, t11); // states where curvar = 1 after applying r01 / r11
+
+        s0 = sylvan_or(s0, t0);
+        s1 = sylvan_or(s1, t1);
     }
 
-    BDD res = sylvan_makenode(curvar, reach0, reach1);
+    // s = ((!curvar) ^ s0)  v  ((curvar) ^ s1)
+    BDD res = sylvan_makenode(curvar, s0, s1);
 
     /* Put in cache */
     if (cachenow) {
