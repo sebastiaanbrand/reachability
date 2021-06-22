@@ -384,7 +384,11 @@ void bfs_reachability(BDD initial, BDD R, int smartexists)
 
 void rec_reachablity()
 {
-    reachable_rec(states->bdd, next[0]->bdd, states->variables, sylvan_set_count(states->variables));
+    BDD reachable = reachable_rec(states->bdd, next[0]->bdd, sylvan_set_count(states->variables));
+
+    uint64_t nodecount = sylvan_nodecount(reachable);
+    printf("final nodecount = %ld ", nodecount); fflush(stdout);
+    printf("(%'0.0f states)\n", sylvan_satcount(reachable, states->variables));
 }
 
 

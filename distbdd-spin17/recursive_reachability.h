@@ -1,7 +1,7 @@
 #include "sylvan.h"
 
-#define reachable_bfs(s,r,vars) RUN(reachable_bfs,s,r,vars)
-TASK_DECL_3(BDD, reachable_bfs, BDD, BDD, BDDSET);
+#define reachable_bfs(s,r) RUN(reachable_bfs,s,r)
+TASK_DECL_2(BDD, reachable_bfs, BDD, BDD);
 
-#define reachable_rec(s,r,vars,nvars) RUN(reachable_rec,s,r,vars,nvars,0)
-TASK_DECL_5(BDD, reachable_rec, BDD, BDD, BDDSET, BDDVAR, BDDVAR);
+#define reachable_rec(s,r,nvars) RUN(reachable_rec,s,r,nvars,0)
+TASK_DECL_4(BDD, reachable_rec, BDD, BDD, BDDVAR, BDDVAR);
