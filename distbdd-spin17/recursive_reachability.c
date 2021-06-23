@@ -93,8 +93,10 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
 {
     assert(curvar % 2 == 0);
 
-    /* TODO: better terminals */
-    
+    /* Terminal cases */
+    if (s == sylvan_true && r == sylvan_true) return sylvan_true;
+    if (s == sylvan_false || r == sylvan_false) return sylvan_false;
+
 
     /* Consult cache */
     int cachenow = 1;
@@ -105,14 +107,17 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
         }
     }
 
-    if ((nvars-1)*2 == curvar ) { // at last variable
-        return reachable_bfs(s, r);
-    }
+    // optional earlier terminal:
+    //if ((nvars-1)*2 == curvar ) { // at last variable
+    //    return reachable_bfs(s, r);
+    //}
 
 
     // Relations, states, and var for next level of recursion
     BDDVAR nextvar = curvar + 2;
     BDD r00, r01, r10, r11, s0, s1;
+    // TODO: maybe instead of splitting at every level, only split on (even) 
+    // topvar of r,s
     partition_rel(r, curvar, &r00, &r01, &r10, &r11);
     partition_state(s, curvar, &s0, &s1);
 
