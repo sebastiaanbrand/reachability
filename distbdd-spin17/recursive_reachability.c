@@ -105,9 +105,7 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
         }
     }
 
-    //if ((nvars-1)*2 == curvar ) { // at last variable
-    if (curvar > 0) {
-        printf("base case\n");
+    if ((nvars-1)*2 == curvar ) { // at last variable
         return reachable_bfs(s, r);
     }
 
@@ -130,21 +128,13 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
         // TODO: spawn tasks
         BDD t00 = CALL(reachable_rec, s0, r00, nvars, nextvar);
         bdd_refs_push(t00);
-        BDD t01 = CALL(reachable_rec, s0, r01, nvars, nextvar);
+        BDD t01 = sylvan_relnext(s0, r01, sylvan_false);
         bdd_refs_push(t01);
-        BDD t10 = CALL(reachable_rec, s1, r10, nvars, nextvar);
+        BDD t10 = sylvan_relnext(s1, r10, sylvan_false);
         bdd_refs_push(t10);
         BDD t11 = CALL(reachable_rec, s1, r11, nvars, nextvar);
         bdd_refs_push(t11);
 
-        printf("nodecounts:\n");
-        printf("t00 = %ld\n", sylvan_nodecount(t00));
-        printf("t01 = %ld\n", sylvan_nodecount(t01));
-        printf("t10 = %ld\n", sylvan_nodecount(t10));
-        printf("t11 = %ld\n", sylvan_nodecount(t11));
-
-        // NOTE: I would think t01 and t10 would need to be flipped, but
-        // flipping them gives incorrect results...
         BDD t0 = sylvan_or(t00, t10); // states where curvar = 0 after applying r00 / r10
         BDD t1 = sylvan_or(t01, t11); // states where curvar = 1 after applying r01 / r11
         bdd_refs_pop(4);
