@@ -28,18 +28,17 @@ TASK_IMPL_2(BDD, reachable_bfs, BDD, s, BDD, r)
 void
 partition_rel(BDD r, BDDVAR topvar, BDD *r00, BDD *r01, BDD *r10, BDD *r11)
 {
-    // Determine top var of r
-    bddnode_t n = sylvan_isconst(r) ? 0 : MTBDD_GETNODE(r);
-    BDDVAR var = n ? bddnode_getvariable(n) : 0xffffffff;
-    assert(topvar <= var);
-
     // Check if unprimed var is skipped
     BDD r0, r1;
-    if (var == topvar) {
-        r0 = node_low(r, n);
-        r1 = node_high(r, n);
+    if (!sylvan_isconst(r)) {
+        bddnode_t n = MTBDD_GETNODE(r);
+        if (bddnode_getvariable(n) == topvar) {
+            r0 = node_low(r, n);
+            r1 = node_high(r, n);
+        } else {
+            r0 = r1 = r;
+        }
     } else {
-        assert(var > topvar);
         r0 = r1 = r;
     }
 
@@ -50,7 +49,6 @@ partition_rel(BDD r, BDDVAR topvar, BDD *r00, BDD *r01, BDD *r10, BDD *r11)
             *r00 = node_low(r0, n0);
             *r01 = node_high(r0, n0);
         } else {
-            assert(var > topvar);
             *r00 = *r01 = r0;
         }
     } else {
@@ -62,7 +60,6 @@ partition_rel(BDD r, BDDVAR topvar, BDD *r00, BDD *r01, BDD *r10, BDD *r11)
             *r10 = node_low(r1, n1);
             *r11 = node_high(r1, n1);
         } else {
-            assert(var > topvar);
             *r10 = *r11 = r1;
         }
     } else {
