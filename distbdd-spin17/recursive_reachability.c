@@ -94,12 +94,15 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
     if (s == sylvan_true && r == sylvan_true) return sylvan_true;
     if (s == sylvan_false || r == sylvan_false) return sylvan_false;
 
+    /* Count operation */
+    sylvan_stats_count(BDD_REACHABLE);
 
     /* Consult cache */
     int cachenow = 1;
     if (cachenow) {
         BDD res;
         if (cache_get3(CACHE_BDD_REACHABLE, s, r, 0, &res)) {
+            sylvan_stats_count(BDD_REACHABLE_CACHED);
             return res;
         }
     }
@@ -149,12 +152,12 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
     }
 
     /* res = ((!curvar) ^ s0)  v  ((curvar) ^ s1) */
-    //assert(s0 != s1);
     BDD res = sylvan_makenode(curvar, s0, s1);
 
     /* Put in cache */
     if (cachenow) {
-        cache_put3(CACHE_BDD_REACHABLE, s, r, 0, res);
+        if (cache_put3(CACHE_BDD_REACHABLE, s, r, 0, res)) 
+            sylvan_stats_count(BDD_REACHABLE_CACHEDPUT);
     }
 
     return res;

@@ -476,7 +476,6 @@ int main(int argc, char *argv[])
     // make sure that: 23 <= tablesize <= 32
     tablesize = MAX(tablesize, 23);
     tablesize = MIN(tablesize, 32);
-    tablesize = 20;
 
     uint64_t tableentries = (((uint64_t)1) << tablesize);
     uint64_t tablemem = (24 * tableentries) / (1048576);
@@ -508,6 +507,8 @@ int main(int argc, char *argv[])
         fprintf(statsfile, "%s, %d, %f, %ld\n", benchname, smartexists, time, peaknodes);
         fclose(statsfile);
     }
+
+    printf("reachability time = %lf sec\n", time);
 
     sylvan_quit();
     lace_stop();
