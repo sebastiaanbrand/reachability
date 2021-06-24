@@ -10,7 +10,6 @@
 #include "avl.h"
 #include "sylvan.h"
 #include "lace.h"
-#include "smartexists.h"
 #include "recursive_reachability.h"
 
 
@@ -20,7 +19,7 @@
 #define strip_comp_mark(dd) ((dd)&~sylvan_complement)
 #define transfer_comp_mark(from, to) ((to) ^ ((from) & sylvan_complement))
 
-
+/* wall-clock time */
 static double wctime() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -29,10 +28,24 @@ static double wctime() {
 
 
 const char *statsfilename = "spin17bench_stats.csv";
-const char *stats_header = "benchmark, smartexists, time, peaknodes";
+const char *stats_header = "benchmark, reach_strategy, time, peaknodes";
 FILE *statsfile = NULL;
 uint64_t peaknodes = 0;
 
+/* Flags / parameters */
+int flag_help = -1;
+int cachesize = 23;
+int granularity = 8;
+int tablesize = 23;
+int reach_strategy = 0;
+int appendstats = 0;
+
+
+typedef enum reach_strat {
+    reach_bfs = 0,
+    reach_recursive = 1,
+    reach_saturation = 2
+} reach_strat_t;
 
 struct bdd_ser {
 	BDD bdd;
@@ -65,15 +78,11 @@ static int bits_per_integer; // number of bits per integer in the vector
 const char *filepath;
 
 
-/**
- * AVL tree for rebuilding the loaded BDDs
- */
+/* AVL tree for rebuilding the loaded BDDs*/
 AVL(ser_reversed, struct bdd_ser) {
     return left->assigned - right->assigned;
 }
 static avl_node_t *ser_reversed_set = NULL;
-
-
 
 BDD serialize_get_reversed(uint64_t value) {
 
@@ -88,8 +97,6 @@ BDD serialize_get_reversed(uint64_t value) {
     
     return transfer_comp_mark(value, ss->bdd);
 }
-
-
 
 void serialize_fromfile(FILE *in) {
     size_t count;
@@ -135,7 +142,6 @@ void serialize_fromfile(FILE *in) {
     }
 }
 
-
 static rel_t rel_load(FILE* f) {
     serialize_fromfile(f);
 
@@ -156,7 +162,6 @@ static rel_t rel_load(FILE* f) {
 
     return rel;
 }
-
 
 static void set_load(FILE* f) {
     serialize_fromfile(f);
@@ -271,24 +276,24 @@ void merge_relations() {
 
 int read_model() {
     if (filepath == NULL) {
-        fprintf(stderr, "No model has been given!\n");
-        return -1;
+        fprintf(stderr, "No model has been given\n");
+        exit(1);
     }
 
     FILE *f = fopen(filepath, "r");
 
     if (f == NULL) {
-        fprintf(stderr, "Cannot open file '%s'!\n", filepath);
-        return -1;
+        fprintf(stderr, "Cannot open file '%s'\n", filepath);
+        exit(1);
     }
 
-    printf("Initializing %s!\n", filepath);
+    printf("Initializing %s\n", filepath);
     
     if ((fread(&vector_size, sizeof(int), 1, f) != 1) ||
             (fread(&statebits, sizeof(int), 1, f) != 1) ||
             (fread(&actionbits, sizeof(int), 1, f) != 1)) {
             fprintf(stderr, "Invalid input file!\n");
-            exit(EXIT_FAILURE);
+            exit(1);
     }
     
     bits_per_integer = statebits;
@@ -321,8 +326,10 @@ int read_model() {
     // done reading from file..
     fclose(f);
 
-    // TODO: parameterize this
-    merge_relations();
+    // Merge partial relations unless strategy is saturation
+    if (reach_strategy != reach_saturation) {
+        merge_relations();
+    }
 
 	printf("%d integers per state, %d bits per integer, %d transition groups\n", vector_size, bits_per_integer, next_count);
 	printf("BDD nodes:\n");
@@ -339,94 +346,52 @@ int read_model() {
     return 1;
 }
 
-
-// TODO: do this entire thing in the C++ interface?
-void bfs_reachability(BDD initial, BDD R, int smartexists)
+/* Run reachablity on parsed BDDs */
+void reachability(reach_strat_t strat)
 {
-    // compute the closure of input states under the transition relation
-    // (assume single merged transition relation for now)
-    BDD prev = sylvan_false;
-    BDD visited = initial;
-    BDD successors = sylvan_false;
-    BDD relation = R;
-    int k = 0;
-    BDDSET unprimed = states->variables;
-    uint64_t nodecount;
-
-    sylvan_protect(&unprimed);
-    sylvan_protect(&unprime_map);
-    sylvan_protect(&prev);
-    sylvan_protect(&successors);
-    sylvan_protect(&visited);
-    sylvan_protect(&relation);
-
-    printf("it %d, nodecount = %ld ", k, sylvan_nodecount(visited)); fflush(stdout);
-    printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
-    while (prev != visited) {
-        prev = visited;
-        successors = my_relnext(visited, relation, unprimed, unprime_map, smartexists);
-        peaknodes = MAX(peaknodes, smartexists_get_peaknodes());
-
-        visited = sylvan_or(visited, successors);
-        nodecount = sylvan_nodecount(visited);
-        peaknodes = MAX(peaknodes, smartexists_get_peaknodes());
-        printf("it %d, nodecount = %ld ", ++k, nodecount); fflush(stdout);
-        printf("(%'0.0f states)\n", sylvan_satcount(visited, unprimed));
+    BDD reachable = sylvan_false;
+    switch (strat) {
+    case reach_bfs:
+        reachable = reachable_bfs(states->bdd, next[0]->bdd);
+        break;
+    case reach_recursive:
+        reachable = reachable_rec(states->bdd, next[0]->bdd, sylvan_set_count(states->variables));
+        break;
+    case reach_saturation:
+        printf("TODO\n");
+        exit(1);
+        break;
+    default:
+        printf("No valid reachability strategy given.\n");
+        exit(1);
+        break;
     }
-
-    sylvan_unprotect(&unprimed);
-    sylvan_unprotect(&unprime_map);
-    sylvan_unprotect(&prev);
-    sylvan_unprotect(&successors);
-    sylvan_unprotect(&visited);
-    sylvan_unprotect(&relation);
-}
-
-void rec_reachablity()
-{
-    BDD reachable = reachable_rec(states->bdd, next[0]->bdd, sylvan_set_count(states->variables));
-    //BDD reachable = reachable_bfs(states->bdd, next[0]->bdd);
-
     uint64_t nodecount = sylvan_nodecount(reachable);
     printf("final nodecount = %ld ", nodecount); fflush(stdout);
     printf("(%'0.0f states)\n", sylvan_satcount(reachable, states->variables));
 }
 
 
+/* Process parameters and run experiment */
 int main(int argc, char *argv[]) 
 {
-
-    int flag_help = -1;
-    int flag_qp = -1;
-    int cachesize = 23;
-    int chunksize = 8;
-    int granularity = 8;
-    int tablesize = 23;
-    int smartexists = 0;
-    int appendstats = 0;
-
     poptContext con;
-	struct poptOption optiontable[] = {
-		{ "cachesize", 'c', POPT_ARG_INT, &cachesize, 'c', "Sets the size of the memoization table to 1<<N entries. Defaults to 23. Maximum of 32.", NULL },
-		{ "chunksize", 'e', POPT_ARG_INT, &chunksize, 'e', "When quadratic probing is used, the chunk size determines the number of buckets obtained per probe. Maximum of 4096.", NULL },
-		{ "granularity", 'g', POPT_ARG_INT, &granularity, 'g', "Only use the memoization table every 1/N BDD levels. Defaults to 8.", NULL },
-		{ "help", 'h', POPT_ARG_NONE, &flag_help, 'h', "Display available options", NULL },
-		{ "quadratic-probing", 'q', POPT_ARG_NONE, &flag_qp, 'q', "Use quadratic probing instead of linear probing as collision strategy for the BDD table. This prevents clustering issues, but it hits performance in distributed runs.", NULL },
-		{ "tablesize", 't', POPT_ARG_INT, &tablesize, 't', "Sets the size of the BDD table to 1<<N nodes. Defaults to 23. Maximum of 32.", NULL },
-        { "smartexists", 's', POPT_ARG_INT, &smartexists, 's', "= 0 standard exists (default), 1 = local greedy, 2 = greedy oracle.", NULL },
+    struct poptOption optiontable[] = {
+        { "help", 'h', POPT_ARG_NONE, &flag_help, 'h', "Display available options", NULL },
+        { "cachesize", 'c', POPT_ARG_INT, &cachesize, 'c', "Sets the size of the memoization table to 1<<N entries. Defaults to 23.", NULL },
+        { "granularity", 'g', POPT_ARG_INT, &granularity, 'g', "Only use the memoization table every 1/N BDD levels. Defaults to 8.", NULL },
+        { "tablesize", 't', POPT_ARG_INT, &tablesize, 't', "Sets the size of the BDD table to 1<<N nodes. Defaults to 23.", NULL },
+        { "strategy", 's', POPT_ARG_INT, &reach_strategy, 's', "Reachability strategy. 0 = bfs, 1 = recursive, 2 = saturation.", NULL },
         { "append-results", 'a', POPT_ARG_NONE, &appendstats, 'a', "If set, append gathered stats (time, nodecount) to default file.", NULL },
 		{NULL, 0, 0, NULL, 0, NULL, NULL}
 	};
-
-
-    con = poptGetContext("distdd", argc, (const char **)argv, optiontable, 0);
+    con = poptGetContext("reachability-benchmark", argc, (const char **)argv, optiontable, 0);
     poptSetOtherOptionHelp(con, "[OPTIONS..] <model.bdd>");
     
     if (argc < 2) {
         poptPrintUsage(con, stderr, 0);
         exit(1);
     }
-
 
     char c;  
     while ((c = poptGetNextOpt(con)) > 0) {  
@@ -448,67 +413,40 @@ int main(int argc, char *argv[])
             fprintf(statsfile, "%s\n", stats_header);
     }
 
-    // make sure that: 4 <= cachegran
-    granularity = MAX(granularity, 4);
     printf("using a cache granularity of %d\n", granularity);
-    
-    // make sure that 1 <= chunksize <= 4096
-    chunksize = MAX(chunksize, 1);
-    chunksize = MIN(chunksize, 4096);
-
-	if (flag_qp > 0) {
-        printf("using quadratic probing in the BDD table with chunk size %d\n", chunksize);
-    }
-    else {
-        printf("using linear probing in the BDD table\n");
-    }
-
-
-    // make sure that: 23 <= cachesize <= 32
-    cachesize = MAX(cachesize, 23);
-    cachesize = MIN(cachesize, 32);
 
     uint64_t cacheentries = (((uint64_t)1) << cachesize);
     uint64_t cachemem = (40 * cacheentries) / (1048576);
     printf("using a memoization table of 2^%d = %lu entries (~%lu MB) per thread\n", cachesize, cacheentries, cachemem);
 
-
-    // make sure that: 23 <= tablesize <= 32
-    tablesize = MAX(tablesize, 23);
-    tablesize = MIN(tablesize, 32);
-
     uint64_t tableentries = (((uint64_t)1) << tablesize);
     uint64_t tablemem = (24 * tableentries) / (1048576);
     printf("using a BDD table of 2^%d = %lu entries (~%lu MB) per thread\n", tablesize, tableentries, tablemem);
 
-
-    // init lace and sylvan
+    /* Init Lace and Sylvan */
 	lace_start(1, 0);
 	sylvan_set_granularity(granularity);
     sylvan_set_sizes(tableentries, tableentries, cacheentries, cacheentries);
     sylvan_init_package();
     sylvan_init_bdd();
-    sylvan_gc_disable(); // for now
 
-    // read model file from disk
+    /* Read and parse initial states + transition relation */
     filepath = poptGetArg(con);
     read_model();
 
-    // perform reachability
+    /* Perform reachability */
     printf("Doing reachability\n");
     double time = wctime();
-    //bfs_reachability(states->bdd, next[0]->bdd, smartexists);
-    rec_reachablity();
+    reachability(reach_strategy);
     time = wctime() - time;
+    printf("reachability time = %lf sec\n", time);
 
-    // write stats
+    /* Log stats */
     if (statsfile != NULL) {
         char* benchname = basename((char*)filepath);
-        fprintf(statsfile, "%s, %d, %f, %ld\n", benchname, smartexists, time, peaknodes);
+        fprintf(statsfile, "%s, %d, %f, %ld\n", benchname, reach_strategy, time, peaknodes);
         fclose(statsfile);
     }
-
-    printf("reachability time = %lf sec\n", time);
 
     sylvan_quit();
     lace_stop();
