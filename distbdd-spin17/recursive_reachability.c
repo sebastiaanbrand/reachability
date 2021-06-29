@@ -25,6 +25,72 @@ TASK_IMPL_2(BDD, reachable_bfs, BDD, s, BDD, r)
     return s;
 }
 
+/**
+ * Implementation of (parallel) saturation
+ * (assumes relations are ordered on first variable)
+ */
+TASK_IMPL_4(BDD, reachable_sat, BDD, set, rel_t*, rels, int, relcount, int, idx)
+{
+    /* Terminal cases */
+    if (set == sylvan_false) return sylvan_false;
+    if (idx == relcount) return set;
+
+    /* Consult the cache */
+    BDD result;
+    const BDD _set = set;
+    if (cache_get3(200LL<<40, _set, idx, 0, &result)) return result;
+    mtbdd_refs_pushptr(&_set);
+
+    /**
+     * Possible improvement: cache more things (like intermediate results?)
+     *   and chain-apply more of the current level before going deeper?
+     */
+
+    /* Check if the relation should be applied */
+    const uint32_t var = sylvan_var(rels[idx]->variables);
+    if (set == sylvan_true || var <= sylvan_var(set)) {
+        /* Count the number of relations starting here */
+        int count = idx+1;
+        while (count < relcount && var == sylvan_var(rels[count]->variables)) count++;
+        count -= idx;
+        /*
+         * Compute until fixpoint:
+         * - SAT deeper
+         * - chain-apply all current level once
+         */
+        BDD prev = sylvan_false;
+        BDD step = sylvan_false;
+        mtbdd_refs_pushptr(&set);
+        mtbdd_refs_pushptr(&prev);
+        mtbdd_refs_pushptr(&step);
+        while (prev != set) {
+            prev = set;
+            // SAT deeper
+            set = CALL(reachable_sat, set, rels, relcount, idx+count);
+            // chain-apply all current level once
+            for (int i=0;i<count;i++) {
+                step = sylvan_relnext(set, rels[idx+i]->bdd, rels[idx+i]->variables);
+                set = sylvan_or(set, step);
+                step = sylvan_false; // unset, for gc
+            }
+        }
+        mtbdd_refs_popptr(3);
+        result = set;
+    } else {
+        /* Recursive computation */
+        mtbdd_refs_spawn(SPAWN(reachable_sat, sylvan_low(set), rels, relcount, idx));
+        BDD high = mtbdd_refs_push(CALL(reachable_sat, sylvan_high(set), rels, relcount, idx));
+        BDD low = mtbdd_refs_sync(SYNC(reachable_sat));
+        mtbdd_refs_pop(1);
+        result = sylvan_makenode(sylvan_var(set), low, high);
+    }
+
+    /* Store in cache */
+    cache_put3(200LL<<40, _set, idx, 0, result);
+    mtbdd_refs_popptr(1);
+    return result;
+}
+
 void
 partition_rel(BDD r, BDDVAR topvar, BDD *r00, BDD *r01, BDD *r10, BDD *r11)
 {
@@ -86,7 +152,7 @@ partition_state(BDD s, BDDVAR topvar, BDD *s0, BDD *s1)
     }
 }
 
-TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
+TASK_IMPL_3(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, curvar)
 {
     assert(curvar % 2 == 0);
 
@@ -131,13 +197,13 @@ TASK_IMPL_4(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, nvars, BDDVAR, curvar)
         prev1 = s1;
 
         // TODO: spawn tasks
-        BDD t00 = CALL(reachable_rec, s0, r00, nvars, nextvar);
+        BDD t00 = CALL(reachable_rec, s0, r00, nextvar);
         bdd_refs_push(t00);
         BDD t01 = sylvan_relnext(s0, r01, sylvan_false);
         bdd_refs_push(t01);
         BDD t10 = sylvan_relnext(s1, r10, sylvan_false);
         bdd_refs_push(t10);
-        BDD t11 = CALL(reachable_rec, s1, r11, nvars, nextvar);
+        BDD t11 = CALL(reachable_rec, s1, r11, nextvar);
         bdd_refs_push(t11);
 
         BDD t0 = sylvan_or(t00, t10); // states where curvar = 0 after applying r00 / r10

@@ -58,11 +58,6 @@ typedef struct set {
 	BDDSET variables; // all (unprimed) variables in the set
 } *set_t;
 
-typedef struct relation {
-	BDD bdd;
-	BDDSET variables; // all variables (primed and unprimed) in the relation
-} *rel_t;
-
 MTBDDMAP unprime_map; // maps from primed to unprimed vars
 
 set_t states;
@@ -355,11 +350,10 @@ void reachability(reach_strat_t strat)
         reachable = reachable_bfs(states->bdd, next[0]->bdd);
         break;
     case reach_recursive:
-        reachable = reachable_rec(states->bdd, next[0]->bdd, sylvan_set_count(states->variables));
+        reachable = reachable_rec(states->bdd, next[0]->bdd);
         break;
     case reach_saturation:
-        printf("TODO\n");
-        exit(1);
+        reachable = reachable_sat(states->bdd, next, next_count);
         break;
     default:
         printf("No valid reachability strategy given.\n");
