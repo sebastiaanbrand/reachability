@@ -26,6 +26,12 @@ static double wctime() {
     return (tv.tv_sec + 1E-6 * tv.tv_usec);
 }
 
+struct stats_container {
+    double reach_time;
+    double merge_rel_time;
+};
+struct stats_container stats;
+
 
 const char *statsfilename = "spin17bench_stats.csv";
 const char *stats_header = "benchmark, reach_strategy, time, peaknodes";
@@ -234,6 +240,7 @@ TASK_2(BDD, big_union, int, first, int, count)
  *  Merge all relations to one big transition relation.
  */
 void merge_relations() {
+    double time = wctime();
     BDDSET newvars = sylvan_set_empty();
     unprime_map = sylvan_map_empty();
     bdd_refs_pushptr(&newvars);
@@ -265,6 +272,7 @@ void merge_relations() {
         next[i]->variables = sylvan_true;
     }
     next_count = 1;
+    stats.merge_rel_time = wctime() - time;
 }
 
 
@@ -344,6 +352,7 @@ int read_model() {
 /* Run reachablity on parsed BDDs */
 void reachability(reach_strat_t strat)
 {
+    double time = wctime();
     BDD reachable = sylvan_false;
     switch (strat) {
     case reach_bfs:
@@ -360,6 +369,7 @@ void reachability(reach_strat_t strat)
         exit(1);
         break;
     }
+    stats.reach_time =  wctime() - time;
     uint64_t nodecount = sylvan_nodecount(reachable);
     printf("final nodecount = %ld ", nodecount); fflush(stdout);
     printf("(%'0.0f states)\n", sylvan_satcount(reachable, states->variables));
@@ -417,6 +427,10 @@ int main(int argc, char *argv[])
     uint64_t tablemem = (24 * tableentries) / (1048576);
     printf("using a BDD table of 2^%d = %lu entries (~%lu MB) per thread\n", tablesize, tableentries, tablemem);
 
+    /* global stats */
+    stats.reach_time = 0;
+    stats.merge_rel_time = 0;
+
     /* Init Lace and Sylvan */
 	lace_start(1, 0);
 	sylvan_set_granularity(granularity);
@@ -427,18 +441,17 @@ int main(int argc, char *argv[])
     /* Read and parse initial states + transition relation */
     filepath = poptGetArg(con);
     read_model();
+    printf("merge relations time = %lf sec\n", stats.merge_rel_time);
 
     /* Perform reachability */
     printf("Doing reachability\n");
-    double time = wctime();
     reachability(reach_strategy);
-    time = wctime() - time;
-    printf("reachability time = %lf sec\n", time);
+    printf("reachability time = %lf sec\n", stats.reach_time);
 
     /* Log stats */
     if (statsfile != NULL) {
         char* benchname = basename((char*)filepath);
-        fprintf(statsfile, "%s, %d, %f, %ld\n", benchname, reach_strategy, time, peaknodes);
+        fprintf(statsfile, "%s, %d, %f, %ld\n", benchname, reach_strategy, stats.reach_time, peaknodes);
         fclose(statsfile);
     }
 
