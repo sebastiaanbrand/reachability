@@ -349,6 +349,22 @@ int read_model() {
     return 1;
 }
 
+void assert_var_order()
+{
+    BDDVAR prev = 0;
+    BDDVAR cur;
+    for (int k = 0; k < next_count; k++) {
+        cur = sylvan_var(next[k]->variables);
+        if (cur < prev) {
+            printf("Order of first vars in partial relations not OK: \n");
+            printf("first var of rel %d = %d\n", k-1, prev);
+            printf("first var of rel %d = %d\n", k, cur);
+            exit(1);
+        }
+        prev = cur;
+    }
+}
+
 /* Run reachablity on parsed BDDs */
 void reachability(reach_strat_t strat)
 {
@@ -442,6 +458,7 @@ int main(int argc, char *argv[])
     filepath = poptGetArg(con);
     read_model();
     printf("merge relations time = %lf sec\n", stats.merge_rel_time);
+    assert_var_order();
 
     /* Perform reachability */
     printf("Doing reachability\n");
