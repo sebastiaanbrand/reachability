@@ -184,8 +184,17 @@ TASK_IMPL_3(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, curvar)
     BDD r00, r01, r10, r11, s0, s1;
     // TODO: maybe instead of splitting at every level, only split on (even) 
     // topvar of r,s
-    partition_rel(r, curvar, &r00, &r01, &r10, &r11);
-    partition_state(s, curvar, &s0, &s1);
+
+    /* Determine top level */
+    bddnode_t ns = sylvan_isconst(s) ? 0 : MTBDD_GETNODE(s);
+    bddnode_t nr = sylvan_isconst(r) ? 0 : MTBDD_GETNODE(r);
+
+    BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
+    BDDVAR vr = nr ? bddnode_getvariable(nr) : 0xffffffff;
+    BDDVAR level = vs < vr ? vs : vr;
+    //BDDVAR level = curvar;
+    partition_rel(r, level, &r00, &r01, &r10, &r11);
+    partition_state(s, level, &s0, &s1);
 
     // TODO: protect relevant BDDs
     BDD prev0 = sylvan_false;
@@ -211,14 +220,12 @@ TASK_IMPL_3(BDD, reachable_rec, BDD, s, BDD, r, BDDVAR, curvar)
         bdd_refs_pop(4);
 
         /* Union with previously reachable set */
-        //s0 = t0; // this should suffice because reachable(R,S) (should) return 
-        //s1 = t1; // S.R* \union S, not just S.R*
         s0 = sylvan_or(s0, t0);
         s1 = sylvan_or(s1, t1);
     }
 
     /* res = ((!curvar) ^ s0)  v  ((curvar) ^ s1) */
-    BDD res = sylvan_makenode(curvar, s0, s1);
+    BDD res = sylvan_makenode(level, s0, s1);
 
     /* Put in cache */
     if (cachenow) {
