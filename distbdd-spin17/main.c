@@ -349,7 +349,7 @@ int read_model() {
     return 1;
 }
 
-void assert_var_order()
+void assert_part_rel_order()
 {
     BDDVAR prev = 0;
     BDDVAR cur;
@@ -363,6 +363,21 @@ void assert_var_order()
         }
         prev = cur;
     }
+}
+
+/* Comparator for sorting the list of partial relations */
+int rel_comp(const void *r1, const void *r2)
+{
+    rel_t a = *((rel_t*)r1); // ...
+    rel_t b = *((rel_t*)r2);
+    BDDVAR v1 = sylvan_var(a->variables);
+    BDDVAR v2 = sylvan_var(b->variables);
+    if (v1 < v2)
+        return -1;
+    else if (v1 > v2)
+        return 1;
+    else
+        return 0;
 }
 
 /* Run reachablity on parsed BDDs */
@@ -458,7 +473,9 @@ int main(int argc, char *argv[])
     filepath = poptGetArg(con);
     read_model();
     printf("merge relations time = %lf sec\n", stats.merge_rel_time);
-    assert_var_order();
+    printf("sorting partial relations\n");
+    qsort(next, next_count, sizeof(rel_t), rel_comp);
+    assert_part_rel_order();
 
     /* Perform reachability */
     printf("Doing reachability\n");
