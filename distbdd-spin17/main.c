@@ -29,14 +29,16 @@ static double wctime() {
 struct stats_container {
     double reach_time;
     double merge_rel_time;
+    double num_final_states;
+    size_t final_bdd_size;
+    size_t peaknodes;
 };
 struct stats_container stats;
 
 
 const char *statsfilename = "spin17bench_stats.csv";
-const char *stats_header = "benchmark, reach_strategy, reach_time, rel_time, peaknodes";
+const char *stats_header = "benchmark, reach_strategy, reach_time, rel_time, nodecount, states, peaknodes";
 FILE *statsfile = NULL;
-uint64_t peaknodes = 0;
 
 /* Flags / parameters */
 int flag_help = -1;
@@ -401,9 +403,10 @@ void reachability(reach_strat_t strat)
         break;
     }
     stats.reach_time =  wctime() - time;
-    uint64_t nodecount = sylvan_nodecount(reachable);
-    printf("final nodecount = %ld ", nodecount); fflush(stdout);
-    printf("(%'0.0f states)\n", sylvan_satcount(reachable, states->variables));
+    stats.final_bdd_size = sylvan_nodecount(reachable);
+    stats.num_final_states = sylvan_satcount(reachable, states->variables);
+    printf("final nodecount = %ld ", stats.final_bdd_size); fflush(stdout);
+    printf("(%'0.0f states)\n", stats.num_final_states);
 }
 
 
@@ -461,6 +464,9 @@ int main(int argc, char *argv[])
     /* global stats */
     stats.reach_time = 0;
     stats.merge_rel_time = 0;
+    stats.num_final_states = 0;
+    stats.final_bdd_size = 0;
+    stats.peaknodes = 0;
 
     /* Init Lace and Sylvan */
 	lace_start(1, 0);
@@ -485,12 +491,14 @@ int main(int argc, char *argv[])
     /* Log stats */
     if (statsfile != NULL) {
         char* benchname = basename((char*)filepath);
-        fprintf(statsfile, "%s, %d, %f, %f, %ld\n", 
+        fprintf(statsfile, "%s, %d, %f, %f, %ld, %'0.0f, %ld\n", 
                 benchname, 
                 reach_strategy, 
                 stats.reach_time, 
-                stats.merge_rel_time, 
-                peaknodes);
+                stats.merge_rel_time,
+                stats.final_bdd_size,
+                stats.num_final_states, 
+                stats.peaknodes);
         fclose(statsfile);
     }
 
