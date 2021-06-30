@@ -28,11 +28,13 @@ TASK_IMPL_2(BDD, reachable_bfs, BDD, s, BDD, r)
 /**
  * Implementation of (parallel) saturation
  * (assumes relations are ordered on first variable)
+ * NOTE S: this looks like Alg. 1 from [Multi-core On-The-Fly Saturation]
  */
 TASK_IMPL_4(BDD, reachable_sat, BDD, set, rel_t*, rels, int, relcount, int, idx)
 {
     /* Terminal cases */
     if (set == sylvan_false) return sylvan_false;
+    if (set == sylvan_true) return sylvan_true;
     if (idx == relcount) return set;
 
     /* Consult the cache */
