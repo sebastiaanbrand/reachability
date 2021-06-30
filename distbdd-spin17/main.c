@@ -34,7 +34,7 @@ struct stats_container stats;
 
 
 const char *statsfilename = "spin17bench_stats.csv";
-const char *stats_header = "benchmark, reach_strategy, time, peaknodes";
+const char *stats_header = "benchmark, reach_strategy, reach_time, rel_time, peaknodes";
 FILE *statsfile = NULL;
 uint64_t peaknodes = 0;
 
@@ -485,7 +485,12 @@ int main(int argc, char *argv[])
     /* Log stats */
     if (statsfile != NULL) {
         char* benchname = basename((char*)filepath);
-        fprintf(statsfile, "%s, %d, %f, %ld\n", benchname, reach_strategy, stats.reach_time, peaknodes);
+        fprintf(statsfile, "%s, %d, %f, %f, %ld\n", 
+                benchname, 
+                reach_strategy, 
+                stats.reach_time, 
+                stats.merge_rel_time, 
+                peaknodes);
         fclose(statsfile);
     }
 
