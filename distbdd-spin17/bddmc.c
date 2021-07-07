@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <libgen.h>
 
 #ifdef HAVE_PROFILER
 #include <gperftools/profiler.h>
@@ -19,12 +20,13 @@
 static int report_levels = 0; // report states at end of every level
 static int report_table = 0; // report table size at end of every level
 static int report_nodes = 0; // report number of nodes of BDDs
-static int strategy = 2; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING
+static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING, 4 = REC
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly (only bfs/par)
 static int merge_relations = 0; // merge relations to 1 relation
 static int print_transition_matrix = 0; // print transition relation matrix
 static int workers = 0; // autodetect
 static char* model_filename = NULL; // filename of model
+static char *stats_filename = NULL; // filename of csv stats output file
 #ifdef HAVE_PROFILER
 static char* profile_filename = NULL; // filename for profiling
 #endif
@@ -43,6 +45,7 @@ static struct argp_option options[] =
     {"count-table", 2, 0, 0, "Report table usage at each level", 1},
     {"merge-relations", 6, 0, 0, "Merge transition relations into one transition relation", 1},
     {"print-matrix", 4, 0, 0, "Print transition matrix", 1},
+    {"statsfile", 7, "FILENAME", 0, "Write stats to given filename (or append if exists)", 0},
     {0, 0, 0, 0, 0, 0}
 };
 static error_t
@@ -77,6 +80,9 @@ parse_opt(int key, char *arg, struct argp_state *state)
         break;
     case 6:
         merge_relations = 1;
+        break;
+    case 7:
+        stats_filename = arg;
         break;
 #ifdef HAVE_PROFILER
     case 'p':
@@ -120,6 +126,15 @@ static int totalbits; // total number of bits
 static int next_count; // number of partitions of the transition relation
 static rel_t *next; // each partition of the transition relation
 
+typedef struct stats {
+    double reach_time;
+    double merge_rel_time;
+    double final_states;
+    size_t final_nodecount;
+    size_t peaknodes;
+} stats_t;
+stats_t stats = {0};
+
 /**
  * Obtain current wallclock time
  */
@@ -151,6 +166,29 @@ print_memory_usage(void)
     char buf[32];
     to_h(getCurrentRSS(), buf);
     INFO("Memory usage: %s\n", buf);
+}
+
+static void
+write_stats()
+{
+    FILE *fp = fopen(stats_filename, "a");
+    // write header if file is empty
+    fseek (fp, 0, SEEK_END);
+        long size = ftell(fp);
+        if (size == 0)
+            fprintf(fp, "%s\n", "benchmark, strategy, merged_rel, reach_time, merge_time, final_states, final_nodecount, peaknodes");
+    // append stats of this run
+    char* benchname = basename((char*)model_filename);
+    fprintf(fp, "%s, %d, %d, %f, %f, %0.0f, %ld, %ld\n",
+            benchname,
+            strategy,
+            merge_relations,
+            stats.reach_time,
+            stats.merge_rel_time,
+            stats.final_states,
+            stats.final_nodecount,
+            stats.peaknodes);
+    fclose(fp);
 }
 
 /**
@@ -1027,6 +1065,7 @@ main(int argc, char **argv)
 
     /* merge all relations to one big transition relation if requested */
     if (merge_relations) {
+        double t1 = wctime();
         BDD newvars = sylvan_set_empty();
         bdd_refs_pushptr(&newvars);
         for (int i=totalbits-1; i>=0; i--) {
@@ -1050,6 +1089,8 @@ main(int argc, char **argv)
             next[i]->variables = sylvan_true;
         }
         next_count = 1;
+        double t2 = wctime();
+        stats.merge_rel_time = t2-t1;
     }
 
     if (report_nodes) {
@@ -1070,27 +1111,32 @@ main(int argc, char **argv)
         double t1 = wctime();
         RUN(bfs, states);
         double t2 = wctime();
-        INFO("BFS Time: %f\n", t2-t1);
+        stats.reach_time = t2-t1;
+        INFO("BFS Time: %f\n", stats.reach_time);
     } else if (strategy == 1) {
         double t1 = wctime();
         RUN(par, states);
         double t2 = wctime();
-        INFO("PAR Time: %f\n", t2-t1);
+        stats.reach_time = t2-t1;
+        INFO("PAR Time: %f\n", stats.reach_time);
     } else if (strategy == 2) {
         double t1 = wctime();
         RUN(sat, states);
         double t2 = wctime();
-        INFO("SAT Time: %f\n", t2-t1);
+        stats.reach_time = t2-t1;
+        INFO("SAT Time: %f\n", stats.reach_time);
     } else if (strategy == 3) {
         double t1 = wctime();
         RUN(chaining, states);
         double t2 = wctime();
-        INFO("CHAINING Time: %f\n", t2-t1);
+        stats.reach_time = t2-t1;
+        INFO("CHAINING Time: %f\n", stats.reach_time);
     } else if (strategy == 4) {
         double t1 = wctime();
         RUN(rec, states);
         double t2 = wctime();
-        INFO("REC Time: %f\n", t2-t1);
+        stats.reach_time = t2-t1;
+        INFO("REC Time: %f\n", stats.reach_time);
     }
     else {
         Abort("Invalid strategy set?!\n");
@@ -1101,9 +1147,11 @@ main(int argc, char **argv)
 #endif
 
     // Now we just have states
-    INFO("Final states: %'0.0f states\n", sylvan_satcount(states->bdd, states->variables));
+    stats.final_states = sylvan_satcount(states->bdd, states->variables);
+    INFO("Final states: %'0.0f states\n", stats.final_states);
     if (report_nodes) {
-        INFO("Final states: %'zu BDD nodes\n", sylvan_nodecount(states->bdd));
+        stats.final_nodecount  =  sylvan_nodecount(states->bdd);
+        INFO("Final states: %'zu BDD nodes\n", stats.final_nodecount);
     }
 
     print_memory_usage();
@@ -1111,6 +1159,11 @@ main(int argc, char **argv)
     sylvan_stats_report(stdout);
 
     lace_stop();
+
+    if (stats_filename != NULL) {
+        INFO("Writing stats to %s\n", stats_filename);
+        write_stats();
+    }
 
     return 0;
 }
