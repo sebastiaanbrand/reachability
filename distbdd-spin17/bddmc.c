@@ -815,9 +815,10 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDVAR, curvar)
     partition_rel(r, level, &r00, &r01, &r10, &r11);
     partition_state(s, level, &s0, &s1);
 
-    // TODO: protect relevant BDDs
     BDD prev0 = sylvan_false;
     BDD prev1 = sylvan_false;
+    bdd_refs_pushptr(&prev0);
+    bdd_refs_pushptr(&prev1);
 
     // TODO: maybe we can do this saturation-like loop more efficiently
     while (s0 != prev0 || s1 != prev1) {
@@ -842,6 +843,8 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDVAR, curvar)
         s0 = sylvan_or(s0, t0);
         s1 = sylvan_or(s1, t1);
     }
+
+    bdd_refs_popptr(2);
 
     /* res = ((!curvar) ^ s0)  v  ((curvar) ^ s1) */
     BDD res = sylvan_makenode(level, s0, s1);
