@@ -176,13 +176,14 @@ write_stats()
     fseek (fp, 0, SEEK_END);
         long size = ftell(fp);
         if (size == 0)
-            fprintf(fp, "%s\n", "benchmark, strategy, merged_rel, reach_time, merge_time, final_states, final_nodecount, peaknodes");
+            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, merge_time, final_states, final_nodecount, peaknodes");
     // append stats of this run
     char* benchname = basename((char*)model_filename);
-    fprintf(fp, "%s, %d, %d, %f, %f, %0.0f, %ld, %ld\n",
+    fprintf(fp, "%s, %d, %d, %d, %f, %f, %0.0f, %ld, %ld\n",
             benchname,
             strategy,
             merge_relations,
+            lace_workers(),
             stats.reach_time,
             stats.merge_rel_time,
             stats.final_states,
