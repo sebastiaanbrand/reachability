@@ -11,3 +11,4 @@
 
 # ignore 2GB of models for now
 /distbdd-spin17/models
+/distbdd-spin17/plots

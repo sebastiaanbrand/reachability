@@ -1,6 +1,6 @@
 #!/bin/bash
 
-beem_vn_stats="been_vanilla_stats.csv"
+beem_vn_stats="beem_vanilla_stats.csv"
 beem_ga_stats="beem_ga_stats.csv"
 
 for filename in models/beem/bdds_vanilla/*.bdd; do

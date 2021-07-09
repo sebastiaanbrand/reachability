@@ -3,7 +3,7 @@
 beem_selection="adding.1.bdd 
                 blocks.2.bdd"
 
-beem_vn_stats="been_vanilla_stats.csv"
+beem_vn_stats="beem_vanilla_stats.csv"
 beem_ga_stats="beem_ga_stats.csv"
 
 for filename in $beem_selection; do
