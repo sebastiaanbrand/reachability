@@ -8,10 +8,11 @@ plots_folder = 'plots/'
 
 vanilla_data = pd.read_csv('beem_vanilla_stats.csv')
 ga_data      = pd.read_csv('beem_ga_stats.csv')
-lable2data = {'vanilla' : vanilla_data, 'ga' : ga_data}
-stratIDs = {'bfs' : 0,
-            'sat' : 2,
-            'rec' : 4}
+all_data     = [vanilla_data, ga_data]
+lable2data   = {'vanilla' : vanilla_data, 'ga' : ga_data}
+stratIDs     = {'bfs' : 0,
+                'sat' : 2,
+                'rec' : 4}
 
 def pre_process():
     # make plots folder if necessary
@@ -20,6 +21,32 @@ def pre_process():
     # strip whitespace from column names
     vanilla_data.columns = vanilla_data.columns.str.strip()
     ga_data.columns      = ga_data.columns.str.strip()
+
+def assert_states_nodes():
+    n_states = {} # dict : benchmark -> number of final states
+    for df in all_data:
+        n_nodes  = {} # dict : benchmark -> number of final nodes
+        for index, row in df.iterrows():
+            # check final_states
+            if (row['benchmark'] not in n_states):
+                n_states[row['benchmark']] = row['final_states']
+            else:
+                if (n_states[row['benchmark']] != row['final_states']):
+                    print("final_states not equal for {} ({} != {})".format(
+                          row['benchmark'],
+                          n_states[row['benchmark']],
+                          row['final_states']
+                    ))
+            # check final nodes
+            if (row['benchmark'] not in n_nodes):
+                n_nodes[row['benchmark']] = row['final_nodecount']
+            else:
+                if (n_nodes[row['benchmark']] != row['final_nodecount']):
+                    print("final_nodecount not equal for {} ({} != {})".format(
+                          row['benchmark'],
+                          n_nodes[row['benchmark']],
+                          row['final_nodecount']
+                    ))
 
 """
 strat in {'bfs', 'sat', 'rec'}
@@ -65,9 +92,7 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
                                                           fig_format)
         fig.savefig(fig_name, dpi=300)
 
-
-if __name__ == '__main__':
-    pre_process()
+def plot_things():
     plot_comparison('bfs', 'vanilla', 'sat', 'vanilla')
     plot_comparison('bfs', 'ga',      'sat', 'ga')
     plot_comparison('bfs', 'vanilla', 'rec', 'vanilla')
@@ -77,4 +102,9 @@ if __name__ == '__main__':
     plot_comparison('bfs', 'vanilla', 'bfs', 'ga')
     plot_comparison('sat', 'vanilla', 'sat', 'ga')
     plot_comparison('rec', 'vanilla', 'rec', 'ga')
+
+if __name__ == '__main__':
+    pre_process()
+    assert_states_nodes()
+    plot_things()
 
