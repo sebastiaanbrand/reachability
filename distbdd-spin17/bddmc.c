@@ -35,7 +35,8 @@ static char* profile_filename = NULL; // filename for profiling
 static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=0: autodetect)", 0},
-    {"strategy", 's', "<bfs|par|sat|chaining|rec>", 0, "Strategy for reachability (default=sat)", 0},
+    {"strategy", 's', "<bfs|par|sat|chaining|rec|plain-bfs>", 0, 
+     "Strategy for reachability (default=sat)", 0},
 #ifdef HAVE_PROFILER
     {"profiler", 'p', "<filename>", 0, "Filename for profiling", 0},
 #endif
@@ -61,6 +62,7 @@ parse_opt(int key, char *arg, struct argp_state *state)
         else if (strcmp(arg, "sat")==0) strategy = 2;
         else if (strcmp(arg, "chaining")==0) strategy = 3;
         else if (strcmp(arg, "rec")==0) strategy = 4;
+        else if (strcmp(arg, "plain-bfs")==0) strategy = 5;
         else argp_usage(state);
         break;
     case 4:
@@ -770,12 +772,43 @@ partition_state(BDD s, BDDVAR topvar, BDD *s0, BDD *s1)
 
 
 /**
+ * Pain bfs implementation for some sanity checks
+ */
+VOID_TASK_1(plain_bfs, set_t, set)
+{
+    if (next_count != 1) Abort("Strategy plain-bfs requires merge-relations");
+    BDD visited = set->bdd;
+    BDD vars = set->variables;
+    BDD rel = next[0]->bdd;
+    BDD prev = sylvan_false;
+    BDD successors = sylvan_false;
+
+    sylvan_protect(&visited);
+    sylvan_protect(&rel);
+    sylvan_protect(&vars);
+    sylvan_protect(&prev);
+    sylvan_protect(&successors);
+
+    while (prev != visited) {
+        prev = visited;
+        successors = sylvan_relnext(visited, rel, vars);
+        visited = sylvan_or(visited, successors);
+    }
+
+    sylvan_unprotect(&visited);
+    sylvan_unprotect(&rel);
+    sylvan_unprotect(&vars);
+    sylvan_unprotect(&prev);
+    sylvan_unprotect(&successors);
+
+    set->bdd = visited;
+}
+
+/**
  * Implementation of recursive reachability algorithm
  */
-TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDVAR, curvar)
+TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 {
-        assert(curvar % 2 == 0);
-
     /* Terminal cases */
     if (s == sylvan_true && r == sylvan_true) return sylvan_true;
     if (s == sylvan_false || r == sylvan_false) return sylvan_false;
@@ -793,18 +826,6 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDVAR, curvar)
         }
     }
 
-    // optional earlier terminal:
-    //if ((nvars-1)*2 == curvar ) { // at last variable
-    //    return reachable_bfs(s, r);
-    //}
-
-
-    // Relations, states, and var for next level of recursion
-    BDDVAR nextvar = curvar + 2;
-    BDD r00, r01, r10, r11, s0, s1;
-    // TODO: maybe instead of splitting at every level, only split on (even) 
-    // topvar of r,s
-
     /* Determine top level */
     bddnode_t ns = sylvan_isconst(s) ? 0 : MTBDD_GETNODE(s);
     bddnode_t nr = sylvan_isconst(r) ? 0 : MTBDD_GETNODE(r);
@@ -812,7 +833,12 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDVAR, curvar)
     BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
     BDDVAR vr = nr ? bddnode_getvariable(nr) : 0xffffffff;
     BDDVAR level = vs < vr ? vs : vr;
-    //BDDVAR level = curvar;
+    //BDDVAR level = sylvan_set_first(vars); // maybe don't skip vars?
+
+    /* Relations, states, and vars for next level of recursion */
+    BDD r00, r01, r10, r11, s0, s1;
+    BDDSET next_vars = sylvan_set_next(vars);
+    
     partition_rel(r, level, &r00, &r01, &r10, &r11);
     partition_state(s, level, &s0, &s1);
 
@@ -827,17 +853,17 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDVAR, curvar)
         prev1 = s1;
 
         // TODO: spawn tasks
-        BDD t00 = CALL(go_rec, s0, r00, nextvar);
+        BDD t00 = CALL(go_rec, s0, r00, next_vars);
         bdd_refs_push(t00);
-        BDD t01 = sylvan_relnext(s0, r01, sylvan_false);
+        BDD t01 = sylvan_relnext(s0, r01, next_vars);
         bdd_refs_push(t01);
-        BDD t10 = sylvan_relnext(s1, r10, sylvan_false);
+        BDD t10 = sylvan_relnext(s1, r10, next_vars);
         bdd_refs_push(t10);
-        BDD t11 = CALL(go_rec, s1, r11, nextvar);
+        BDD t11 = CALL(go_rec, s1, r11, next_vars);
         bdd_refs_push(t11);
 
-        BDD t0 = sylvan_or(t00, t10); // states where curvar = 0 after applying r00 / r10
-        BDD t1 = sylvan_or(t01, t11); // states where curvar = 1 after applying r01 / r11
+        BDD t0 = sylvan_or(t00, t10); // states where level = 0 after applying r00 / r10
+        BDD t1 = sylvan_or(t01, t11); // states where level = 1 after applying r01 / r11
         bdd_refs_pop(4);
 
         /* Union with previously reachable set */
@@ -847,7 +873,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDVAR, curvar)
 
     bdd_refs_popptr(2);
 
-    /* res = ((!curvar) ^ s0)  v  ((curvar) ^ s1) */
+    /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
     BDD res = sylvan_makenode(level, s0, s1);
 
     /* Put in cache */
@@ -862,7 +888,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDVAR, curvar)
 VOID_TASK_1(rec, set_t, set)
 {
     if (next_count != 1) Abort("Strategy rec requires merge-relations");
-    set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, 0);
+    set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, set->variables);
 }
 
 /**
@@ -1111,6 +1137,13 @@ main(int argc, char **argv)
     if (profile_filename != NULL) ProfilerStart(profile_filename);
 #endif
 
+    // NOTE: for petrinets, the loaded relations seem to have a bunch of 
+    // "junk variables" at the bottom (vars >= 1000000). The variables loaded
+    // in next[k]->variables seem correct though. Passing these with relnext 
+    // appears to fix things.
+    // However: there might be an underlying issue (with LTSmin?) which causes
+    // these vars >= 1000000 to appear in the first place...
+
     if (strategy == 0) {
         double t1 = wctime();
         RUN(bfs, states);
@@ -1141,6 +1174,12 @@ main(int argc, char **argv)
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("REC Time: %f\n", stats.reach_time);
+    } else if (strategy == 5) {
+        double t1 = wctime();
+        RUN(plain_bfs, states);
+        double t2 = wctime();
+        stats.reach_time = t2-t1;
+        INFO("PLAIN-BFS Time: %f\n", stats.reach_time);
     }
     else {
         Abort("Invalid strategy set?!\n");
