@@ -6,10 +6,17 @@ import matplotlib.pyplot as plt
 fig_formats = ['png', 'pdf']
 plots_folder = 'plots/'
 
-vanilla_data = pd.read_csv('beem_vanilla_stats.csv')
-ga_data      = pd.read_csv('beem_ga_stats.csv')
-all_data     = [vanilla_data, ga_data]
-lable2data   = {'vanilla' : vanilla_data, 'ga' : ga_data}
+beem_vanilla = pd.read_csv('beem_vanilla_stats.csv')
+beem_ga      = pd.read_csv('beem_ga_stats.csv')
+ptri_vanilla = pd.read_csv('petrinets_vanilla_stats.csv')
+ptri_ga      = pd.read_csv('petrinets_ga_stats.csv')
+prom_vanilla = pd.read_csv('promela_vanilla_stats.csv')
+prom_ga      = pd.read_csv('promela_ga_stats.csv')
+datasetnames = ['beem', 'ptri', 'prom']
+legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
+datamap      = {('beem','vanilla') : beem_vanilla, ('beem', 'ga') : beem_ga, 
+                ('ptri','vanilla') : ptri_vanilla, ('ptri', 'ga') : ptri_ga,
+                ('prom','vanilla') : prom_vanilla, ('prom', 'ga') : prom_ga}
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4}
@@ -19,12 +26,20 @@ def pre_process():
     pathlib.Path(plots_folder).mkdir(parents=True, exist_ok=True)
 
     # strip whitespace from column names
-    vanilla_data.columns = vanilla_data.columns.str.strip()
-    ga_data.columns      = ga_data.columns.str.strip()
+    for df in datamap.values():
+        df.columns = df.columns.str.strip()
+    
+    # make the relevant columns are actually treated as numbers
+    for key in datamap.keys():
+        datamap[key] = datamap[key].astype(
+                        {"benchmark" : str, "strategy" : int, 
+                         "merg_rels" : int, "workers" : int,
+                         "reach_time" : float, "merge_time" : float,
+                         "final_states" : float, "final_nodecount" : int})
 
 def assert_states_nodes():
     n_states = {} # dict : benchmark -> number of final states
-    for df in all_data:
+    for df in datamap.values():
         n_nodes  = {} # dict : benchmark -> number of final nodes
         for index, row in df.iterrows():
             # check final_states
@@ -53,29 +68,35 @@ strat in {'bfs', 'sat', 'rec'}
 data in {'vanilla', 'ga'}
 """
 def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
-    # get the relevant data
-    x_data = lable2data[x_data_label]
-    y_data = lable2data[y_data_label]
 
-    # select subsets of x and y data
-    group_x = x_data.loc[x_data['strategy'] == stratIDs[x_strat]]
-    group_y = y_data.loc[y_data['strategy'] == stratIDs[y_strat]]
-    group_x.set_index('benchmark')
-    group_y = group_y.set_index('benchmark')
-
-    # inner join x and y
-    joined = group_x.join(group_y, on='benchmark', how='inner', 
-                                   lsuffix='_x', rsuffix='_y')
-
-    # plot reachability time of x vs y
-    xs = joined['reach_time_x'].to_numpy()
-    ys = joined['reach_time_y'].to_numpy()
     fig, ax = plt.subplots()
-    ax.scatter(xs, ys, s=10)
+    max_val = 0
+    min_val = 0
+    for ds_name in datasetnames:
+        # get the relevant data
+        x_data = datamap[(ds_name, x_data_label)]
+        y_data = datamap[(ds_name, y_data_label)]
+
+        # select subsets of x and y data
+        group_x = x_data.loc[x_data['strategy'] == stratIDs[x_strat]]
+        group_y = y_data.loc[y_data['strategy'] == stratIDs[y_strat]]
+        group_x.set_index('benchmark')
+        group_y = group_y.set_index('benchmark')
+
+        # inner join x and y
+        joined = group_x.join(group_y, on='benchmark', how='inner', 
+                                    lsuffix='_x', rsuffix='_y')
+
+        # plot reachability time of x vs y
+        xs = joined['reach_time_x'].to_numpy()
+        ys = joined['reach_time_y'].to_numpy()
+        ax.scatter(xs, ys, s=10, label=legend_names[ds_name])
+
+        # max and min for diagonal line
+        max_val = max(max_val, max(np.max(xs), np.max(ys)))
+        min_val = min(min_val, min(np.min(xs), np.min(ys)))
 
     # diagonal line
-    max_val = max(np.max(xs), np.max(ys))
-    min_val = min(np.min(xs), np.min(ys)) # use minval instead of bc of log axes
     ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
 
     # labels and formatting
@@ -83,6 +104,7 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
     ax.set_ylabel('time (s) - {} on {} BDDs'.format(y_strat, y_data_label))
     ax.set_xscale('log')
     ax.set_yscale('log')
+    ax.legend()
     ax.set_title('reachability runtime comparison')
 
     for fig_format in fig_formats:

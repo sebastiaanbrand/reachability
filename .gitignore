@@ -10,6 +10,6 @@
 build/
 
 # ignore 2GB of models for now
-distbdd-spin17/models/
 distbdd-spin17/spin17models/
+distbdd-spin17/bench_data/
 distbdd-spin17/plots/
