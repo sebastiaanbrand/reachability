@@ -812,7 +812,8 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     /* Terminal cases */
     if (s == sylvan_false) return sylvan_false; // empty.R* = empty
     if (r == sylvan_false) return s; // s.empty* = s.(empty union I)^+ = s
-    if (s == sylvan_true && r == sylvan_true) return sylvan_true;
+    if (s == sylvan_true || r == sylvan_true) return sylvan_true;
+    // all.r* = all, s.all* = all (if s is non empty)
 
     /* Count operation */
     sylvan_stats_count(BDD_REACHABLE);
