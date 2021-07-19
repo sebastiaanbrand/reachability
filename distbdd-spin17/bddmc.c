@@ -810,8 +810,9 @@ VOID_TASK_1(plain_bfs, set_t, set)
 TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 {
     /* Terminal cases */
+    if (s == sylvan_false) return sylvan_false; // empty.R* = empty
+    if (r == sylvan_false) return s; // s.empty* = s.(empty union I)^+ = s
     if (s == sylvan_true && r == sylvan_true) return sylvan_true;
-    if (s == sylvan_false || r == sylvan_false) return sylvan_false;
 
     /* Count operation */
     sylvan_stats_count(BDD_REACHABLE);
