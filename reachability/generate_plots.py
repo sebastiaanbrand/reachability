@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 
 fig_formats = ['png', 'pdf']
 plots_folder = 'plots/'
+data_folder  = 'bench_data/'
 
-beem_vanilla = pd.read_csv('beem_vanilla_stats.csv')
-beem_ga      = pd.read_csv('beem_ga_stats.csv')
-ptri_vanilla = pd.read_csv('petrinets_vanilla_stats.csv')
-ptri_ga      = pd.read_csv('petrinets_ga_stats.csv')
-prom_vanilla = pd.read_csv('promela_vanilla_stats.csv')
-prom_ga      = pd.read_csv('promela_ga_stats.csv')
+beem_vanilla = pd.read_csv(data_folder + 'beem_vanilla_stats.csv')
+beem_ga      = pd.read_csv(data_folder + 'beem_ga_stats.csv')
+ptri_vanilla = pd.read_csv(data_folder + 'petrinets_vanilla_stats.csv')
+ptri_ga      = pd.read_csv(data_folder + 'petrinets_ga_stats.csv')
+prom_vanilla = pd.read_csv(data_folder + 'promela_vanilla_stats.csv')
+prom_ga      = pd.read_csv(data_folder + 'promela_ga_stats.csv')
 datasetnames = ['beem', 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
 datamap      = {('beem','vanilla') : beem_vanilla, ('beem', 'ga') : beem_ga, 
@@ -71,7 +72,7 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
 
     fig, ax = plt.subplots()
     max_val = 0
-    min_val = 0
+    min_val = 1e9
     for ds_name in datasetnames:
         # get the relevant data
         x_data = datamap[(ds_name, x_data_label)]
@@ -104,6 +105,8 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
     ax.set_ylabel('time (s) - {} on {} BDDs'.format(y_strat, y_data_label))
     ax.set_xscale('log')
     ax.set_yscale('log')
+    ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
     ax.legend()
     ax.set_title('reachability runtime comparison')
 
