@@ -9,52 +9,40 @@ promela_ga_stats="bench_data/promela_ga_stats.csv"
 
 mkdir -p bench_data
 
-maxtime=5m
+maxtime=1m
 
 for filename in spin17models/beem/bdds_vanilla/*.bdd; do
-    #for i in {1..5}; do # repeat to average time ?
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_vn_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$beem_vn_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$beem_vn_stats
-    #done
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_vn_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$beem_vn_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$beem_vn_stats
 done
 
 for filename in spin17models/beem/bdds_ga/*.bdd; do
-    #for i in {1..5}; do # repeat to average time ?
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_ga_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$beem_ga_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$beem_ga_stats
-    #done
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_ga_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$beem_ga_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$beem_ga_stats
 done
 
 for filename in spin17models/petrinets/bdds_vanilla/*.bdd; do
-    #for i in {1..5}; do # repeat to average time ?
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_vn_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$petri_vn_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$petri_vn_stats
-    #done
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_vn_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$petri_vn_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$petri_vn_stats
 done
 
 for filename in spin17models/petrinets/bdds_ga/*.bdd; do
-    #for i in {1..5}; do # repeat to average time ?
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_ga_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$petri_ga_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$petri_ga_stats
-    #done
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_ga_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$petri_ga_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$petri_ga_stats
 done
 
 for filename in spin17models/promela/bdds_vanilla/*.bdd; do
-    #for i in {1..5}; do # repeat to average time ?
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_vn_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$promela_vn_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$promela_vn_stats
-    #done
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_vn_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$promela_vn_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$promela_vn_stats
 done
 
 for filename in spin17models/promela/bdds_ga/*.bdd; do
-    #for i in {1..5}; do # repeat to average time ?
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_ga_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$promela_ga_stats
-        timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$promela_ga_stats
-    #done
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_ga_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$promela_ga_stats
+    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$promela_ga_stats
 done

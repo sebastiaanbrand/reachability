@@ -844,6 +844,13 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     partition_rel(r, level, &r00, &r01, &r10, &r11);
     partition_state(s, level, &s0, &s1);
 
+    bdd_refs_pushptr(&s0);
+    bdd_refs_pushptr(&s0);
+    bdd_refs_pushptr(&r00);
+    bdd_refs_pushptr(&r01);
+    bdd_refs_pushptr(&r10);
+    bdd_refs_pushptr(&r11);
+
     BDD prev0 = sylvan_false;
     BDD prev1 = sylvan_false;
     bdd_refs_pushptr(&prev0);
@@ -854,26 +861,26 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
         prev0 = s0;
         prev1 = s1;
 
-        // TODO: spawn tasks
-        BDD t00 = CALL(go_rec, s0, r00, next_vars);
-        bdd_refs_push(t00);
-        BDD t01 = sylvan_relnext(s0, r01, next_vars);
-        bdd_refs_push(t01);
-        BDD t10 = sylvan_relnext(s1, r10, next_vars);
-        bdd_refs_push(t10);
-        BDD t11 = CALL(go_rec, s1, r11, next_vars);
-        bdd_refs_push(t11);
+        /* Do in parallel */
+        bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars));
+        bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
+        bdd_refs_spawn(SPAWN(sylvan_relnext, s1, r10, next_vars, 0));
+        bdd_refs_spawn(SPAWN(go_rec, s1, r11, next_vars));
 
-        BDD t0 = sylvan_or(t00, t10); // states where level = 0 after applying r00 / r10
-        BDD t1 = sylvan_or(t01, t11); // states where level = 1 after applying r01 / r11
-        bdd_refs_pop(4);
+        BDD t11 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t11);
+        BDD t10 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t10);
+        BDD t01 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t01);
+        BDD t00 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t00);
 
         /* Union with previously reachable set */
-        s0 = sylvan_or(s0, t0);
-        s1 = sylvan_or(s1, t1);
+        s0 = sylvan_or(s0, t00);
+        s0 = sylvan_or(s0, t10);
+        s1 = sylvan_or(s1, t11);
+        s1 = sylvan_or(s1, t01);
+        bdd_refs_pop(4);
     }
 
-    bdd_refs_popptr(2);
+    bdd_refs_popptr(8);
 
     /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
     BDD res = sylvan_makenode(level, s0, s1);
