@@ -31,11 +31,22 @@ static char *stats_filename = NULL; // filename of csv stats output file
 static char* profile_filename = NULL; // filename for profiling
 #endif
 
+typedef enum strats {
+    strat_bfs,
+    strat_par,
+    strat_sat,
+    strat_chaining,
+    strat_rec,
+    strat_bfs_plain,
+    strat_chain_rec,
+    num_strats
+} strategy_t;
+
 /* argp configuration */
 static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=0: autodetect)", 0},
-    {"strategy", 's', "<bfs|par|sat|chaining|rec|plain-bfs>", 0, 
+    {"strategy", 's', "<bfs|par|sat|chaining|rec|bfs-plain|chain-rec>", 0, 
      "Strategy for reachability (default=sat)", 0},
 #ifdef HAVE_PROFILER
     {"profiler", 'p', "<filename>", 0, "Filename for profiling", 0},
@@ -57,12 +68,13 @@ parse_opt(int key, char *arg, struct argp_state *state)
         workers = atoi(arg);
         break;
     case 's':
-        if (strcmp(arg, "bfs")==0) strategy = 0;
-        else if (strcmp(arg, "par")==0) strategy = 1;
-        else if (strcmp(arg, "sat")==0) strategy = 2;
-        else if (strcmp(arg, "chaining")==0) strategy = 3;
-        else if (strcmp(arg, "rec")==0) strategy = 4;
-        else if (strcmp(arg, "plain-bfs")==0) strategy = 5;
+        if (strcmp(arg, "bfs")==0) strategy = strat_bfs;
+        else if (strcmp(arg, "par")==0) strategy = strat_par;
+        else if (strcmp(arg, "sat")==0) strategy = strat_sat;
+        else if (strcmp(arg, "chaining")==0) strategy = strat_chaining;
+        else if (strcmp(arg, "rec")==0) strategy = strat_rec;
+        else if (strcmp(arg, "bfs-plain")==0) strategy = strat_bfs_plain;
+        else if (strcmp(arg, "chain-rec")==0) strategy = strat_chain_rec;
         else argp_usage(state);
         break;
     case 4:
@@ -750,10 +762,14 @@ partition_rel(BDD r, BDDVAR topvar, BDD *r00, BDD *r01, BDD *r10, BDD *r11)
 
 /**
  * Partition states s into s0 and s1
+ * TODO: maybe pass nodes so that this function doesn't need to call get_node
  */
 void
 partition_state(BDD s, BDDVAR topvar, BDD *s0, BDD *s1)
 {
+    // 
+    // 
+
     // Check if topvar is skipped
     if (!sylvan_isconst(s)) {
         bddnode_t n = MTBDD_GETNODE(s);
@@ -774,30 +790,25 @@ partition_state(BDD s, BDDVAR topvar, BDD *s0, BDD *s1)
 /**
  * Pain bfs implementation for some sanity checks
  */
-VOID_TASK_1(plain_bfs, set_t, set)
+VOID_TASK_1(bfs_plain, set_t, set)
 {
-    if (next_count != 1) Abort("Strategy plain-bfs requires merge-relations");
+    if (next_count != 1) Abort("Strategy bfs-plain requires merge-relations");
     BDD visited = set->bdd;
-    BDD vars = set->variables;
-    BDD rel = next[0]->bdd;
     BDD prev = sylvan_false;
     BDD successors = sylvan_false;
 
     sylvan_protect(&visited);
-    sylvan_protect(&rel);
-    sylvan_protect(&vars);
     sylvan_protect(&prev);
     sylvan_protect(&successors);
+    // next[k]->bdd, next[k]->vars, set->bdd, set->vars already protected
 
     while (prev != visited) {
         prev = visited;
-        successors = sylvan_relnext(visited, rel, vars);
+        successors = sylvan_relnext(visited,  next[0]->bdd, set->variables);
         visited = sylvan_or(visited, successors);
     }
 
     sylvan_unprotect(&visited);
-    sylvan_unprotect(&rel);
-    sylvan_unprotect(&vars);
     sylvan_unprotect(&prev);
     sylvan_unprotect(&successors);
 
@@ -814,6 +825,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     if (r == sylvan_false) return s; // s.empty* = s.(empty union I)^+ = s
     if (s == sylvan_true || r == sylvan_true) return sylvan_true;
     // all.r* = all, s.all* = all (if s is non empty)
+    if (sylvan_set_isempty(vars)) return s;
 
     /* Count operation */
     sylvan_stats_count(BDD_REACHABLE);
@@ -835,55 +847,142 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
     BDDVAR vr = nr ? bddnode_getvariable(nr) : 0xffffffff;
     BDDVAR level = vs < vr ? vs : vr;
-    //BDDVAR level = sylvan_set_first(vars); // maybe don't skip vars?
 
-    /* Relations, states, and vars for next level of recursion */
-    BDD r00, r01, r10, r11, s0, s1;
-    BDDSET next_vars = sylvan_set_next(vars);
-    
-    partition_rel(r, level, &r00, &r01, &r10, &r11);
-    partition_state(s, level, &s0, &s1);
-
-    bdd_refs_pushptr(&s0);
-    bdd_refs_pushptr(&s0);
-    bdd_refs_pushptr(&r00);
-    bdd_refs_pushptr(&r01);
-    bdd_refs_pushptr(&r10);
-    bdd_refs_pushptr(&r11);
-
-    BDD prev0 = sylvan_false;
-    BDD prev1 = sylvan_false;
-    bdd_refs_pushptr(&prev0);
-    bdd_refs_pushptr(&prev1);
-
-    // TODO: maybe we can do this saturation-like loop more efficiently
-    while (s0 != prev0 || s1 != prev1) {
-        prev0 = s0;
-        prev1 = s1;
-
-        /* Do in parallel */
-        bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars));
-        bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
-        bdd_refs_spawn(SPAWN(sylvan_relnext, s1, r10, next_vars, 0));
-        bdd_refs_spawn(SPAWN(go_rec, s1, r11, next_vars));
-
-        BDD t11 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t11);
-        BDD t10 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t10);
-        BDD t01 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t01);
-        BDD t00 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t00);
-
-        /* Union with previously reachable set */
-        s0 = sylvan_or(s0, t00);
-        s0 = sylvan_or(s0, t10);
-        s1 = sylvan_or(s1, t11);
-        s1 = sylvan_or(s1, t01);
-        bdd_refs_pop(4);
+    /* Skip variables not in `vars` */
+    int is_s_or_t = 0;
+    bddnode_t nv = 0;
+    if (vars == sylvan_false) { // use all variables when vars == sylvan_false
+        is_s_or_t = 1;
+    } else {
+        nv = MTBDD_GETNODE(vars);
+        for (;;) {
+            // check if level = (s)ource or (t)arget variable
+            BDDVAR vv = bddnode_getvariable(nv);
+            if (level == vv || (level^1) == vv) {
+                is_s_or_t = 1;
+                break;
+            }
+            // check if level < s or t
+            if (level < vv) break;
+            vars = node_high(vars, nv); // get next in vars
+            if (sylvan_set_isempty(vars)) return s;
+            nv = MTBDD_GETNODE(vars);
+        }
     }
 
-    bdd_refs_popptr(8);
+    //if (next_count == 1) {
+    //    assert(is_s_or_t == 1);
+    //}
 
-    /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
-    BDD res = sylvan_makenode(level, s0, s1);
+    BDD res;
+
+    if (is_s_or_t) {
+        /* Relations, states, and vars for next level of recursion */
+        BDD r00, r01, r10, r11, s0, s1;
+        BDDSET next_vars = sylvan_set_next(vars);
+        
+        partition_rel(r, level, &r00, &r01, &r10, &r11);
+        partition_state(s, level, &s0, &s1);
+
+        bdd_refs_pushptr(&s0);
+        bdd_refs_pushptr(&s0);
+        bdd_refs_pushptr(&r00);
+        bdd_refs_pushptr(&r01);
+        bdd_refs_pushptr(&r10);
+        bdd_refs_pushptr(&r11);
+
+        BDD prev0 = sylvan_false;
+        BDD prev1 = sylvan_false;
+        bdd_refs_pushptr(&prev0);
+        bdd_refs_pushptr(&prev1);
+
+        while (s0 != prev0 || s1 != prev1) {
+            prev0 = s0;
+            prev1 = s1;
+
+            /* Do in parallel */
+            bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars));
+            bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
+            bdd_refs_spawn(SPAWN(sylvan_relnext, s1, r10, next_vars, 0));
+            bdd_refs_spawn(SPAWN(go_rec, s1, r11, next_vars));
+
+            BDD t11 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t11);
+            BDD t10 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t10);
+            BDD t01 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t01);
+            BDD t00 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t00);
+
+            /* Union with previously reachable set */
+            s0 = sylvan_or(s0, t00);
+            s0 = sylvan_or(s0, t10);
+            s1 = sylvan_or(s1, t11);
+            s1 = sylvan_or(s1, t01);
+            bdd_refs_pop(4);
+        }
+
+        bdd_refs_popptr(8);
+
+        /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
+        res = sylvan_makenode(level, s0, s1);
+    } else {
+        // (copied from rel_next)
+        /* Variable not in vars! Take s, quantify r */
+        // TODO: replace with calls to "parition_state" (?)
+        BDD s0, s1, r0, r1;
+        if (ns && vs == level) {
+            s0 = node_low(s, ns);
+            s1 = node_high(s, ns);
+        } else {
+            s0 = s1 = s;
+        }
+        if (nr && vr == level) {
+            r0 = node_low(r, nr);
+            r1 = node_high(r, nr);
+        } else {
+            r0 = r1 = r;
+        }
+
+        if (r0 != r1) {
+            if (s0 == s1) {
+                /* Quantify "r" variables */
+                bdd_refs_spawn(SPAWN(go_rec, s0, r0, vars));
+                bdd_refs_spawn(SPAWN(go_rec, s1, r1, vars));
+
+                BDD res1 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res1);
+                BDD res0 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res0);
+                res = sylvan_or(res0, res1);
+                bdd_refs_pop(2);
+            } else {
+                /* Quantify "r" variables, but keep "a" variables */
+                bdd_refs_spawn(SPAWN(go_rec, s0, r0, vars));
+                bdd_refs_spawn(SPAWN(go_rec, s0, r1, vars));
+                bdd_refs_spawn(SPAWN(go_rec, s1, r0, vars));
+                bdd_refs_spawn(SPAWN(go_rec, s1, r1, vars));
+
+                BDD res11 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res11);
+                BDD res10 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res10);
+                BDD res01 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res01);
+                BDD res00 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res00);
+
+                bdd_refs_spawn(SPAWN(sylvan_ite, res00, sylvan_true, res01, 0));
+                bdd_refs_spawn(SPAWN(sylvan_ite, res10, sylvan_true, res11, 0));
+
+                BDD res1 = bdd_refs_sync(SYNC(sylvan_ite)); bdd_refs_push(res1);
+                BDD res0 = bdd_refs_sync(SYNC(sylvan_ite));
+                bdd_refs_pop(5);
+
+                res = sylvan_makenode(level, res0, res1);
+            }
+        } else { // r0 == r1
+            /* Keep "s" variables */
+            bdd_refs_spawn(SPAWN(go_rec, s0, r0, vars));
+            bdd_refs_spawn(SPAWN(go_rec, s1, r1, vars));
+
+            BDD res1 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res1);
+            BDD res0 = bdd_refs_sync(SYNC(go_rec));
+            bdd_refs_pop(1);
+            res = sylvan_makenode(level, res0, res1);
+        }
+    }
 
     /* Put in cache */
     if (cachenow) {
@@ -898,6 +997,35 @@ VOID_TASK_1(rec, set_t, set)
 {
     if (next_count != 1) Abort("Strategy rec requires merge-relations");
     set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, set->variables);
+}
+
+/**
+ * Chain loop around recursive algorithm, where rec is applied to partial
+ * relations. If next_count == 1 then this loop should converge in a single 
+ * iteration, since rec already computes all reachable states.
+ */
+VOID_TASK_1(chain_rec, set_t, set)
+{
+    BDD visited = set->bdd;
+    BDD prev = sylvan_false;
+    BDD successors = sylvan_false;
+
+    sylvan_protect(&visited);
+    sylvan_protect(&prev);
+    sylvan_protect(&successors);
+
+    while (prev != visited) {
+        prev = visited;
+        for (int k = 0; k < next_count; k++) {
+            visited = RUN(go_rec, visited, next[k]->bdd, next[k]->variables);
+        }
+    }
+
+    sylvan_unprotect(&visited);
+    sylvan_unprotect(&prev);
+    sylvan_unprotect(&successors);
+
+    set->bdd = visited;
 }
 
 /**
@@ -1074,7 +1202,7 @@ main(int argc, char **argv)
      * Pre-processing and some statistics reporting
      */
 
-    if (strategy == 2 || strategy == 3) {
+    if (strategy == strat_sat || strategy == strat_chaining) {
         // for SAT and CHAINING, sort the transition relations (gnome sort because I like gnomes)
         int i = 1, j = 2;
         rel_t t;
@@ -1153,42 +1281,48 @@ main(int argc, char **argv)
     // However: there might be an underlying issue (with LTSmin?) which causes
     // these vars >= 1000000 to appear in the first place...
 
-    if (strategy == 0) {
+    if (strategy == strat_bfs) {
         double t1 = wctime();
         RUN(bfs, states);
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("BFS Time: %f\n", stats.reach_time);
-    } else if (strategy == 1) {
+    } else if (strategy == strat_par) {
         double t1 = wctime();
         RUN(par, states);
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("PAR Time: %f\n", stats.reach_time);
-    } else if (strategy == 2) {
+    } else if (strategy == strat_sat) {
         double t1 = wctime();
         RUN(sat, states);
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("SAT Time: %f\n", stats.reach_time);
-    } else if (strategy == 3) {
+    } else if (strategy == strat_chaining) {
         double t1 = wctime();
         RUN(chaining, states);
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("CHAINING Time: %f\n", stats.reach_time);
-    } else if (strategy == 4) {
+    } else if (strategy == strat_rec) {
         double t1 = wctime();
         RUN(rec, states);
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("REC Time: %f\n", stats.reach_time);
-    } else if (strategy == 5) {
+    } else if (strategy == strat_bfs_plain) {
         double t1 = wctime();
-        RUN(plain_bfs, states);
+        RUN(bfs_plain, states);
         double t2 = wctime();
         stats.reach_time = t2-t1;
-        INFO("PLAIN-BFS Time: %f\n", stats.reach_time);
+        INFO("BFS-PLAIN Time: %f\n", stats.reach_time);
+    } else if (strategy == strat_chain_rec) {
+        double t1 = wctime();
+        RUN(chain_rec, states);
+        double t2 = wctime();
+        stats.reach_time = t2-t1;
+        INFO("CHAIN-REC Time: %f\n", stats.reach_time);
     }
     else {
         Abort("Invalid strategy set?!\n");
