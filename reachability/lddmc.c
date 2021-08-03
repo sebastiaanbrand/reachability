@@ -125,6 +125,15 @@ static int vector_size; // size of vector in integers
 static int next_count; // number of partitions of the transition relation
 static rel_t *next; // each partition of the transition relation
 
+typedef struct stats {
+    double reach_time;
+    double merge_rel_time;
+    double final_states;
+    size_t final_nodecount;
+    size_t peaknodes;
+} stats_t;
+stats_t stats = {0};
+
 /**
  * Obtain current wallclock time
  */
@@ -687,6 +696,66 @@ VOID_TASK_1(chaining, set_t, set)
     lddmc_refs_popptr(3);
 }
 
+/**
+ * Extend a transition relation to a larger domain (using s=s')
+ * meta: -1 (end; rest not in rel), 0 (not in rel), 1 (read), 2 (write), 
+ *      3 (only-read), 4 (only-write), 5 (action label)
+ */
+#define extend_relation(rel, meta) RUN(extend_relation, rel, meta)
+TASK_2(MDD, extend_relation, MDD, relation, MDD, meta)
+{
+    Abort("extend_relation() not yet implemented for LDDs\n");
+    // TODO
+
+    /*
+    // first determine which state BDD variables are in rel
+    int has[totalbits];
+    for (int i=0; i<totalbits; i++) has[i] = 0;
+    MTBDD s = variables;
+    while (!sylvan_set_isempty(s)) {
+        uint32_t v = sylvan_set_first(s);
+        if (v/2 >= (unsigned)totalbits) break; // action labels
+        has[v/2] = 1;
+        s = sylvan_set_next(s);
+    }
+
+    // create "s=s'" for all variables not in rel
+    BDD eq = sylvan_true;
+    for (int i=totalbits-1; i>=0; i--) {
+        if (has[i]) continue;
+        BDD low = sylvan_makenode(2*i+1, eq, sylvan_false);
+        bdd_refs_push(low);
+        BDD high = sylvan_makenode(2*i+1, sylvan_false, eq);
+        bdd_refs_pop(1);
+        eq = sylvan_makenode(2*i, low, high);
+    }
+
+    bdd_refs_push(eq);
+    BDD result = sylvan_and(relation, eq);
+    bdd_refs_pop(1);
+
+    return result;
+    */
+}
+
+#define big_union(first, count) RUN(big_union, first, count)
+TASK_2(MDD, big_union, int, first, int, count)
+{
+    Abort("big_union() not yet implemented for LDDs\n");
+    // TODO
+    
+    /*
+    if (count == 1) return next[first]->bdd;
+
+    bdd_refs_spawn(SPAWN(big_union, first, count/2));
+    BDD right = bdd_refs_push(CALL(big_union, first+count/2, count-count/2));
+    BDD left = bdd_refs_push(bdd_refs_sync(SYNC(big_union)));
+    BDD result = sylvan_or(left, right);
+    bdd_refs_pop(2);
+    return result;
+    */
+}
+
 VOID_TASK_0(gc_start)
 {
     char buf[32];
@@ -720,9 +789,6 @@ main(int argc, char **argv)
     setlocale(LC_NUMERIC, "en_US.utf-8");
     t_start = wctime();
 
-    if (merge_relations) {
-        Abort("Relation merging not yet implemented for LDDs.\n");
-    }
     if (stats_filename != NULL) {
         Abort("Logging stats to csv file not yet implemented.\n");
     }
@@ -786,6 +852,41 @@ main(int argc, char **argv)
 
     /* Close the file */
     fclose(f);
+
+    f = fopen("rel_dd.dot", "w");
+    lddmc_fprintdot(f, next[0]->dd);
+    fclose(f);
+    f = fopen("rel_meta.dot", "w");
+    lddmc_fprintdot(f, next[0]->meta);
+    fclose(f);
+
+    if (merge_relations) {
+        double t1 = wctime();
+        MDD newmeta = sylvan_true;
+        // TODO: new var set
+
+        // NOTE: LDDs don't skip redundant nodes (so no variables are skipped)
+
+        INFO("Extending transition relations to full domain.\n");
+        for (int i=0; i<next_count; i++) {
+            next[i]->dd = extend_relation(next[i]->dd, next[i]->meta);
+            next[i]->meta = newmeta;
+        }
+        // TODO
+
+        INFO("Taking union of all transition relations.\n");
+        next[0]->dd = big_union(0, next_count);
+
+
+        for (int i=1; i<next_count; i++) {
+            next[i]->dd = sylvan_false;
+            next[i]->meta = sylvan_true;
+            next[i]->firstvar = 0;
+        }
+        next_count = 1;
+        double t2 = wctime();
+        stats.merge_rel_time = t2-t1;
+    }
 
     /**
      * Pre-processing and some statistics reporting
