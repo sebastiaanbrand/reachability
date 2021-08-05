@@ -834,7 +834,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     int cachenow = 1;
     if (cachenow) {
         BDD res;
-        if (cache_get3(CACHE_BDD_REACHABLE, s, r, 0, &res)) {
+        if (cache_get3(CACHE_BDD_REACHABLE, s, r, vars, &res)) {
             sylvan_stats_count(BDD_REACHABLE_CACHED);
             return res;
         }
@@ -879,7 +879,8 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     if (is_s_or_t) {
         /* Relations, states, and vars for next level of recursion */
         BDD r00, r01, r10, r11, s0, s1;
-        BDDSET next_vars = sylvan_set_next(vars);
+        //BDDSET next_vars = sylvan_set_next(vars);
+        BDDSET next_vars = vars == sylvan_false ? sylvan_false : node_high(vars, nv);
         
         partition_rel(r, level, &r00, &r01, &r10, &r11);
         partition_state(s, level, &s0, &s1);
@@ -986,7 +987,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 
     /* Put in cache */
     if (cachenow) {
-        if (cache_put3(CACHE_BDD_REACHABLE, s, r, 0, res)) 
+        if (cache_put3(CACHE_BDD_REACHABLE, s, r, vars, res)) 
             sylvan_stats_count(BDD_REACHABLE_CACHEDPUT);
     }
 
@@ -996,7 +997,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 VOID_TASK_1(rec, set_t, set)
 {
     if (next_count != 1) Abort("Strategy rec requires merge-relations");
-    set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, set->variables);
+    set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, next[0]->variables);
 }
 
 /**
