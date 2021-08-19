@@ -816,9 +816,101 @@ VOID_TASK_1(bfs_plain, set_t, set)
 }
 
 /**
- * Implementation of recursive reachability algorithm
+ * Implementation of recursive reachability algorithm for a single global
+ * relation.
  */
 TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
+{
+    /* Terminal cases */
+    if (s == sylvan_false) return sylvan_false; // empty.R* = empty
+    if (r == sylvan_false) return s; // s.empty* = s.(empty union I)^+ = s
+    if (s == sylvan_true || r == sylvan_true) return sylvan_true;
+    // all.r* = all, s.all* = all (if s is non empty)
+
+    /* Count operation */
+    sylvan_stats_count(BDD_REACHABLE);
+
+    /* Consult cache */
+    int cachenow = 1;
+    if (cachenow) {
+        BDD res;
+        if (cache_get3(CACHE_BDD_REACHABLE, s, r, 0, &res)) {
+            sylvan_stats_count(BDD_REACHABLE_CACHED);
+            return res;
+        }
+    }
+
+    /* Determine top level */
+    bddnode_t ns = sylvan_isconst(s) ? 0 : MTBDD_GETNODE(s);
+    bddnode_t nr = sylvan_isconst(r) ? 0 : MTBDD_GETNODE(r);
+
+    BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
+    BDDVAR vr = nr ? bddnode_getvariable(nr) : 0xffffffff;
+    BDDVAR level = vs < vr ? vs : vr;
+    //BDDVAR level = sylvan_set_first(vars); // maybe don't skip vars?
+
+    /* Relations, states, and vars for next level of recursion */
+    BDD r00, r01, r10, r11, s0, s1;
+    BDDSET next_vars = sylvan_set_next(vars);
+    
+    partition_rel(r, level, &r00, &r01, &r10, &r11);
+    partition_state(s, level, &s0, &s1);
+
+    bdd_refs_pushptr(&s0);
+    bdd_refs_pushptr(&s0);
+    bdd_refs_pushptr(&r00);
+    bdd_refs_pushptr(&r01);
+    bdd_refs_pushptr(&r10);
+    bdd_refs_pushptr(&r11);
+
+    BDD prev0 = sylvan_false;
+    BDD prev1 = sylvan_false;
+    bdd_refs_pushptr(&prev0);
+    bdd_refs_pushptr(&prev1);
+
+    // TODO: maybe we can do this saturation-like loop more efficiently
+    while (s0 != prev0 || s1 != prev1) {
+        prev0 = s0;
+        prev1 = s1;
+
+        /* Do in parallel */
+        bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars));
+        bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
+        bdd_refs_spawn(SPAWN(sylvan_relnext, s1, r10, next_vars, 0));
+        bdd_refs_spawn(SPAWN(go_rec, s1, r11, next_vars));
+
+        BDD t11 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t11);
+        BDD t10 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t10);
+        BDD t01 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t01);
+        BDD t00 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t00);
+
+        /* Union with previously reachable set */
+        s0 = sylvan_or(s0, t00);
+        s0 = sylvan_or(s0, t10);
+        s1 = sylvan_or(s1, t11);
+        s1 = sylvan_or(s1, t01);
+        bdd_refs_pop(4);
+    }
+
+    bdd_refs_popptr(8);
+
+    /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
+    BDD res = sylvan_makenode(level, s0, s1);
+
+    /* Put in cache */
+    if (cachenow) {
+        if (cache_put3(CACHE_BDD_REACHABLE, s, r, 0, res)) 
+            sylvan_stats_count(BDD_REACHABLE_CACHEDPUT);
+    }
+
+    return res;
+}
+
+/**
+ * Implementation of recursive reachability algorithm for a partial relation
+ * over given vars. (WIP)
+ */
+TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
 {
     /* Terminal cases */
     if (s == sylvan_false) return sylvan_false; // empty.R* = empty
@@ -1018,7 +1110,7 @@ VOID_TASK_1(chain_rec, set_t, set)
     while (prev != visited) {
         prev = visited;
         for (int k = 0; k < next_count; k++) {
-            visited = RUN(go_rec, visited, next[k]->bdd, next[k]->variables);
+            visited = RUN(go_rec_partial, visited, next[k]->bdd, next[k]->variables);
         }
     }
 
