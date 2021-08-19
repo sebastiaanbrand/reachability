@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 fig_formats = ['png', 'pdf', 'eps']
 plots_folder = 'plots/{}/' # output in plots/fig_format/
+label_folder = 'plots/labeled/' # for plots with labels for all data-points
 data_folder  = 'bench_data/'
 
 beem_vanilla = pd.read_csv(data_folder + 'beem_vanilla_stats.csv')
@@ -32,9 +33,10 @@ def info(str):
         print(str)
 
 def pre_process():
-    # make plots folder if necessary
+    # make plots folders if necessary
     for fig_format in fig_formats:
         Path(plots_folder.format(fig_format)).mkdir(parents=True, exist_ok=True)
+    Path(label_folder).mkdir(parents=True, exist_ok=True)
 
     # strip whitespace from column names
     for df in datamap.values():
@@ -84,10 +86,14 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
 
     scaling = 5.0 # default = ~6.0
     fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
-    point_size = 8
+    point_size = 8.0
+    label_font_size = 1.0
 
     max_val = 0
     min_val = 1e9
+    all_xs = [] 
+    all_ys = [] 
+    all_names = [] # track for annotations
     for ds_name in datasetnames:
         # get the relevant data
         x_data = datamap[(ds_name, x_data_label)]
@@ -108,6 +114,11 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
         ys = joined['reach_time_y'].to_numpy()
         ax.scatter(xs, ys, s=point_size, label=legend_names[ds_name])
 
+        # track for annotations
+        all_xs.extend(xs)
+        all_ys.extend(ys)
+        all_names.extend(joined['benchmark'])
+
         # max and min for diagonal line
         max_val = max(max_val, max(np.max(xs), np.max(ys)))
         min_val = min(min_val, min(np.min(xs), np.min(ys)))
@@ -125,6 +136,7 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
     legend = ax.legend(framealpha=1.0)
     plt.tight_layout()
 
+    # plots without data-point lables
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}reachtime_{}_{}_vs_{}_{}.{}'.format(subfolder,
@@ -132,6 +144,15 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
                                                           y_strat, y_data_label,
                                                           fig_format)
         fig.savefig(fig_name, dpi=300)
+
+    # add data-point labes and plot as pdf
+    for i, bench_name in enumerate(all_names):
+        ax.annotate(bench_name, (all_xs[i], all_ys[i]), fontsize=label_font_size)
+    fig_name = '{}reachtime_{}_{}_vs_{}_{}.{}'.format(label_folder,
+                                                      x_strat, x_data_label,
+                                                      y_strat, y_data_label,
+                                                      'pdf')
+    fig.savefig(fig_name, dpi=300)
 
 def plot_things():
     plot_comparison('bfs', 'vanilla', 'sat', 'vanilla')
