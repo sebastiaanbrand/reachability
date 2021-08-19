@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-import pathlib
+from pathlib import Path
 import matplotlib.pyplot as plt
 
-fig_formats = ['png', 'pdf']
-plots_folder = 'plots/'
+fig_formats = ['png', 'pdf', 'eps']
+plots_folder = 'plots/{}/' # output in plots/fig_format/
 data_folder  = 'bench_data/'
 
 beem_vanilla = pd.read_csv(data_folder + 'beem_vanilla_stats.csv')
@@ -21,10 +21,20 @@ datamap      = {('beem','vanilla') : beem_vanilla, ('beem', 'ga') : beem_ga,
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4}
+axis_label = {'bfs' : 'BFS',
+              'sat' : 'saturation',
+              'rec' : 'recursive'}
+
+verbose = True
+
+def info(str):
+    if (verbose):
+        print(str)
 
 def pre_process():
     # make plots folder if necessary
-    pathlib.Path(plots_folder).mkdir(parents=True, exist_ok=True)
+    for fig_format in fig_formats:
+        Path(plots_folder.format(fig_format)).mkdir(parents=True, exist_ok=True)
 
     # strip whitespace from column names
     for df in datamap.values():
@@ -69,8 +79,13 @@ strat in {'bfs', 'sat', 'rec'}
 data in {'vanilla', 'ga'}
 """
 def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
+    info("plotting {} ({}) vs {} ({})".format(x_strat, x_data_label, 
+                                              y_strat, y_data_label))
 
-    fig, ax = plt.subplots()
+    scaling = 5.0 # default = ~6.0
+    fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
+    point_size = 8
+
     max_val = 0
     min_val = 1e9
     for ds_name in datasetnames:
@@ -91,7 +106,7 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
         # plot reachability time of x vs y
         xs = joined['reach_time_x'].to_numpy()
         ys = joined['reach_time_y'].to_numpy()
-        ax.scatter(xs, ys, s=10, label=legend_names[ds_name])
+        ax.scatter(xs, ys, s=point_size, label=legend_names[ds_name])
 
         # max and min for diagonal line
         max_val = max(max_val, max(np.max(xs), np.max(ys)))
@@ -101,17 +116,18 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
     ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
 
     # labels and formatting
-    ax.set_xlabel('time (s) - {} on {} BDDs'.format(x_strat, x_data_label))
-    ax.set_ylabel('time (s) - {} on {} BDDs'.format(y_strat, y_data_label))
+    ax.set_xlabel('{} time (s)'.format(axis_label[x_strat]))
+    ax.set_ylabel('{} time (s)'.format(axis_label[y_strat]))
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
     ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
-    ax.legend()
-    ax.set_title('reachability runtime comparison')
+    legend = ax.legend(framealpha=1.0)
+    plt.tight_layout()
 
     for fig_format in fig_formats:
-        fig_name = '{}reachtime_{}_{}_vs_{}_{}.{}'.format(plots_folder,
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}reachtime_{}_{}_vs_{}_{}.{}'.format(subfolder,
                                                           x_strat, x_data_label,
                                                           y_strat, y_data_label,
                                                           fig_format)
