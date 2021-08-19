@@ -701,13 +701,13 @@ VOID_TASK_1(chaining, set_t, set)
  * meta: -1 (end; rest not in rel), 0 (not in rel), 1 (read), 2 (write), 
  *      3 (only-read), 4 (only-write), 5 (action label)
  */
+/*
 #define extend_relation(rel, meta) RUN(extend_relation, rel, meta)
 TASK_2(MDD, extend_relation, MDD, relation, MDD, meta)
 {
-    Abort("extend_relation() not yet implemented for LDDs\n");
     // TODO
 
-    /*
+    
     // first determine which state BDD variables are in rel
     int has[totalbits];
     for (int i=0; i<totalbits; i++) has[i] = 0;
@@ -735,15 +735,20 @@ TASK_2(MDD, extend_relation, MDD, relation, MDD, meta)
     bdd_refs_pop(1);
 
     return result;
-    */
 }
+*/
+
 
 #define big_union(first, count) RUN(big_union, first, count)
 TASK_2(MDD, big_union, int, first, int, count)
 {
-    Abort("big_union() not yet implemented for LDDs\n");
-    // TODO
-    
+    MDD res = next[first]->dd;
+    for (int i = first+1; i < count; i++) {
+        res = lddmc_union(res, next[i]->dd);
+    }
+    return res;
+
+    // TODO: parallel (see big_union in bddmc)
     /*
     if (count == 1) return next[first]->bdd;
 
@@ -860,34 +865,6 @@ main(int argc, char **argv)
     lddmc_fprintdot(f, next[0]->meta);
     fclose(f);
 
-    if (merge_relations) {
-        double t1 = wctime();
-        MDD newmeta = sylvan_true;
-        // TODO: new var set
-
-        // NOTE: LDDs don't skip redundant nodes (so no variables are skipped)
-
-        INFO("Extending transition relations to full domain.\n");
-        for (int i=0; i<next_count; i++) {
-            next[i]->dd = extend_relation(next[i]->dd, next[i]->meta);
-            next[i]->meta = newmeta;
-        }
-        // TODO
-
-        INFO("Taking union of all transition relations.\n");
-        next[0]->dd = big_union(0, next_count);
-
-
-        for (int i=1; i<next_count; i++) {
-            next[i]->dd = sylvan_false;
-            next[i]->meta = sylvan_true;
-            next[i]->firstvar = 0;
-        }
-        next_count = 1;
-        double t2 = wctime();
-        stats.merge_rel_time = t2-t1;
-    }
-
     /**
      * Pre-processing and some statistics reporting
      */
@@ -917,6 +894,38 @@ main(int argc, char **argv)
             print_matrix(vector_size, next[i]->meta);
             printf(" (%d)\n", get_first(next[i]->meta));
         }
+    }
+
+
+    // Tom zegt: breid variabele domein uit en gebruik lddmcunion.
+    // I don't know how to extend the variable domain?
+    if (merge_relations) {
+        double t1 = wctime();
+        MDD newmeta = sylvan_true;
+        // TODO: new var set
+
+        // NOTE: LDDs don't skip redundant nodes (so no variables are skipped)
+
+        //Abort("extend_relation() not yet implemented for LDDs\n");
+        //INFO("Extending transition relations to full domain.\n");
+        //for (int i=0; i<next_count; i++) {
+        //    next[i]->dd = extend_relation(next[i]->dd, next[i]->meta);
+        //    next[i]->meta = newmeta;
+        //}
+        // TODO
+
+        INFO("Taking union of all transition relations.\n");
+        next[0]->dd = big_union(0, next_count);
+        next[0]->firstvar = 0;
+
+        for (int i=1; i<next_count; i++) {
+            next[i]->dd = sylvan_false;
+            next[i]->meta = sylvan_true;
+            next[i]->firstvar = 0;
+        }
+        next_count = 1;
+        double t2 = wctime();
+        stats.merge_rel_time = t2-t1;
     }
 
     set_t states = set_clone(initial);
