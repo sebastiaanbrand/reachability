@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# usage:
+# bash bench_all.sh [-w workers] [beem|petri|promela]
+
 beem_vn_stats="bench_data/beem_vanilla_stats.csv"
 beem_ga_stats="bench_data/beem_ga_stats.csv"
 petri_vn_stats="bench_data/petrinets_vanilla_stats.csv"
@@ -9,40 +12,92 @@ promela_ga_stats="bench_data/promela_ga_stats.csv"
 
 mkdir -p bench_data
 
-maxtime=1m
+maxtime=1m # todo: add as command line argument
+num_workers=1 # can pass e.g. -w "1 2 4 8" to run with 1, 2, 4, and 8 workers
 
-for filename in spin17models/beem/bdds_vanilla/*.bdd; do
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_vn_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$beem_vn_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$beem_vn_stats
+while getopts ":w:" opt; do
+  case $opt in
+    w) num_workers="$OPTARG"
+    ;;
+    \?) echo "Invalid option -$OPTARG" >&1; exit 1;
+    ;;
+  esac
 done
 
-for filename in spin17models/beem/bdds_ga/*.bdd; do
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_ga_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$beem_ga_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$beem_ga_stats
+# process arguments for running subset of all benchmarks (run all when no args)
+for var in "$@"; do
+    if [[ $var == 'beem' ]]; then bench_beem_vn=true; bench_beem_ga=true; fi
+    if [[ $var == 'petri' ]]; then bench_ptri_vn=true; bench_ptri_ga=true; fi
+    if [[ $var == 'promela' ]]; then bench_prom_vn=true; bench_prom_ga=true; fi
+    if [[ $var == 'beem-vanilla' ]]; then bench_beem_vn=true; fi
+    if [[ $var == 'beem-ga' ]]; then bench_beem_ga=true; fi
+    if [[ $var == 'petri-vanilla' ]]; then bench_ptri_vn=true; fi
+    if [[ $var == 'petri-ga' ]]; then bench_ptri_ga=true; fi
+    if [[ $var == 'promela-vanilla' ]]; then bench_prom_vn=true; fi
+    if [[ $var == 'promela-ga' ]]; then bench_prom_ga=true; fi
+    if [[ $var == 'all' ]]; then
+        bench_beem_vn=true; bench_ptri_vn=true; bench_prom_vn=true
+        bench_beem_ga=true; bench_ptri_ga=true; bench_prom_ga=true
+    fi
 done
 
-for filename in spin17models/petrinets/bdds_vanilla/*.bdd; do
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_vn_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$petri_vn_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$petri_vn_stats
-done
+if [[ $bench_beem_vn ]]; then
+    for filename in spin17models/beem/bdds_vanilla/*.bdd; do
+        for nw in $num_workers; do
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_vn_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_vn_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_vn_stats
+        done
+    done
+fi
 
-for filename in spin17models/petrinets/bdds_ga/*.bdd; do
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_ga_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$petri_ga_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$petri_ga_stats
-done
+if [[ $bench_beem_ga ]]; then
+    for filename in spin17models/beem/bdds_ga/*.bdd; do
+        for nw in $num_workers; do
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_ga_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_ga_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_ga_stats
+        done
+    done
+fi
 
-for filename in spin17models/promela/bdds_vanilla/*.bdd; do
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_vn_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$promela_vn_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$promela_vn_stats
-done
+if [[ $bench_ptri_vn ]]; then
+    for filename in spin17models/petrinets/bdds_vanilla/*.bdd; do
+        for nw in $num_workers; do
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_vn_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_vn_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_vn_stats
+        done
+    done
+fi
 
-for filename in spin17models/promela/bdds_ga/*.bdd; do
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_ga_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=sat --count-nodes --statsfile=$promela_ga_stats
-    timeout $maxtime ./../build/reachability/bddmc $filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$promela_ga_stats
-done
+if [[ $bench_ptri_ga ]]; then
+    for filename in spin17models/petrinets/bdds_ga/*.bdd; do
+        for nw in $num_workers; do
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_ga_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_ga_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_ga_stats
+        done
+    done
+fi
+
+if [[ $bench_prom_vn ]]; then
+    for filename in spin17models/promela/bdds_vanilla/*.bdd; do
+        for nw in $num_workers; do
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_vn_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_vn_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_vn_stats
+        done
+    done
+fi
+
+if [[ $bench_prom_ga ]]; then
+    for filename in spin17models/promela/bdds_ga/*.bdd; do
+        for nw in $num_workers; do
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_ga_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_ga_stats
+            timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_ga_stats
+        done
+    done
+fi
+
