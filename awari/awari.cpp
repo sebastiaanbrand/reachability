@@ -54,6 +54,67 @@ using namespace sylvan;
 using namespace std;
 using namespace std::chrono;
 
+// SAVING (adapted from from LTSmin)
+static void
+dom_save(FILE* f, BddSet vars)
+{
+    // To be compatible w/ LTSmin output we need to specify the following:
+    // 1. vectorsize = number of integers for each full state
+    // 2. statebits* = number of bits for each state variable
+    // 3. actionbits = number of bits for the action label
+    // For 1 and 2 we'll just have a single state be 1 "n_vars"-bit integer.
+    // We don't need 3.
+    int vectorsize = 1;
+    int statebits[] = {0}; statebits[0] = vars.size();
+    int actionbits = 0;
+    fwrite(&vectorsize, sizeof(int), 1, f);
+    fwrite(statebits, sizeof(int), vectorsize, f);
+    fwrite(&actionbits, sizeof(int), 1, f);
+}
+
+static void
+set_save(FILE* f, BddSet vars, BDD set)
+{
+    // get state vars as array
+    int k = vars.size();
+    BDDVAR *proj = (BDDVAR *) malloc(k * sizeof(int));
+    vars.toArray(proj);
+
+    fwrite(&k, sizeof(int), 1, f);
+    if (k != -1) fwrite(proj, sizeof(int), k, f);
+    free(proj);
+
+    LACE_ME;
+    mtbdd_writer_tobinary(f, &set, 1);
+}
+
+static void
+rel_save_proj(FILE* f, BddSet unprimed, BddSet primed)
+{
+    // get vars
+    int r_k = unprimed.size(); // number of unprimed
+    int w_k = primed.size(); // number of primed
+    BDDVAR *r_proj = (BDDVAR *) malloc(r_k * sizeof(int)); // unprimed vars
+    BDDVAR *w_proj = (BDDVAR *) malloc(w_k * sizeof(int)); // primed vars
+    unprimed.toArray(r_proj);
+    primed.toArray(w_proj);
+
+    // get vars from relation
+    fwrite(&r_k, sizeof(int), 1, f);
+    fwrite(&w_k, sizeof(int), 1, f);
+    fwrite(r_proj, sizeof(int), r_k, f);
+    fwrite(w_proj, sizeof(int), w_k, f);
+
+    free(r_proj);
+    free(w_proj);
+}
+
+static void
+rel_save(FILE* f, BDD rel)
+{
+    LACE_ME;
+    mtbdd_writer_tobinary(f, &rel, 1);
+}
 
 // TODO: rename all these confusing varnames:
 struct AwariSize {
@@ -487,6 +548,24 @@ public:
         cout<<"print board: "<<name<<endl;
         //sylvan_enum(b.GetBDD(), Vars[0].GetBDD(), print_board, (AwariSize *)this);
     }
+
+    void WriteAsLTSminOutput(FILE *f)
+    {
+        // 1. write domain info
+        dom_save(f, Vars[0]);
+
+        // 2. write initial states
+        set_save(f, Vars[0], InitialBoard.GetBDD());
+
+        // 3. write number of transition relation groups
+        int nGrps = 1; fwrite(&nGrps, sizeof(int), 1, f);
+
+        // 4. write rel_proj
+        rel_save_proj(f, Vars[0], Vars[1]);
+
+        // 5. write rel
+        rel_save(f, MoveRelation.GetBDD());
+    }
 };
 
 Bdd BfsForward(Awari &game, Bdd Seed) {
@@ -889,10 +968,9 @@ int main(int argc, const char *argv[])
         }
     }
 
+    // TODO: generate for a bunch of different sizes
     Awari Game = Awari(6, 24); // default: 12, 38
     printf("init done\n");
-
-    // TODO: write relation and states to file (see bottom of this file)
 
     start_time = wctime();
     if (unit) {
@@ -900,6 +978,12 @@ int main(int argc, const char *argv[])
         Test2(Game, Game.M, 10);
         exit(0);
     }
+
+    // Write relation and states to file (see bottom of this file)
+    FILE *fp = fopen("awari.bdd", "w");
+    Game.WriteAsLTSminOutput(fp);
+    fclose(fp);
+    printf("writing done\n");
 
     /*
     Bdd FixPoint;
@@ -933,31 +1017,4 @@ int main(int argc, const char *argv[])
 }
 
 
-/*
-// SAVING (from LTSmin)
-static void
-set_save(FILE* f, vset_t set)
-{
-    fwrite(&set->k, sizeof(int), 1, f);
-    if (set->k != -1) fwrite(set->proj, sizeof(int), set->k, f);
-    LACE_ME;
-    mtbdd_writer_tobinary(f, &set->bdd, 1);
-}
 
-static void
-rel_save_proj(FILE* f, vrel_t rel)
-{
-    fwrite(&rel->r_k, sizeof(int), 1, f);
-    fwrite(&rel->w_k, sizeof(int), 1, f);
-    fwrite(rel->r_proj, sizeof(int), rel->r_k, f);
-    fwrite(rel->w_proj, sizeof(int), rel->w_k, f);
-}
-
-static void
-rel_save(FILE* f, vrel_t rel)
-{
-    LACE_ME;
-    mtbdd_writer_tobinary(f, &rel->bdd, 1);
-    // TODO also write all_variables...
-}
-*/
