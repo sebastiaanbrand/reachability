@@ -9,7 +9,7 @@
 # Build
 build/
 
-# ignore 2GB of models for now
-reachability/spin17models/
+# ignore several GBs of models for now
+reachability/models/
 reachability/bench_data/
 reachability/plots/
