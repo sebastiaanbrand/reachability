@@ -54,6 +54,9 @@ using namespace sylvan;
 using namespace std;
 using namespace std::chrono;
 
+// don't use for heap / malloced arrays
+#define len(x) (sizeof(x) / sizeof(x[0]))
+
 // SAVING (adapted from from LTSmin)
 static void
 dom_save(FILE* f, BddSet vars)
@@ -930,88 +933,68 @@ void usage() {
 }
 
 int main(int argc, const char *argv[])
-{   
-    cout.imbue(locale( locale::classic(), new MyNumPunct ) );
+{
+    int ms[] = {2,  4,  6,  8, 10, 12};
+    int ks[] = {8, 16, 24, 32, 40, 48};
 
-    // Init Lace
-    lace_init(1, 0); // auto-detect number of workers, use a 1,000,000 size task queue
-    lace_startup(0, NULL, NULL); // auto-detect program stack, do not use a callback for startup
+    for (int i = 0; i < len(ms); i++) {
+        int m = ms[i];
+        int k = ks[i];
+    
+        cout.imbue(locale( locale::classic(), new MyNumPunct ) );
 
-    sylvan_set_sizes(1ULL<<23, 1ULL<<23, 1ULL<<21, 1UL<<21);
-    //sylvan_set_sizes(1ULL<<23, 1ULL<<31, 1ULL<<21, 1ULL<<29);
-    // total_size =  node_table_size * 24 + cache_table_size * 36
-    //sylvan_set_sizes(1LL<<26, 1LL<<29, 1LL<<23, 1LL<<25);
+        // Init Lace
+        lace_init(1, 0); // auto-detect number of workers, use a 1,000,000 size task queue
+        lace_startup(0, NULL, NULL); // auto-detect program stack, do not use a callback for startup
 
-    sylvan_init_package();
-    sylvan_set_granularity(3); // granularity 3 is decent value for this small problem - 1 means "use cache for every operation"
-    sylvan_init_bdd();
+        sylvan_set_sizes(1ULL<<23, 1ULL<<23, 1ULL<<21, 1UL<<21);
+        //sylvan_set_sizes(1ULL<<23, 1ULL<<31, 1ULL<<21, 1ULL<<29);
+        // total_size =  node_table_size * 24 + cache_table_size * 36
+        //sylvan_set_sizes(1LL<<26, 1LL<<29, 1LL<<23, 1LL<<25);
 
-    // Before and after garbage collection, call gc_start and gc_end
-    sylvan_gc_hook_pregc(TASK(gc_start));
-    sylvan_gc_hook_postgc(TASK(gc_end));
+        sylvan_init_package();
+        sylvan_set_granularity(3); // granularity 3 is decent value for this small problem - 1 means "use cache for every operation"
+        sylvan_init_bdd();
 
-    sylvan_gc_hook_main(TASK(sylvan_gc_normal_resize));
+        // Before and after garbage collection, call gc_start and gc_end
+        sylvan_gc_hook_pregc(TASK(gc_start));
+        sylvan_gc_hook_postgc(TASK(gc_end));
 
-    char algo = 'r';    // default to retrograde
-    bool disk = false;
-    bool unit = false;
-    bool sweep = true;
-    for (int i = 1; i < argc; i++) {
-        if (strlen(argv[i]) > 1) usage();
-        switch (argv[i][0]) {
-        case 'r': case 'f': case 'b':
-            algo = argv[i][0];  break;
-        case 's': sweep = true; break;
-        case 'd': disk  = true; break;
-        case 'u': unit  = true; break;
-        default: usage();
+        sylvan_gc_hook_main(TASK(sylvan_gc_normal_resize));
+
+        char algo = 'r';    // default to retrograde
+        bool disk = false;
+        bool unit = false;
+        bool sweep = true;
+        for (int i = 1; i < argc; i++) {
+            if (strlen(argv[i]) > 1) usage();
+            switch (argv[i][0]) {
+            case 'r': case 'f': case 'b':
+                algo = argv[i][0];  break;
+            case 's': sweep = true; break;
+            case 'd': disk  = true; break;
+            case 'u': unit  = true; break;
+            default: usage();
+            }
         }
-    }
 
-    // TODO: generate for a bunch of different sizes
-    Awari Game = Awari(6, 24); // default: 12, 38
-    printf("init done\n");
+        printf("Awari(M = %d, K = %d)\n", m, k);
+        Awari Game = Awari(m, k);
 
-    start_time = wctime();
-    if (unit) {
-        Test(Game);
-        Test2(Game, Game.M, 10);
-        exit(0);
-    }
-
-    // Write relation and states to file (see bottom of this file)
-    FILE *fp = fopen("awari.bdd", "w");
-    Game.WriteAsLTSminOutput(fp);
-    fclose(fp);
-    printf("writing done\n");
-
-    /*
-    Bdd FixPoint;
-    if (sweep) {
-        switch (algo) {
-        case 'f': FixPoint = SweepForward   (Game, Game.InitialBoard); break;
-        case 'b': FixPoint = SweepBackward  (Game, Game.InitialBoard, Bdd::bddOne()); break;
-        case 'r': FixPoint = RetroSweep     (Game, Game.Won[0], disk); break;
-        case 'l': FixPoint = ForcedCycles   (Game, start_time, Bdd::bddOne()); break;
+        if (unit) {
+            Test(Game);
+            Test2(Game, Game.M, 10);
+            exit(0);
         }
-    } else {
-        switch (algo) {
-        case 'f': FixPoint = BfsForward     (Game, Game.InitialBoard); break;
-        case 'b': FixPoint = BfsBackward    (Game, Game.InitialBoard, Bdd::bddOne()); break;
-        case 'r': FixPoint = Retrograde     (Game, Game.Won[0]); break;
-        case 'l': FixPoint = ForcedCycles   (Game, start_time, Bdd::bddOne()); break;
-        }
-    }
 
-    if (algo == 'r') {
-        cout << (Game.InitialBoard <= FixPoint ? "South wins" : "North wins or draw!!!!!!!") << endl;
+        char filename[256];
+        sprintf(filename, "awari.%d.%d.bdd", m, k);
+        // Write relation and states to file (see bottom of this file)
+        FILE *fp = fopen(filename, "w");
+        Game.WriteAsLTSminOutput(fp);
+        fclose(fp);
+        printf("Written to %s\n", filename);
     }
-
-    cout << endl;
-    cout << "Reachable boards count: " << setprecision (0) << fixed << setfill (' ') << setw (12)
-            << FixPoint.SatCount(Game.Vars[0]) << " ("<< FixPoint.NodeCount() <<" nodes)"<< endl;
-    cout << "Maximum visited / unique table size: "<< MaxNodes << " / "<< MaxTable <<" BDD nodes" << endl;
-    */
 
     return 0;
 }
