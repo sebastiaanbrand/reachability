@@ -3,6 +3,14 @@ import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+
+selections = {
+    'philosophers' : ['Philosophers-5.bdd', 'Philosophers-10.bdd', 'Philosophers-20.bdd'],
+    'eratosthenes' : ['eratosthenes-010.bdd', 'eratosthenes-020.bdd','eratosthenes-050.bdd', 'eratosthenes-100.bdd'],
+    'RAS-C' : ['RAS-C-3.bdd', 'RAS-C-5.bdd', 'RAS-C-10.bdd', 'RAS-C-15.bdd', 'RAS-C-20.bdd']
+ }
+
+
 fig_formats = ['png', 'pdf', 'eps']
 plots_folder = 'plots/{}/' # output in plots/fig_format/
 label_folder = 'plots/labeled/' # for plots with labels for all data-points
@@ -87,7 +95,6 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
     scaling = 5.0 # default = ~6.0
     fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
     point_size = 8.0
-    label_font_size = 1.0
 
     max_val = 0
     min_val = 1e9
@@ -146,12 +153,86 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
 
     # add data-point labes and plot as pdf
     for i, bench_name in enumerate(all_names):
-        ax.annotate(bench_name, (all_xs[i], all_ys[i]), fontsize=label_font_size)
+        ax.annotate(bench_name, (all_xs[i], all_ys[i]), fontsize=1.0)
     fig_name = '{}reachtime_{}_{}_vs_{}_{}.{}'.format(label_folder,
                                                       x_strat, x_data_label,
                                                       y_strat, y_data_label,
                                                       'pdf')
     fig.savefig(fig_name, dpi=300)
+
+
+def plot_selection(x_strat, x_data_label, y_strat, y_data_label):
+    info("plotting selection on {} ({}) vs {} ({})".format(x_strat, x_data_label, 
+                                                           y_strat, y_data_label))
+
+    scaling = 5.0 # default = ~6.0
+    fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
+    point_size = 8.0
+
+    max_val = 0
+    min_val = 1e9
+    all_xs = []
+    all_ys = []
+    all_names = [] # track for annotations
+    for ds_name in datasetnames:
+
+        for sel_name, selection in selections.items():
+            # get the relevant data
+            x_data = datamap[(ds_name, x_data_label)]
+            y_data = datamap[(ds_name, y_data_label)]
+
+            # select subsets of x and y data
+            group_x = x_data.loc[x_data['strategy'] == stratIDs[x_strat]]
+            group_y = y_data.loc[y_data['strategy'] == stratIDs[y_strat]]
+
+            # inner join x and y
+            group_y = group_y.set_index('benchmark')
+            joined = group_x.join(group_y, on='benchmark', how='inner', 
+                                        lsuffix='_x', rsuffix='_y')
+
+            joined = joined[joined['benchmark'].isin(selection)]
+            if (len(joined) == 0):
+                continue
+
+            # plot reachability time of x vs y
+            xs = joined['reach_time_x'].to_numpy()
+            ys = joined['reach_time_y'].to_numpy()
+            ax.scatter(xs, ys, s=point_size, label=sel_name)
+
+            # track for annotations
+            all_xs.extend(xs)
+            all_ys.extend(ys)
+            for bench_name in joined['benchmark']:
+                short_label = bench_name[len(sel_name)+1:-4]
+                all_names.append(int(short_label))
+
+            # max and min for diagonal line
+            max_val = max(max_val, np.max(xs), np.max(ys))
+            min_val = min(min_val, np.min(xs), np.min(ys))
+
+    # diagonal line
+    ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+
+    # labels and formatting
+    ax.set_xlabel('{} time (s)'.format(axis_label[x_strat]))
+    ax.set_ylabel('{} time (s)'.format(axis_label[y_strat]))
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
+    ax.legend(framealpha=1.0)
+    plt.tight_layout()
+
+
+    # add data-point labes and plot as pdf
+    for i, bench_name in enumerate(all_names):
+        ax.annotate(bench_name, (all_xs[i], all_ys[i]), fontsize=8.0, ha='left', rotation=0)
+    fig_name = '{}reachtime_{}_{}_vs_{}_{}_selection.{}'.format(label_folder,
+                                                    x_strat, x_data_label,
+                                                    y_strat, y_data_label,
+                                                    'pdf')
+    fig.savefig(fig_name, dpi=300)
+
 
 def plot_comparison_shared_y(x1_strat, x1_data_label, 
                              x2_strat, x2_data_label, 
@@ -326,6 +407,7 @@ def plot_things():
     plot_comparison('bfs', 'vanilla', 'bfs', 'ga')
     plot_comparison('sat', 'vanilla', 'sat', 'ga')
     plot_comparison('rec', 'vanilla', 'rec', 'ga')
+    plot_selection('sat', 'ga', 'rec', 'ga')
 
 if __name__ == '__main__':
     pre_process()
