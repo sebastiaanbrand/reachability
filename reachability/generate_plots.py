@@ -153,16 +153,16 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
                                                       'pdf')
     fig.savefig(fig_name, dpi=300)
 
-def plot_comparison_sbs(x1_strat, x1_data_label, 
-                        x2_strat, x2_data_label, 
-                        y_strat,  y_data_label):
+def plot_comparison_shared_y(x1_strat, x1_data_label, 
+                             x2_strat, x2_data_label, 
+                             y_strat,  y_data_label):
     info("plotting x1 = {} ({}), x2 = {} ({}) vs y = {} ({})".format(
           x1_strat, x1_data_label,
           x2_strat, x2_data_label,
           y_strat,  y_data_label))
     
     scaling = 4.8 # default = ~6.0
-    w = 1.5 # relative width
+    w = 1.55 # relative width
     fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
     point_size = 8.0
 
@@ -227,8 +227,96 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
                                                         fig_format)
         fig.savefig(fig_name, dpi=300)
 
+def plot_comparison_sbs(x1_strat, x1_data_label, 
+                        y1_strat, y1_data_label,
+                        x2_strat, x2_data_label, 
+                        y2_strat, y2_data_label,
+                        x_label,  y_label):
+    info("plotting")
+    info(" left:  {} ({}) vs {} ({})".format(x1_strat, x1_data_label, 
+                                            y1_strat, y1_data_label))
+    info(" right: {} ({}) vs {} ({})".format(x2_strat, x2_data_label, 
+                                            y2_strat, y2_data_label))
+
+    scaling = 4.8 # default = ~6.0
+    w = 1.5 # relative width
+    fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
+    point_size = 8.0
+
+    max_val = 0
+    min_val = 1e9
+    for ds_name in datasetnames:
+        # get the relevant data
+        x1_data = datamap[(ds_name, x1_data_label)]
+        y1_data = datamap[(ds_name, y1_data_label)]
+        x2_data = datamap[(ds_name, x2_data_label)]
+        y2_data = datamap[(ds_name, y2_data_label)]
+
+        # select subsets of x and y data
+        group_x1 = x1_data.loc[x1_data['strategy'] == stratIDs[x1_strat]]
+        group_y1 = y1_data.loc[y1_data['strategy'] == stratIDs[y1_strat]]
+        group_x2 = x2_data.loc[x2_data['strategy'] == stratIDs[x2_strat]]
+        group_y2 = y2_data.loc[y2_data['strategy'] == stratIDs[y2_strat]]
+
+        # inner join x and y
+        group_y1 = group_y1.set_index('benchmark')
+        group_y2 = group_y2.set_index('benchmark')
+        joined1 = group_x1.join(group_y1, on='benchmark', how='inner', 
+                                    lsuffix='_x', rsuffix='_y')
+        joined2 = group_x2.join(group_y2, on='benchmark', how='inner', 
+                                    lsuffix='_x', rsuffix='_y')
+        
+        # plot reachability time of x1 vs y and x2 vs y
+        x1s = joined1['reach_time_x'].to_numpy()
+        y1s = joined1['reach_time_y'].to_numpy()
+        axs[0].scatter(x1s, y1s, s=point_size, label=legend_names[ds_name])
+        x2s = joined2['reach_time_x'].to_numpy()
+        y2s = joined2['reach_time_y'].to_numpy()
+        axs[1].scatter(x2s, y2s, s=point_size, label=legend_names[ds_name])
+
+        
+        # max and min for diagonal lines
+        max_val = max(max_val, np.max(x1s), np.max(y1s), np.max(x2s), np.max(y2s))
+        min_val = min(min_val, np.min(x1s), np.min(y1s), np.min(x2s), np.min(y2s))
+
+    # diagonal line
+    axs[0].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+    axs[1].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+
+    # labels and formatting
+    axs[0].set_xlabel('{}'.format(axis_label[x1_strat]))
+    axs[1].set_xlabel('{}'.format(axis_label[x2_strat]))
+    fig.text(0.54, 0.01, x_label, ha='center')
+    axs[0].set_ylabel(y_label)
+    axs[0].set_xscale('log')
+    axs[1].set_xscale('log')
+    axs[0].set_yscale('log')
+    axs[0].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[1].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[0].set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[1].axes.yaxis.set_visible(False)
+    axs[0].legend(framealpha=1.0)
+    plt.tight_layout()
+    fig.subplots_adjust(bottom=0.22)
+
+    # plot for all formats
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}reachtime_{}_{}_vs_{}_{}_and_{}_{}vs_{}_{}.{}'.format(
+                                                        subfolder,
+                                                        x1_strat, x1_data_label,
+                                                        y1_strat, y1_data_label,
+                                                        x2_strat, x2_data_label,
+                                                        y2_strat, y2_data_label,
+                                                        fig_format)
+        fig.savefig(fig_name, dpi=300)
+
 def plot_things():
-    plot_comparison_sbs('bfs', 'ga', 'sat', 'ga', 'rec', 'ga')
+    plot_comparison_shared_y('bfs', 'ga', 'sat', 'ga', 'rec', 'ga')
+    plot_comparison_sbs('sat', 'vanilla', 'sat', 'ga',
+                        'rec', 'vanilla', 'rec', 'ga', 
+                        'time with default grouping (s)',
+                        'time with \'ga\' grouping (s)')
     plot_comparison('bfs', 'vanilla', 'sat', 'vanilla')
     plot_comparison('bfs', 'ga',      'sat', 'ga')
     plot_comparison('bfs', 'vanilla', 'rec', 'vanilla')
