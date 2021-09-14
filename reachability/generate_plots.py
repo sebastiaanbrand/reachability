@@ -14,7 +14,7 @@ selections = {
 fig_formats = ['png', 'pdf', 'eps']
 plots_folder = 'plots/{}/' # output in plots/fig_format/
 label_folder = 'plots/labeled/' # for plots with labels for all data-points
-data_folder  = 'bench_data/old/'
+data_folder  = 'bench_data/'
 
 beem_vanilla = pd.read_csv(data_folder + 'beem_vanilla_stats.csv')
 beem_ga      = pd.read_csv(data_folder + 'beem_ga_stats.csv')
