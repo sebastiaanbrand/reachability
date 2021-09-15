@@ -72,10 +72,10 @@ beem_selection="adding.1.bdd
                 szymanski.2.bdd
                 telephony.1.bdd"
 
-beem_vn_stats="bench_data/beem_vanilla_stats.csv"
-beem_ga_stats="bench_data/beem_ga_stats.csv"
+beem_vn_stats="bench_data/selection/beem_vanilla_stats.csv"
+beem_ga_stats="bench_data/selection/beem_ga_stats.csv"
 
-mkdir -p bench_data
+mkdir -p bench_data/selection
 
 maxtime=5m
 
