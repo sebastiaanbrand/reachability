@@ -852,12 +852,13 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     /* Relations, states, and vars for next level of recursion */
     BDD r00, r01, r10, r11, s0, s1;
     BDDSET next_vars = sylvan_set_next(vars);
+    bdd_refs_pushptr(&next_vars); // do we actually need to protect this?
     
     partition_rel(r, level, &r00, &r01, &r10, &r11);
     partition_state(s, level, &s0, &s1);
 
     bdd_refs_pushptr(&s0);
-    bdd_refs_pushptr(&s0);
+    bdd_refs_pushptr(&s1);
     bdd_refs_pushptr(&r00);
     bdd_refs_pushptr(&r01);
     bdd_refs_pushptr(&r10);
@@ -868,7 +869,6 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     bdd_refs_pushptr(&prev0);
     bdd_refs_pushptr(&prev1);
 
-    // TODO: maybe we can do this saturation-like loop more efficiently
     while (s0 != prev0 || s1 != prev1) {
         prev0 = s0;
         prev1 = s1;
@@ -886,7 +886,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
         s1 = sylvan_or(s1, t01);
     }
 
-    bdd_refs_popptr(8);
+    bdd_refs_popptr(9);
 
     /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
     BDD res = sylvan_makenode(level, s0, s1);
