@@ -827,15 +827,11 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     if (s == sylvan_true || r == sylvan_true) return sylvan_true;
     // all.r* = all, s.all* = all (if s is non empty)
 
-    /* Count operation */
-    sylvan_stats_count(BDD_REACHABLE);
-
     /* Consult cache */
     int cachenow = 1;
     if (cachenow) {
         BDD res;
-        if (cache_get3(CACHE_BDD_REACHABLE, s, r, 0, &res)) {
-            sylvan_stats_count(BDD_REACHABLE_CACHED);
+        if (cache_get3(201LL<<40, s, r, 0, &res)) {
             return res;
         }
     }
@@ -847,12 +843,11 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
     BDDVAR vr = nr ? bddnode_getvariable(nr) : 0xffffffff;
     BDDVAR level = vs < vr ? vs : vr;
-    //BDDVAR level = sylvan_set_first(vars); // maybe don't skip vars?
 
     /* Relations, states, and vars for next level of recursion */
     BDD r00, r01, r10, r11, s0, s1;
     BDDSET next_vars = sylvan_set_next(vars);
-    bdd_refs_pushptr(&next_vars); // do we actually need to protect this?
+    bdd_refs_pushptr(&next_vars);
     
     partition_rel(r, level, &r00, &r01, &r10, &r11);
     partition_state(s, level, &s0, &s1);
@@ -892,10 +887,8 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     BDD res = sylvan_makenode(level, s0, s1);
 
     /* Put in cache */
-    if (cachenow) {
-        if (cache_put3(CACHE_BDD_REACHABLE, s, r, 0, res)) 
-            sylvan_stats_count(BDD_REACHABLE_CACHEDPUT);
-    }
+    if (cachenow)
+        cache_put3(201LL<<40, s, r, 0, res);
 
     return res;
 }
@@ -913,15 +906,11 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
     // all.r* = all, s.all* = all (if s is non empty)
     if (sylvan_set_isempty(vars)) return s;
 
-    /* Count operation */
-    sylvan_stats_count(BDD_REACHABLE);
-
     /* Consult cache */
     int cachenow = 1;
     if (cachenow) {
         BDD res;
-        if (cache_get3(CACHE_BDD_REACHABLE, s, r, vars, &res)) {
-            sylvan_stats_count(BDD_REACHABLE_CACHED);
+        if (cache_get3(202LL<<40, s, r, vars, &res)) {
             return res;
         }
     }
@@ -1072,10 +1061,8 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
     }
 
     /* Put in cache */
-    if (cachenow) {
-        if (cache_put3(CACHE_BDD_REACHABLE, s, r, vars, res)) 
-            sylvan_stats_count(BDD_REACHABLE_CACHEDPUT);
-    }
+    if (cachenow)
+        cache_put3(202LL<<40, s, r, vars, res);
 
     return res;
 }
