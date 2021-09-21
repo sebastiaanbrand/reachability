@@ -701,42 +701,52 @@ VOID_TASK_1(chaining, set_t, set)
  * meta: -1 (end; rest not in rel), 0 (not in rel), 1 (read), 2 (write), 
  *      3 (only-read), 4 (only-write), 5 (action label)
  */
-/*
-#define extend_relation(rel, meta) RUN(extend_relation, rel, meta)
-TASK_2(MDD, extend_relation, MDD, relation, MDD, meta)
+//#define extend_relation(rel, meta) RUN(extend_relation, rel, meta)
+//TASK_2(MDD, extend_relation, MDD, relation, MDD, meta)
+MDD
+extend_relation(MDD rel, MDD meta, uint32_t curvar)
 {
-    // TODO
+    if (rel == lddmc_false  || rel == lddmc_true) return rel; //  || rel == lddmc_true
+    if (curvar == (uint32_t) vector_size) return rel;
 
-    
-    // first determine which state BDD variables are in rel
-    int has[totalbits];
-    for (int i=0; i<totalbits; i++) has[i] = 0;
-    MTBDD s = variables;
-    while (!sylvan_set_isempty(s)) {
-        uint32_t v = sylvan_set_first(s);
-        if (v/2 >= (unsigned)totalbits) break; // action labels
-        has[v/2] = 1;
-        s = sylvan_set_next(s);
+    uint32_t val = lddmc_getvalue(meta);
+
+    uint32_t nextvar;
+    if (val == 1) nextvar = curvar;
+    else nextvar = curvar + 1;
+
+    //printf("meta[%d] = %d\n", curvar, val);
+
+
+    // recursive calls
+    MDD down = extend_relation(lddmc_getdown(rel), lddmc_follow(meta, val), nextvar);
+    MDD right = extend_relation(lddmc_getright(rel), meta, curvar);
+
+    MDD res;
+    // if curvar not in relation, put copy (identity) node here
+    if (val == 0) {
+        //res = lddmc_make_copynode(down, sylvan_false);
+        res = lddmc_makenode(lddmc_getvalue(rel), down, right);
+    }
+    else {
+        res = lddmc_makenode(lddmc_getvalue(rel), down, right);
     }
 
-    // create "s=s'" for all variables not in rel
-    BDD eq = sylvan_true;
-    for (int i=totalbits-1; i>=0; i--) {
-        if (has[i]) continue;
-        BDD low = sylvan_makenode(2*i+1, eq, sylvan_false);
-        bdd_refs_push(low);
-        BDD high = sylvan_makenode(2*i+1, sylvan_false, eq);
-        bdd_refs_pop(1);
-        eq = sylvan_makenode(2*i, low, high);
-    }
-
-    bdd_refs_push(eq);
-    BDD result = sylvan_and(relation, eq);
-    bdd_refs_pop(1);
-
-    return result;
+    return res;
 }
-*/
+
+void
+print_meta(MDD meta)
+{
+    while(meta != lddmc_true && meta != lddmc_false) {
+        uint32_t val = lddmc_getvalue(meta);
+        printf("%d, ", val);
+        meta = lddmc_follow(meta, val);
+    }
+    if (meta == lddmc_true) printf("True");
+    else if (meta == lddmc_false) printf("False");
+    printf("\n");
+}
 
 
 #define big_union(first, count) RUN(big_union, first, count)
@@ -901,19 +911,22 @@ main(int argc, char **argv)
     // I don't know how to extend the variable domain?
     if (merge_relations) {
         double t1 = wctime();
-        MDD newmeta = sylvan_true;
+        //MDD newmeta = sylvan_true;
         // TODO: new var set
 
         // NOTE: LDDs don't skip redundant nodes (so no variables are skipped)
 
         //Abort("extend_relation() not yet implemented for LDDs\n");
-        //INFO("Extending transition relations to full domain.\n");
-        //for (int i=0; i<next_count; i++) {
-        //    next[i]->dd = extend_relation(next[i]->dd, next[i]->meta);
-        //    next[i]->meta = newmeta;
-        //}
+        INFO("Extending transition relations to full domain.\n");
+        for (int i = 0; i < next_count; i++) {
+            print_meta(next[i]->meta);
+            next[i]->dd = extend_relation(next[i]->dd, next[i]->meta, 0);
+            //next[i]->meta = newmeta;
+        }
         // TODO
+        
 
+        /*
         INFO("Taking union of all transition relations.\n");
         next[0]->dd = big_union(0, next_count);
         next[0]->firstvar = 0;
@@ -924,8 +937,10 @@ main(int argc, char **argv)
             next[i]->firstvar = 0;
         }
         next_count = 1;
+        */
         double t2 = wctime();
         stats.merge_rel_time = t2-t1;
+        
     }
 
     set_t states = set_clone(initial);
