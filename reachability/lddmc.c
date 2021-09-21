@@ -696,45 +696,6 @@ VOID_TASK_1(chaining, set_t, set)
     lddmc_refs_popptr(3);
 }
 
-/**
- * Extend a transition relation to a larger domain (using s=s')
- * meta: -1 (end; rest not in rel), 0 (not in rel), 1 (read), 2 (write), 
- *      3 (only-read), 4 (only-write), 5 (action label)
- */
-//#define extend_relation(rel, meta) RUN(extend_relation, rel, meta)
-//TASK_2(MDD, extend_relation, MDD, relation, MDD, meta)
-MDD
-extend_relation(MDD rel, MDD meta, uint32_t curvar)
-{
-    if (rel == lddmc_false  || rel == lddmc_true) return rel; //  || rel == lddmc_true
-    if (curvar == (uint32_t) vector_size) return rel;
-
-    uint32_t val = lddmc_getvalue(meta);
-
-    uint32_t nextvar;
-    if (val == 1) nextvar = curvar;
-    else nextvar = curvar + 1;
-
-    //printf("meta[%d] = %d\n", curvar, val);
-
-
-    // recursive calls
-    MDD down = extend_relation(lddmc_getdown(rel), lddmc_follow(meta, val), nextvar);
-    MDD right = extend_relation(lddmc_getright(rel), meta, curvar);
-
-    MDD res;
-    // if curvar not in relation, put copy (identity) node here
-    if (val == 0) {
-        //res = lddmc_make_copynode(down, sylvan_false);
-        res = lddmc_makenode(lddmc_getvalue(rel), down, right);
-    }
-    else {
-        res = lddmc_makenode(lddmc_getvalue(rel), down, right);
-    }
-
-    return res;
-}
-
 void
 print_meta(MDD meta)
 {
@@ -748,27 +709,44 @@ print_meta(MDD meta)
     printf("\n");
 }
 
+void
+assert_meta_full_domain(MDD meta)
+{
+    uint32_t val;
+    int counter = 0;
+    // for every variable we want read (1) followed by write (2)
+    while (counter < vector_size) {
+        // read (1)
+        val = lddmc_getvalue(meta);
+        assert(val == 1);
+        meta = lddmc_follow(meta, val);
+        // write (2)
+        val = lddmc_getvalue(meta);
+        assert(val == 2);
+        meta = lddmc_follow(meta, val);
+        counter++;
+    }
+    // everything else until terminal should either be 5 or -1
+    while (meta != lddmc_true) {
+        val = lddmc_getvalue(meta);
+        assert(val == 5 || val == (uint32_t)-1);
+        meta = lddmc_follow(meta, val);
+        assert(meta != lddmc_false);
+    }
+}
+
 
 #define big_union(first, count) RUN(big_union, first, count)
 TASK_2(MDD, big_union, int, first, int, count)
 {
+    // TODO: maybe do this function in parallel like in bddmc
     MDD res = next[first]->dd;
+    lddmc_protect(&res);
     for (int i = first+1; i < count; i++) {
         res = lddmc_union(res, next[i]->dd);
     }
+    lddmc_protect(&res);
     return res;
-
-    // TODO: parallel (see big_union in bddmc)
-    /*
-    if (count == 1) return next[first]->bdd;
-
-    bdd_refs_spawn(SPAWN(big_union, first, count/2));
-    BDD right = bdd_refs_push(CALL(big_union, first+count/2, count-count/2));
-    BDD left = bdd_refs_push(bdd_refs_sync(SYNC(big_union)));
-    BDD result = sylvan_or(left, right);
-    bdd_refs_pop(2);
-    return result;
-    */
 }
 
 VOID_TASK_0(gc_start)
@@ -906,41 +884,28 @@ main(int argc, char **argv)
         }
     }
 
-
-    // Tom zegt: breid variabele domein uit en gebruik lddmcunion.
-    // I don't know how to extend the variable domain?
     if (merge_relations) {
         double t1 = wctime();
-        //MDD newmeta = sylvan_true;
-        // TODO: new var set
 
-        // NOTE: LDDs don't skip redundant nodes (so no variables are skipped)
-
-        //Abort("extend_relation() not yet implemented for LDDs\n");
-        INFO("Extending transition relations to full domain.\n");
+        INFO("Asserting transition relations to cover full domain.\n");
         for (int i = 0; i < next_count; i++) {
-            print_meta(next[i]->meta);
-            next[i]->dd = extend_relation(next[i]->dd, next[i]->meta, 0);
-            //next[i]->meta = newmeta;
+            assert_meta_full_domain(next[i]->meta);
         }
-        // TODO
-        
 
-        /*
+        // Q: can we just leave the 5's and -1's when taking these unions?
         INFO("Taking union of all transition relations.\n");
         next[0]->dd = big_union(0, next_count);
-        next[0]->firstvar = 0;
+        assert(next[0]->firstvar == 0);
+        INFO("Rel nodes after union: %'zu\n", lddmc_nodecount(next[0]->dd));
 
         for (int i=1; i<next_count; i++) {
-            next[i]->dd = sylvan_false;
-            next[i]->meta = sylvan_true;
+            next[i]->dd = lddmc_false;
+            next[i]->meta = lddmc_true;
             next[i]->firstvar = 0;
         }
         next_count = 1;
-        */
         double t2 = wctime();
         stats.merge_rel_time = t2-t1;
-        
     }
 
     set_t states = set_clone(initial);
