@@ -11,9 +11,10 @@
 #include <gperftools/profiler.h>
 #endif
 
-#include <getrss.h>
-
 #include <sylvan_int.h>
+
+#include "getrss.h"
+#include "cache_op_ids.h"
 
 /* Configuration (via argp) */
 static int report_levels = 0; // report states at start of every level
@@ -628,7 +629,7 @@ TASK_3(MDD, go_sat, MDD, set, int, idx, int, depth)
     /* Consult the cache */
     MDD result;
     const MDD _set = set;
-    if (cache_get3(201LL<<40, _set, idx, 0, &result)) return result;
+    if (cache_get3(CACHE_LDD_SAT, _set, idx, 0, &result)) return result;
     lddmc_refs_pushptr(&_set);
 
     /**
@@ -672,7 +673,7 @@ TASK_3(MDD, go_sat, MDD, set, int, idx, int, depth)
     }
 
     /* Store in cache */
-    cache_put3(201LL<<40, _set, idx, 0, result);
+    cache_put3(CACHE_LDD_SAT, _set, idx, 0, result);
     lddmc_refs_popptr(1);
     return result;
 }
@@ -772,7 +773,7 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
     int cachenow = 1;
     if (cachenow) {
         MDD res;
-        if (cache_get3(302LL<<40, set, rel, 0, &res)) return res;
+        if (cache_get3(CACHE_LDD_REACH, set, rel, 0, &res)) return res;
     }
     
 
@@ -817,7 +818,7 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
 
     /* Put in cache */
     if (cachenow)
-        cache_put3(302LL<<40, set, rel, 0, set);
+        cache_put3(CACHE_LDD_REACH, set, rel, 0, set);
 
     return set;
 }

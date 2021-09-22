@@ -11,10 +11,10 @@
 #include <gperftools/profiler.h>
 #endif
 
-#include <getrss.h>
-
-#include <sylvan.h>
 #include <sylvan_int.h>
+
+#include "getrss.h"
+#include "cache_op_ids.h"
 
 /* Configuration (via argp) */
 static int report_levels = 0; // report states at end of every level
@@ -372,7 +372,7 @@ TASK_2(BDD, go_sat, BDD, set, int, idx)
     /* Consult the cache */
     BDD result;
     const BDD _set = set;
-    if (cache_get3(200LL<<40, _set, idx, 0, &result)) return result;
+    if (cache_get3(CACHE_BDD_SAT, _set, idx, 0, &result)) return result;
     mtbdd_refs_pushptr(&_set);
 
     /**
@@ -420,7 +420,7 @@ TASK_2(BDD, go_sat, BDD, set, int, idx)
     }
 
     /* Store in cache */
-    cache_put3(200LL<<40, _set, idx, 0, result);
+    cache_put3(CACHE_BDD_SAT, _set, idx, 0, result);
     mtbdd_refs_popptr(1);
     return result;
 }
@@ -831,7 +831,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     int cachenow = 1;
     if (cachenow) {
         BDD res;
-        if (cache_get3(300LL<<40, s, r, 0, &res)) {
+        if (cache_get3(CACHE_BDD_REACH, s, r, 0, &res)) {
             return res;
         }
     }
@@ -888,7 +888,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 
     /* Put in cache */
     if (cachenow)
-        cache_put3(300LL<<40, s, r, 0, res);
+        cache_put3(CACHE_BDD_REACH, s, r, 0, res);
 
     return res;
 }
@@ -911,7 +911,7 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
     if (cachenow) {
         BDD res;
         // TODO: put these op-ids in a headerfile somewhere
-        if (cache_get3(301LL<<40, s, r, vars, &res)) {
+        if (cache_get3(CACHE_BDD_REACH_PARTIAL, s, r, vars, &res)) {
             return res;
         }
     }
@@ -1063,7 +1063,7 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
 
     /* Put in cache */
     if (cachenow)
-        cache_put3(301LL<<40, s, r, vars, res);
+        cache_put3(CACHE_BDD_REACH_PARTIAL, s, r, vars, res);
 
     return res;
 }
