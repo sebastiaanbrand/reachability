@@ -47,7 +47,7 @@ static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=0: autodetect)", 0},
     {"strategy", 's', "<bfs|par|sat|chaining|rec|bfs-plain|chain-rec>", 0, 
-     "Strategy for reachability (default=sat)", 0},
+     "Strategy for reachability (default=bfs)", 0},
 #ifdef HAVE_PROFILER
     {"profiler", 'p', "<filename>", 0, "Filename for profiling", 0},
 #endif
@@ -1410,7 +1410,7 @@ main(int argc, char **argv)
     stats.final_states = sylvan_satcount(states->bdd, states->variables);
     INFO("Final states: %'0.0f states\n", stats.final_states);
     if (report_nodes) {
-        stats.final_nodecount  =  sylvan_nodecount(states->bdd);
+        stats.final_nodecount = sylvan_nodecount(states->bdd);
         INFO("Final states: %'zu BDD nodes\n", stats.final_nodecount);
     }
 

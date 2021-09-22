@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <libgen.h>
 
 #ifdef HAVE_PROFILER
 #include <gperftools/profiler.h>
@@ -18,7 +19,7 @@
 static int report_levels = 0; // report states at start of every level
 static int report_table = 0; // report table size at end of every level
 static int report_nodes = 0; // report number of nodes of LDDs
-static int strategy = 2; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING
+static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly
 static int merge_relations = 0; // merge relations to 1 relation
 static int print_transition_matrix = 0; // print transition relation matrix
@@ -30,11 +31,20 @@ static char* stats_filename = NULL; // filename of csv stats output file
 static char* profile_filename = NULL; // filename for profiling
 #endif
 
+typedef enum strats {
+    strat_bfs,
+    strat_par,
+    strat_sat,
+    strat_chaining,
+    strat_rec,
+    num_strats
+} strategy_t;
+
 /* argp configuration */
 static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=0: autodetect)", 0},
-    {"strategy", 's', "<bfs|par|sat|chaining>", 0, "Strategy for reachability (default=par)", 0},
+    {"strategy", 's', "<bfs|par|sat|chaining|rec>", 0, "Strategy for reachability (default=bfs)", 0},
 #ifdef HAVE_PROFILER
     {"profiler", 'p', "<filename>", 0, "Filename for profiling", 0},
 #endif
@@ -56,10 +66,11 @@ parse_opt(int key, char *arg, struct argp_state *state)
         workers = atoi(arg);
         break;
     case 's':
-        if (strcmp(arg, "bfs")==0) strategy = 0;
-        else if (strcmp(arg, "par")==0) strategy = 1;
-        else if (strcmp(arg, "sat")==0) strategy = 2;
-        else if (strcmp(arg, "chaining")==0) strategy = 3;
+        if (strcmp(arg, "bfs")==0) strategy = strat_bfs;
+        else if (strcmp(arg, "par")==0) strategy = strat_par;
+        else if (strcmp(arg, "sat")==0) strategy = strat_sat;
+        else if (strcmp(arg, "chaining")==0) strategy = strat_chaining;
+        else if (strcmp(arg, "rec")==0) strategy = strat_rec;
         else argp_usage(state);
         break;
     case 4:
@@ -305,6 +316,30 @@ print_memory_usage(void)
     char buf[32];
     to_h(getCurrentRSS(), buf);
     INFO("Memory usage: %s\n", buf);
+}
+
+static void
+write_stats()
+{
+    FILE *fp = fopen(stats_filename, "a");
+    // write header if file is empty
+    fseek (fp, 0, SEEK_END);
+        long size = ftell(fp);
+        if (size == 0)
+            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, merge_time, final_states, final_nodecount, peaknodes");
+    // append stats of this run
+    char* benchname = basename((char*)model_filename);
+    fprintf(fp, "%s, %d, %d, %d, %f, %f, %0.0f, %ld, %ld\n",
+            benchname,
+            strategy,
+            merge_relations,
+            lace_workers(),
+            stats.reach_time,
+            stats.merge_rel_time,
+            stats.final_states,
+            stats.final_nodecount,
+            stats.peaknodes);
+    fclose(fp);
 }
 
 /**
@@ -782,9 +817,6 @@ main(int argc, char **argv)
     setlocale(LC_NUMERIC, "en_US.utf-8");
     t_start = wctime();
 
-    if (stats_filename != NULL) {
-        Abort("Logging stats to csv file not yet implemented.\n");
-    }
 
     /**
      * Initialize Lace.
@@ -846,18 +878,11 @@ main(int argc, char **argv)
     /* Close the file */
     fclose(f);
 
-    f = fopen("rel_dd.dot", "w");
-    lddmc_fprintdot(f, next[0]->dd);
-    fclose(f);
-    f = fopen("rel_meta.dot", "w");
-    lddmc_fprintdot(f, next[0]->meta);
-    fclose(f);
-
     /**
      * Pre-processing and some statistics reporting
      */
 
-    if (strategy == 2 || strategy == 3) {
+    if (strategy == strat_sat || strategy == strat_chaining) {
         // for SAT and CHAINING, sort the transition relations (gnome sort because I like gnomes)
         int i = 1, j = 2;
         rel_t t;
@@ -914,26 +939,36 @@ main(int argc, char **argv)
     if (profile_filename != NULL) ProfilerStart(profile_filename);
 #endif
 
-    if (strategy == 0) {
+    if (strategy == strat_bfs) {
         double t1 = wctime();
         RUN(bfs, states);
         double t2 = wctime();
-        INFO("BFS Time: %f\n", t2-t1);
-    } else if (strategy == 1) {
+        stats.reach_time = t2-t1;
+        INFO("BFS Time: %f\n", stats.reach_time);
+    } else if (strategy == strat_par) {
         double t1 = wctime();
         RUN(par, states);
         double t2 = wctime();
-        INFO("PAR Time: %f\n", t2-t1);
-    } else if (strategy == 2) {
+        stats.reach_time = t2-t1;
+        INFO("PAR Time: %f\n", stats.reach_time);
+    } else if (strategy == strat_sat) {
         double t1 = wctime();
         RUN(sat, states);
         double t2 = wctime();
-        INFO("SAT Time: %f\n", t2-t1);
-    } else if (strategy == 3) {
+        stats.reach_time = t2-t1;
+        INFO("SAT Time: %f\n", stats.reach_time);
+    } else if (strategy == strat_chaining) {
         double t1 = wctime();
         RUN(chaining, states);
         double t2 = wctime();
-        INFO("CHAINING Time: %f\n", t2-t1);
+        stats.reach_time = t2-t1;
+        INFO("CHAINING Time: %f\n", stats.reach_time);
+    } else if (strategy == strat_rec) {
+        double t1 = wctime();
+        Abort("Recursive reach not implemented yet\n");
+        double t2 = wctime();
+        stats.reach_time = t2-t1;
+        INFO("CHAINING Time: %f\n", stats.reach_time);
     } else {
         Abort("Invalid strategy set?!\n");
     }
@@ -943,9 +978,11 @@ main(int argc, char **argv)
 #endif
 
     // Now we just have states
-    INFO("Final states: %'0.0f states\n", lddmc_satcount_cached(states->dd));
+    stats.final_states = lddmc_satcount_cached(states->dd);
+    INFO("Final states: %'0.0f states\n", stats.final_states);
     if (report_nodes) {
-        INFO("Final states: %'zu MDD nodes\n", lddmc_nodecount(states->dd));
+        stats.final_nodecount = lddmc_nodecount(states->dd);
+        INFO("Final states: %'zu MDD nodes\n", stats.final_nodecount);
     }
 
     if (out_filename != NULL) {
@@ -981,6 +1018,11 @@ main(int argc, char **argv)
     sylvan_stats_report(stdout);
 
     lace_stop();
+
+    if (stats_filename != NULL) {
+        INFO("Writing stats to %s\n", stats_filename);
+        write_stats();
+    }
 
     return 0;
 }

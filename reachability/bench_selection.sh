@@ -90,3 +90,4 @@ for filename in $beem_selection; do
     #timeout $maxtime ./../build/reachability/bddmc models/beem/bdds_ga/$filename --workers=1 --strategy=sat --count-nodes --statsfile=$beem_ga_stats
     #timeout $maxtime ./../build/reachability/bddmc models/beem/bdds_ga/$filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$beem_ga_stats
 done
+
