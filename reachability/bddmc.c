@@ -825,13 +825,13 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
     if (s == sylvan_false) return sylvan_false; // empty.R* = empty
     if (r == sylvan_false) return s; // s.empty* = s.(empty union I)^+ = s
     if (s == sylvan_true || r == sylvan_true) return sylvan_true;
-    // all.r* = all, s.all* = all (if s is non empty)
+    // all.r* = all, s.all* = all (if s is not empty)
 
     /* Consult cache */
     int cachenow = 1;
     if (cachenow) {
         BDD res;
-        if (cache_get3(201LL<<40, s, r, 0, &res)) {
+        if (cache_get3(300LL<<40, s, r, 0, &res)) {
             return res;
         }
     }
@@ -888,7 +888,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 
     /* Put in cache */
     if (cachenow)
-        cache_put3(201LL<<40, s, r, 0, res);
+        cache_put3(300LL<<40, s, r, 0, res);
 
     return res;
 }
@@ -910,7 +910,8 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
     int cachenow = 1;
     if (cachenow) {
         BDD res;
-        if (cache_get3(202LL<<40, s, r, vars, &res)) {
+        // TODO: put these op-ids in a headerfile somewhere
+        if (cache_get3(301LL<<40, s, r, vars, &res)) {
             return res;
         }
     }
@@ -1062,7 +1063,7 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
 
     /* Put in cache */
     if (cachenow)
-        cache_put3(202LL<<40, s, r, vars, res);
+        cache_put3(301LL<<40, s, r, vars, res);
 
     return res;
 }

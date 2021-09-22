@@ -731,6 +731,103 @@ VOID_TASK_1(chaining, set_t, set)
     lddmc_refs_popptr(3);
 }
 
+static MDD
+get_next_meta(MDD meta)
+{
+    /* Step over a read (1) and a write (2) in the meta MDD */
+    mddnode_t n;
+
+    n = LDD_GETNODE(meta);
+    assert(mddnode_getvalue(n) == 1);
+    meta = mddnode_getdown(n);
+
+    n = LDD_GETNODE(meta);
+    assert(mddnode_getvalue(n) == 2);
+    meta = mddnode_getdown(n);
+
+    return meta;
+}
+
+
+/**
+ * Implementation of recursive reachability algorithm for a single global
+ * relation.
+ */
+TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
+{
+    /* Terminal cases */
+    if (set == lddmc_false) return lddmc_false; // empty.R* = empty
+    if (rel == lddmc_false) return set; // s.empty* = s.(empty union I)^+ = s
+    if (set == lddmc_true || rel == lddmc_true) return lddmc_true;
+    // all.r* = all, s.all* = all (if s is not empty)
+
+    /* Assert assumptions about rel */
+    assert(lddmc_getvalue(meta) == 1);
+    assert(!lddmc_iscopy(rel));
+
+    /* We can skip nodes if Rel requires a "read" which is not in S */
+    //if (!match_ldds(&set, &rel)) return lddmc_false;
+
+    /* Consult cache */
+    int cachenow = 1;
+    if (cachenow) {
+        MDD res;
+        if (cache_get3(302LL<<40, set, rel, 0, &res)) return res;
+    }
+    
+
+    /* Recursive part (WIP) */
+    MDD next_meta = get_next_meta(meta);
+    
+    while (1) { // while 'set' not converged
+
+        // Iterate over over all read x write of rel
+        MDD iter_reads = rel;
+        while (iter_reads != lddmc_false) {
+
+            uint32_t i = lddmc_getvalue(iter_reads);
+            MDD set_i  = lddmc_follow(set, i);
+
+            MDD iter_writes = lddmc_getdown(iter_reads);
+            while (iter_writes != lddmc_false) {
+
+                uint32_t j = lddmc_getvalue(iter_writes);
+                MDD rel_ij = lddmc_getdown(iter_reads);
+
+                if (i == j) {
+                    set_i = CALL(go_rec, set_i, rel_ij, next_meta);
+                }
+                else {
+                    MDD succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
+
+                    // extend succ_j and add to 'set'
+                    MDD _set_j = lddmc_makenode(j, succ_j, lddmc_false);
+                    set = lddmc_union(set, _set_j);
+                }
+
+                printf("Rel| read=%d, write=%d\n", i, j);
+                iter_writes = lddmc_getright(iter_writes);
+            }
+            iter_reads = lddmc_getright(iter_reads);
+        }
+        break;
+    }
+    Abort("Recursive reach not implemented yet...\n");
+
+
+    /* Put in cache */
+    if (cachenow)
+        cache_put3(302LL<<40, set, rel, 0, set);
+
+    return set;
+}
+
+VOID_TASK_1(rec, set_t, set)
+{
+    if (next_count != 1) Abort("Strategy rec requires merge-relations");
+    set->dd = CALL(go_rec, set->dd, next[0]->dd, next[0]->meta);
+}
+
 void
 print_meta(MDD meta)
 {
@@ -965,10 +1062,10 @@ main(int argc, char **argv)
         INFO("CHAINING Time: %f\n", stats.reach_time);
     } else if (strategy == strat_rec) {
         double t1 = wctime();
-        Abort("Recursive reach not implemented yet\n");
+        RUN(rec, states);
         double t2 = wctime();
         stats.reach_time = t2-t1;
-        INFO("CHAINING Time: %f\n", stats.reach_time);
+        INFO("REC Time: %f\n", stats.reach_time);
     } else {
         Abort("Invalid strategy set?!\n");
     }
