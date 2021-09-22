@@ -780,7 +780,7 @@ TASK_2(MDD, big_union, int, first, int, count)
     for (int i = first+1; i < count; i++) {
         res = lddmc_union(res, next[i]->dd);
     }
-    lddmc_protect(&res);
+    lddmc_unprotect(&res);
     return res;
 }
 
