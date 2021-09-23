@@ -776,25 +776,31 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
         if (cache_get3(CACHE_LDD_REACH, set, rel, 0, &res)) return res;
     }
     
+    /* Protect relevant MDDs */
+    MDD next_meta = get_next_meta(meta); // Q: protect this?
+    MDD prev      = lddmc_false;    lddmc_refs_pushptr(&prev);
+    MDD itr_r     = lddmc_false;    lddmc_refs_pushptr(&itr_r);
+    MDD itr_w     = lddmc_false;    lddmc_refs_pushptr(&itr_w);
+    MDD rel_ij    = lddmc_false;    lddmc_refs_pushptr(&rel_ij);
+    MDD set_i     = lddmc_false;    lddmc_refs_pushptr(&set_i);
+    MDD _set      = set;            lddmc_refs_pushptr(&_set);
 
-    /* Recursive part (WIP) */
-    MDD next_meta = get_next_meta(meta);
-    
-    while (1) { // while 'set' not converged
+    /* Loop until reachable set has converged */
+    while (_set != prev) {
+        prev = _set;
 
-        // Iterate over over all read x write of rel
-        MDD iter_reads = rel;
-        while (iter_reads != lddmc_false) {
+        // Iterate over over all reads (i) of 'rel'
+        for (itr_r = rel;  itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
 
-            uint32_t i = lddmc_getvalue(iter_reads);
-            MDD set_i  = lddmc_follow(set, i);
+            uint32_t i = lddmc_getvalue(itr_r);
+            set_i  = lddmc_follow(_set, i);
 
-            MDD iter_writes = lddmc_getdown(iter_reads);
-            while (iter_writes != lddmc_false) {
+            // Iterate over all writes (j) corresponding to reading 'i'
+            for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
 
-                uint32_t j = lddmc_getvalue(iter_writes);
-                MDD rel_ij = lddmc_getdown(iter_reads);
-
+                uint32_t j = lddmc_getvalue(itr_w);
+                rel_ij = lddmc_getdown(itr_w); // equiv to following i then j from rel
+                
                 if (i == j) {
                     set_i = CALL(go_rec, set_i, rel_ij, next_meta);
                 }
@@ -802,25 +808,24 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                     MDD succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
 
                     // extend succ_j and add to 'set'
-                    MDD _set_j = lddmc_makenode(j, succ_j, lddmc_false);
-                    set = lddmc_union(set, _set_j);
-                }
-
-                printf("Rel| read=%d, write=%d\n", i, j);
-                iter_writes = lddmc_getright(iter_writes);
+                    MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                    _set = lddmc_union(_set, set_j_ext);
+                } 
             }
-            iter_reads = lddmc_getright(iter_reads);
-        }
-        break;
-    }
-    Abort("Recursive reach not implemented yet...\n");
 
+            // extend set_i and add to 'set'
+            MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+            _set = lddmc_union(_set, set_i_ext);
+        }
+    }
+
+    lddmc_refs_popptr(6);
 
     /* Put in cache */
     if (cachenow)
-        cache_put3(CACHE_LDD_REACH, set, rel, 0, set);
+        cache_put3(CACHE_LDD_REACH, set, rel, 0, _set);
 
-    return set;
+    return _set;
 }
 
 VOID_TASK_1(rec, set_t, set)
@@ -942,10 +947,12 @@ main(int argc, char **argv)
     printf(" max.\n");
 
     sylvan_set_limits(max, 1, 16);
+    //sylvan_set_sizes(1LL<<25, 1LL<<25, 1LL<<23, 1LL<<23);
     sylvan_init_package();
     sylvan_init_ldd();
     sylvan_gc_hook_pregc(TASK(gc_start));
     sylvan_gc_hook_postgc(TASK(gc_end));
+    //sylvan_gc_disable();
 
     /**
      * Read the model from file
