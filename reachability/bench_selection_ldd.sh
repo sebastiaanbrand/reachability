@@ -83,5 +83,6 @@ for filename in $beem_selection; do
     # LTSmin generated ldd files without any options for regrouping (other than to extend relations to full domain)
     timeout $maxtime ./../build/reachability/lddmc models/beem/ldds_vanilla/overapprox/$filename --workers=1 --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_vn_stats
     timeout $maxtime ./../build/reachability/lddmc models/beem/ldds_vanilla/$filename --workers=1 --strategy=sat --count-nodes --statsfile=$beem_vn_stats
+    timeout $maxtime ./../build/reachability/lddmc models/beem/ldds_vanilla/overapprox/$filename --workers=1 --strategy=rec --merge-relations --count-nodes --statsfile=$beem_vn_stats
 done
 

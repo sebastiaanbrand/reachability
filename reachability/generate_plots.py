@@ -16,17 +16,20 @@ plots_folder = 'plots/{}/' # output in plots/fig_format/
 label_folder = 'plots/labeled/' # for plots with labels for all data-points
 data_folder  = 'bench_data/'
 
-beem_vanilla = pd.read_csv(data_folder + 'beem_vanilla_stats.csv')
-beem_ga      = pd.read_csv(data_folder + 'beem_ga_stats.csv')
-ptri_vanilla = pd.read_csv(data_folder + 'petrinets_vanilla_stats.csv')
-ptri_ga      = pd.read_csv(data_folder + 'petrinets_ga_stats.csv')
-prom_vanilla = pd.read_csv(data_folder + 'promela_vanilla_stats.csv')
-prom_ga      = pd.read_csv(data_folder + 'promela_ga_stats.csv')
-datasetnames = ['beem', 'ptri', 'prom']
+beem_vanilla        = pd.read_csv(data_folder + 'beem_vanilla_stats.csv')
+beem_ga             = pd.read_csv(data_folder + 'beem_ga_stats.csv')
+ptri_vanilla        = pd.read_csv(data_folder + 'petrinets_vanilla_stats.csv')
+ptri_ga             = pd.read_csv(data_folder + 'petrinets_ga_stats.csv')
+prom_vanilla        = pd.read_csv(data_folder + 'promela_vanilla_stats.csv')
+prom_ga             = pd.read_csv(data_folder + 'promela_ga_stats.csv')
+beem_vanilla_ldd    = pd.read_csv(data_folder + 'selection/beem_vanilla_stats_ldd.csv')
+
+datasetnames = ['beem']#, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
 datamap      = {('beem','vanilla') : beem_vanilla, ('beem', 'ga') : beem_ga, 
                 ('ptri','vanilla') : ptri_vanilla, ('ptri', 'ga') : ptri_ga,
-                ('prom','vanilla') : prom_vanilla, ('prom', 'ga') : prom_ga}
+                ('prom','vanilla') : prom_vanilla, ('prom', 'ga') : prom_ga,
+                ('beem','vanilla-ldd') : beem_vanilla_ldd}
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4}
@@ -393,21 +396,24 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
         fig.savefig(fig_name, dpi=300)
 
 def plot_things():
-    plot_comparison_shared_y('bfs', 'ga', 'sat', 'ga', 'rec', 'ga')
-    plot_comparison_sbs('sat', 'vanilla', 'sat', 'ga',
-                        'rec', 'vanilla', 'rec', 'ga', 
-                        'time with default grouping (s)',
-                        'time with \'ga\' grouping (s)')
-    plot_comparison('bfs', 'vanilla', 'sat', 'vanilla')
-    plot_comparison('bfs', 'ga',      'sat', 'ga')
-    plot_comparison('bfs', 'vanilla', 'rec', 'vanilla')
-    plot_comparison('bfs', 'ga',      'rec', 'ga')
-    plot_comparison('sat', 'vanilla', 'rec', 'vanilla')
-    plot_comparison('sat', 'ga',      'rec', 'ga')
-    plot_comparison('bfs', 'vanilla', 'bfs', 'ga')
-    plot_comparison('sat', 'vanilla', 'sat', 'ga')
-    plot_comparison('rec', 'vanilla', 'rec', 'ga')
-    plot_selection('sat', 'ga', 'rec', 'ga')
+    #plot_comparison_shared_y('bfs', 'ga', 'sat', 'ga', 'rec', 'ga')
+    #plot_comparison_sbs('sat', 'vanilla', 'sat', 'ga',
+    #                    'rec', 'vanilla', 'rec', 'ga', 
+    #                    'time with default grouping (s)',
+    #                    'time with \'ga\' grouping (s)')
+    #plot_comparison('bfs', 'vanilla', 'sat', 'vanilla')
+    #plot_comparison('bfs', 'ga',      'sat', 'ga')
+    #plot_comparison('bfs', 'vanilla', 'rec', 'vanilla')
+    #plot_comparison('bfs', 'ga',      'rec', 'ga')
+    #plot_comparison('sat', 'vanilla', 'rec', 'vanilla')
+    #plot_comparison('sat', 'ga',      'rec', 'ga')
+    #plot_comparison('bfs', 'vanilla', 'bfs', 'ga')
+    #plot_comparison('sat', 'vanilla', 'sat', 'ga')
+    #plot_comparison('rec', 'vanilla', 'rec', 'ga')
+    #plot_selection('sat', 'ga', 'rec', 'ga')
+    plot_comparison_shared_y('bfs', 'vanilla-ldd', 
+                             'sat', 'vanilla-ldd', 
+                             'rec', 'vanilla-ldd')
 
 if __name__ == '__main__':
     pre_process()
