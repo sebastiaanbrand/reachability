@@ -20,7 +20,7 @@
 static int report_levels = 0; // report states at start of every level
 static int report_table = 0; // report table size at end of every level
 static int report_nodes = 0; // report number of nodes of LDDs
-static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING
+static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING, 4 = REC
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly
 static int merge_relations = 0; // merge relations to 1 relation
 static int print_transition_matrix = 0; // print transition relation matrix
@@ -947,12 +947,10 @@ main(int argc, char **argv)
     printf(" max.\n");
 
     sylvan_set_limits(max, 1, 16);
-    //sylvan_set_sizes(1LL<<25, 1LL<<25, 1LL<<23, 1LL<<23);
     sylvan_init_package();
     sylvan_init_ldd();
     sylvan_gc_hook_pregc(TASK(gc_start));
     sylvan_gc_hook_postgc(TASK(gc_end));
-    //sylvan_gc_disable();
 
     /**
      * Read the model from file
