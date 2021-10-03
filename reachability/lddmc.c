@@ -847,6 +847,7 @@ print_meta(MDD meta)
     printf("\n");
 }
 
+// TODO: log failed asserts to some file
 void
 assert_meta_full_domain(MDD meta)
 {
