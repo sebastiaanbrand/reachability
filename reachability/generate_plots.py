@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -16,22 +17,10 @@ plots_folder = 'plots/{}/' # output in plots/fig_format/
 label_folder = 'plots/labeled/' # for plots with labels for all data-points
 data_folder  = 'bench_data/'
 
-beem_vn     = pd.read_csv(data_folder + 'beem_vanilla_stats.csv')
-beem_ga     = pd.read_csv(data_folder + 'beem_ga_stats.csv')
-ptri_vn     = pd.read_csv(data_folder + 'petrinets_vanilla_stats.csv')
-ptri_ga     = pd.read_csv(data_folder + 'petrinets_ga_stats.csv')
-prom_vn     = pd.read_csv(data_folder + 'promela_vanilla_stats.csv')
-prom_ga     = pd.read_csv(data_folder + 'promela_ga_stats.csv')
-beem_vn_ldd = pd.read_csv(data_folder + 'beem_vanilla_stats_ldd.csv')
-beem_ga_ldd = pd.read_csv(data_folder + 'beem_ga_stats_ldd.csv')
+datamap = {} # map from ('dataset','type') -> dataframe
 
 datasetnames = ['beem']#, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
-datamap      = {('beem','vn') : beem_vn, ('beem', 'ga') : beem_ga, 
-                ('ptri','vn') : ptri_vn, ('ptri', 'ga') : ptri_ga,
-                ('prom','vn') : prom_vn, ('prom', 'ga') : prom_ga,
-                ('beem','vn-ldd') : beem_vn_ldd,
-                ('beem','ga-ldd') : beem_ga_ldd}
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4}
@@ -44,6 +33,28 @@ verbose = True
 def info(str):
     if (verbose):
         print(str)
+
+def try_load_data(key, filepath):
+    global datamap
+    if (os.path.exists(filepath)):
+        info("loading file {}".format(filepath))
+        datamap[key] = pd.read_csv(filepath)
+    else:
+        return 0
+
+"""
+load data from predefined filenames if those file exist
+"""
+def load_data():
+    try_load_data(('beem','vn'), data_folder + 'beem_vanilla_stats.csv')
+    try_load_data(('beem','sl'), data_folder + 'beem_sloan_stats.csv')
+    try_load_data(('ptri','vn'), data_folder + 'petrinets_vanilla_stats.csv')
+    try_load_data(('ptri','sl'), data_folder + 'petrinets_sloan_stats.csv')
+    try_load_data(('prom','vn'), data_folder + 'promela_vanilla_stats.csv')
+    try_load_data(('prom','sl'), data_folder + 'promela_sloan_stats.csv')
+    try_load_data(('beem','vn-ldd'), data_folder + 'beem_vanilla_stats_ldd.csv')
+    try_load_data(('beem','sl-ldd'), data_folder + 'beem_sloan_stats_ldd.csv')
+
 
 def pre_process():
     # make plots folders if necessary
@@ -307,7 +318,7 @@ def plot_comparison_shared_y(x1_strat, x1_data_label,
     # plot for all formats
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
-        fig_name = '{}reachtime_{}_{}_and_{}_{}vs_{}_{}.{}'.format(subfolder,
+        fig_name = '{}reachtime_{}_{}_and_{}_{}_vs_{}_{}.{}'.format(subfolder,
                                                         x1_strat, x1_data_label,
                                                         x2_strat, x2_data_label,
                                                         y_strat, y_data_label,
@@ -414,10 +425,11 @@ def plot_things():
     #plot_comparison('sat', 'vn', 'sat', 'ga')
     #plot_comparison('rec', 'vn', 'rec', 'ga')
     #plot_selection('sat', 'ga', 'rec', 'ga')
-    plot_comparison_shared_y('bfs', 'vn-ldd', 'sat', 'vn-ldd', 'rec', 'vn-ldd')
-    plot_comparison_shared_y('bfs', 'ga-ldd', 'sat', 'ga-ldd', 'rec', 'ga-ldd')
+    #plot_comparison_shared_y('bfs', 'vn-ldd', 'sat', 'vn-ldd', 'rec', 'vn-ldd')
+    plot_comparison_shared_y('bfs', 'sl-ldd', 'sat', 'sl-ldd', 'rec', 'sl-ldd')
 
 if __name__ == '__main__':
+    load_data()
     pre_process()
     assert_states_nodes()
     plot_things()
