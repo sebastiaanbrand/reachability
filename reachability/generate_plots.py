@@ -426,7 +426,13 @@ def plot_things():
     #plot_comparison('rec', 'vn', 'rec', 'ga')
     #plot_selection('sat', 'ga', 'rec', 'ga')
     #plot_comparison_shared_y('bfs', 'vn-ldd', 'sat', 'vn-ldd', 'rec', 'vn-ldd')
+
+    # Sloan LDDs
     plot_comparison_shared_y('bfs', 'sl-ldd', 'sat', 'sl-ldd', 'rec', 'sl-ldd')
+    plot_comparison('bfs', 'sl-ldd', 'rec', 'sl-ldd')
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd')
+    plot_comparison('bfs', 'sl-ldd', 'sat', 'sl-ldd')
+
 
 if __name__ == '__main__':
     load_data()
