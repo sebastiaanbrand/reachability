@@ -868,17 +868,10 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
         prev0 = s0;
         prev1 = s1;
 
-        /* Do in parallel */
-        bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars));
-        bdd_refs_spawn(SPAWN(go_rec, s1, r11, next_vars));
-        s1 = bdd_refs_sync(SYNC(go_rec));
-        s0 = bdd_refs_sync(SYNC(go_rec));
-
-        /* These are sequential by design */ 
-        BDD t10 = CALL(sylvan_relnext, s1, r10, next_vars, 0);
-        s0 = sylvan_or(s0, t10);
-        BDD t01 = CALL(sylvan_relnext, s0, r01, next_vars, 0);
-        s1 = sylvan_or(s1, t01);
+        s0 = CALL(go_rec, s0, r00, next_vars);
+        s1 = sylvan_or(s1, sylvan_relnext(s0, r01, next_vars));
+        s1 = CALL(go_rec, s1, r11, next_vars);
+        s0 = sylvan_or(s0, sylvan_relnext(s1, r10, next_vars));
     }
 
     bdd_refs_popptr(9);
