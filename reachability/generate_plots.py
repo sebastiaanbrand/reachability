@@ -13,9 +13,11 @@ selections = {
 
 
 fig_formats = ['png', 'pdf', 'eps']
-plots_folder = 'plots/{}/' # output in plots/fig_format/
-label_folder = 'plots/labeled/' # for plots with labels for all data-points
 data_folder  = 'bench_data/'
+plots_folder_temp = 'plots/{}/{}/' # output in plots/subfolder/fig_format/
+label_folder_temp = 'plots/{}/labeled/' # for plots with labels for all data-points
+plots_folder = ''
+label_folder = ''
 
 datamap = {} # map from ('dataset','type') -> dataframe
 
@@ -46,21 +48,18 @@ def try_load_data(key, filepath):
 load data from predefined filenames if those file exist
 """
 def load_data():
-    try_load_data(('beem','vn'), data_folder + 'beem_vanilla_stats.csv')
-    try_load_data(('beem','sl'), data_folder + 'beem_sloan_stats.csv')
-    try_load_data(('ptri','vn'), data_folder + 'petrinets_vanilla_stats.csv')
-    try_load_data(('ptri','sl'), data_folder + 'petrinets_sloan_stats.csv')
-    try_load_data(('prom','vn'), data_folder + 'promela_vanilla_stats.csv')
-    try_load_data(('prom','sl'), data_folder + 'promela_sloan_stats.csv')
+    try_load_data(('beem','vn-bdd'), data_folder + 'beem_vanilla_stats_bdd.csv')
+    try_load_data(('beem','sl-bdd'), data_folder + 'beem_sloan_stats_bdd.csv')
+    try_load_data(('ptri','vn-bdd'), data_folder + 'petrinets_vanilla_stats_bdd.csv')
+    try_load_data(('ptri','sl-bdd'), data_folder + 'petrinets_sloan_stats_bdd.csv')
+    try_load_data(('prom','vn-bdd'), data_folder + 'promela_vanilla_stats_bdd.csv')
+    try_load_data(('prom','sl-bdd'), data_folder + 'promela_sloan_stats_bdd.csv')
     try_load_data(('beem','vn-ldd'), data_folder + 'beem_vanilla_stats_ldd.csv')
     try_load_data(('beem','sl-ldd'), data_folder + 'beem_sloan_stats_ldd.csv')
 
 
 def pre_process():
-    # make plots folders if necessary
-    for fig_format in fig_formats:
-        Path(plots_folder.format(fig_format)).mkdir(parents=True, exist_ok=True)
-    Path(label_folder).mkdir(parents=True, exist_ok=True)
+    print("pre-processing data")
 
     # strip whitespace from column names
     for df in datamap.values():
@@ -176,6 +175,7 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
                                                       y_strat, y_data_label,
                                                       'pdf')
     fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
 
 
 def plot_selection(x_strat, x_data_label, y_strat, y_data_label):
@@ -249,6 +249,7 @@ def plot_selection(x_strat, x_data_label, y_strat, y_data_label):
                                                     y_strat, y_data_label,
                                                     'pdf')
     fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
 
 
 def plot_comparison_shared_y(x1_strat, x1_data_label, 
@@ -324,6 +325,7 @@ def plot_comparison_shared_y(x1_strat, x1_data_label,
                                                         y_strat, y_data_label,
                                                         fig_format)
         fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
 
 def plot_comparison_sbs(x1_strat, x1_data_label, 
                         y1_strat, y1_data_label,
@@ -408,30 +410,57 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
                                                         y2_strat, y2_data_label,
                                                         fig_format)
         fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
+
+
+def set_subfolder_name(subfolder_name):
+    global plots_folder, plots_folder_temp, label_folder, label_folder_temp
+    plots_folder = plots_folder_temp.format(subfolder_name, '{}')
+    label_folder = label_folder_temp.format(subfolder_name)
+
+    # make plots folders if necessary
+    for fig_format in fig_formats:
+        Path(plots_folder.format(fig_format)).mkdir(parents=True, exist_ok=True)
+    Path(label_folder).mkdir(parents=True, exist_ok=True)
+
 
 def plot_things():
-    #plot_comparison_shared_y('bfs', 'ga', 'sat', 'ga', 'rec', 'ga')
-    #plot_comparison_sbs('sat', 'vn', 'sat', 'ga',
-    #                    'rec', 'vn', 'rec', 'ga', 
-    #                    'time with default grouping (s)',
-    #                    'time with \'ga\' grouping (s)')
-    #plot_comparison('bfs', 'vn', 'sat', 'vn')
-    #plot_comparison('bfs', 'ga', 'sat', 'ga')
-    #plot_comparison('bfs', 'vn', 'rec', 'vn')
-    #plot_comparison('bfs', 'ga', 'rec', 'ga')
-    #plot_comparison('sat', 'vn', 'rec', 'vn')
-    #plot_comparison('sat', 'ga', 'rec', 'ga')
-    #plot_comparison('bfs', 'vn', 'bfs', 'ga')
-    #plot_comparison('sat', 'vn', 'sat', 'ga')
-    #plot_comparison('rec', 'vn', 'rec', 'ga')
-    #plot_selection('sat', 'ga', 'rec', 'ga')
-    #plot_comparison_shared_y('bfs', 'vn-ldd', 'sat', 'vn-ldd', 'rec', 'vn-ldd')
+    # BDDs vanilla
+    set_subfolder_name('BDDs vanilla')
+    plot_comparison_shared_y('bfs', 'vn-bdd', 'sat', 'vn-bdd', 'rec', 'vn-bdd')
+    plot_comparison('bfs', 'vn-bdd', 'rec', 'vn-bdd')
+    plot_comparison('sat', 'vn-bdd', 'rec', 'vn-bdd')
+    plot_comparison('bfs', 'vn-bdd', 'sat', 'vn-bdd')
 
-    # Sloan LDDs
+    # BDDs Sloan
+    set_subfolder_name('BDDs Sloan')
+    plot_comparison_shared_y('bfs', 'sl-bdd', 'sat', 'sl-bdd', 'rec', 'sl-bdd')
+    plot_comparison('bfs', 'sl-bdd', 'rec', 'sl-bdd')
+    plot_comparison('sat', 'sl-bdd', 'rec', 'sl-bdd')
+    plot_comparison('bfs', 'sl-bdd', 'sat', 'sl-bdd')
+
+    # LDDs vanilla
+    set_subfolder_name('LDDs vanilla')
+    plot_comparison_shared_y('bfs', 'vn-ldd', 'sat', 'vn-ldd', 'rec', 'vn-ldd')
+    plot_comparison('bfs', 'vn-ldd', 'rec', 'vn-ldd')
+    plot_comparison('sat', 'vn-ldd', 'rec', 'vn-ldd')
+    plot_comparison('bfs', 'vn-ldd', 'sat', 'vn-ldd')
+
+    # LDDs Sloan
+    set_subfolder_name('LDDs Sloan')
     plot_comparison_shared_y('bfs', 'sl-ldd', 'sat', 'sl-ldd', 'rec', 'sl-ldd')
     plot_comparison('bfs', 'sl-ldd', 'rec', 'sl-ldd')
     plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd')
     plot_comparison('bfs', 'sl-ldd', 'sat', 'sl-ldd')
+
+    # Sloan vs vanilla
+    set_subfolder_name('Sloan vs vanilla')
+    plot_comparison('bfs', 'vn-bdd', 'bfs', 'sl-bdd')
+    plot_comparison('sat', 'vn-bdd', 'sat', 'sl-bdd')
+    plot_comparison('rec', 'vn-bdd', 'rec', 'sl-bdd')
+    plot_comparison('bfs', 'vn-ldd', 'bfs', 'sl-ldd')
+    plot_comparison('sat', 'vn-ldd', 'sat', 'sl-ldd')
+    plot_comparison('rec', 'vn-ldd', 'rec', 'sl-ldd')
 
 
 if __name__ == '__main__':
