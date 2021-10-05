@@ -50,6 +50,29 @@ for var in "$@"; do
     fi
 done
 
+
+echo "Running following benchmarks:"
+
+if [[ $bench_beem_vn && $bench_bdd ]]; then echo "  - BEEM BDDs vanilla"; fi
+if [[ $bench_beem_sl && $bench_bdd ]]; then echo "  - BEEM BDDs Sloan"; fi
+if [[ $bench_beem_vn && $bench_ldd ]]; then echo "  - BEEM LDDs vanilla"; fi
+if [[ $bench_beem_sl && $bench_ldd ]]; then echo "  - BEEM LDDs Sloan"; fi
+
+if [[ $bench_ptri_vn && $bench_bdd ]]; then echo "  - Petri Nets BDDs vanilla"; fi
+if [[ $bench_ptri_sl && $bench_bdd ]]; then echo "  - Petri Nets BDDs Sloan"; fi
+if [[ $bench_ptri_vn && $bench_ldd ]]; then echo "  - Petri Nets LDDs vanilla"; fi
+if [[ $bench_ptri_sl && $bench_ldd ]]; then echo "  - Petri Nets LDDs Sloan"; fi
+
+if [[ $bench_prom_vn && $bench_bdd ]]; then echo "  - Petri Nets BDDs vanilla"; fi
+if [[ $bench_prom_sl && $bench_bdd ]]; then echo "  - Petri Nets BDDs Sloan"; fi
+if [[ $bench_prom_vn && $bench_ldd ]]; then echo "  - Petri Nets LDDs vanilla"; fi
+if [[ $bench_prom_sl && $bench_ldd ]]; then echo "  - Petri Nets LDDs Sloan"; fi
+
+if [[ $bench_awari && $bench_bdd ]]; then echo "  - Awari BDDs"; fi
+
+read -p "Press enter to start"
+
+
 # BEEM, vanilla BDDs
 if [[ $bench_beem_vn && $bench_bdd ]]; then
     for filename in models/beem/bdds/vanilla/*.bdd; do
@@ -144,6 +167,28 @@ if [[ $bench_beem_sl && $bench_ldd ]]; then
             timeout $maxtime ./../build/reachability/lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
             timeout $maxtime ./../build/reachability/lddmc models/beem/ldds/sloan/$(basename $filename) --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
             timeout $maxtime ./../build/reachability/lddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+        done
+    done
+fi
+
+# Petri nets, vanilla LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+if [[ $bench_ptri_vn && $bench_ldd ]]; then
+    for filename in models/petrinets/ldds/vanilla/overapprox/*.ldd; do
+        for nw in $num_workers; do
+            timeout $maxtime ./../build/reachability/lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_vn_stats_ldd
+            timeout $maxtime ./../build/reachability/lddmc models/petrinets/ldds/vanilla/$(basename $filename) --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_vn_stats_ldd
+            timeout $maxtime ./../build/reachability/lddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_vn_stats_ldd
+        done
+    done
+fi
+
+# Petri nets, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+if [[ $bench_ptri_vn && $bench_ldd ]]; then
+    for filename in models/petrinets/ldds/sloan/overapprox/*.ldd; do
+        for nw in $num_workers; do
+            timeout $maxtime ./../build/reachability/lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+            timeout $maxtime ./../build/reachability/lddmc models/petrinets/ldds/sloan/$(basename $filename) --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
+            timeout $maxtime ./../build/reachability/lddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
         done
     done
 fi
