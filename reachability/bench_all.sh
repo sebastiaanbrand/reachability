@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # usage:
-# bash bench_all.sh [-w workers] [beem|petri|promela] [bdd|ldd]
+# bash bench_all.sh [-w workers] [beem|petri|promela]-[all|vanilla|sloan|force] [bdd|ldd]
 
 # output files
 beem_vn_stats="bench_data/beem_vanilla_stats_bdd.csv"
