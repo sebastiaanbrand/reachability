@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # usage:
-# bash bench_all.sh [-w workers] [beem|petri|promela]-[all|vanilla|sloan|force] [bdd|ldd]
+# bash bench_all.sh [-w workers] [beem|petri|promela]-[all|vanilla|sloan|force] [bdd|ldd] [test-par]
 
 # output files
 beem_vn_stats="bench_data/beem_vanilla_stats_bdd.csv"
@@ -56,6 +56,7 @@ for var in "$@"; do
     if [[ $var == 'awari' ]]; then bench_awari=true; fi
     if [[ $var == 'bdd' ]]; then bench_bdd=true; fi
     if [[ $var == 'ldd' ]]; then bench_ldd=true; fi
+    if [[ $var == 'test-par' ]]; then test_par=true; fi
     if [[ $var == 'all' ]]; then
         bench_beem_vn=true; bench_ptri_vn=true; bench_prom_vn=true
         bench_beem_sl=true; bench_ptri_sl=true; bench_prom_sl=true
@@ -91,6 +92,8 @@ if [[ $bench_prom_f  && $bench_ldd ]]; then echo "  - Petri Nets LDDs FORCE"; fi
 
 if [[ $bench_awari && $bench_bdd ]]; then echo "  - Awari BDDs"; fi
 
+if [[ $test_par && $bench_bdd ]]; then echo "  * Testing parallelism for BDD rec-reach for [$num_workers] workers"; fi
+
 read -p "Press enter to start"
 
 
@@ -101,6 +104,9 @@ if [[ $bench_beem_vn && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_vn_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_vn_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_vn_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$beem_vn_stats
+            fi
         done
     done
 fi
@@ -112,6 +118,9 @@ if [[ $bench_beem_sl && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$beem_sl_stats
+            fi
         done
     done
 fi
@@ -123,6 +132,9 @@ if [[ $bench_beem_f && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_f_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_f_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_f_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$beem_f_stats
+            fi
         done
     done
 fi
@@ -134,6 +146,9 @@ if [[ $bench_ptri_vn && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_vn_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_vn_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_vn_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$petri_vn_stats
+            fi
         done
     done
 fi
@@ -145,6 +160,9 @@ if [[ $bench_ptri_sl && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$petri_sl_stats
+            fi
         done
     done
 fi
@@ -156,6 +174,9 @@ if [[ $bench_ptri_f && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_f_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_f_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_f_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$petri_f_stats
+            fi
         done
     done
 fi
@@ -167,6 +188,9 @@ if [[ $bench_prom_vn && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_vn_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_vn_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_vn_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$promela_vn_stats
+            fi
         done
     done
 fi
@@ -178,6 +202,9 @@ if [[ $bench_prom_sl && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$promela_sl_stats
+            fi
         done
     done
 fi
@@ -189,6 +216,9 @@ if [[ $bench_prom_f && $bench_bdd ]]; then
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_f_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_f_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_f_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$promela_f_stats
+            fi
         done
     done
 fi
@@ -199,6 +229,9 @@ if [[ $bench_awari && $bench_bdd ]]; then
         for nw in $num_workers; do
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$awari_stats
             timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$awari_stats
+            if [[ $test_par ]]; then
+                timeout $maxtime ./../build/reachability/bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$awari_stats
+            fi
         done
     done
 fi

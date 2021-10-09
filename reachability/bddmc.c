@@ -21,6 +21,7 @@ static int report_levels = 0; // report states at end of every level
 static int report_table = 0; // report table size at end of every level
 static int report_nodes = 0; // report number of nodes of BDDs
 static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING, 4 = REC
+static int loop_order = 0; // 0 = sequential, 10 = parallel
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly (only bfs/par)
 static int merge_relations = 0; // merge relations to 1 relation
 static int print_transition_matrix = 0; // print transition relation matrix
@@ -43,12 +44,18 @@ typedef enum strats {
     num_strats
 } strategy_t;
 
+typedef enum loop_order {
+    loop_seq = 0,
+    loop_par = 10 // we'll log strategy as strat + loop_order
+} loop_order_t;
+
 /* argp configuration */
 static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=0: autodetect)", 0},
     {"strategy", 's', "<bfs|par|sat|chaining|rec|bfs-plain|chain-rec>", 0, 
      "Strategy for reachability (default=bfs)", 0},
+    {"loop-order", 'o', "<seq|par>", 0, "Loop order in rec alg (default=seq)", 0},
 #ifdef HAVE_PROFILER
     {"profiler", 'p', "<filename>", 0, "Filename for profiling", 0},
 #endif
@@ -77,6 +84,11 @@ parse_opt(int key, char *arg, struct argp_state *state)
         else if (strcmp(arg, "rec")==0) strategy = strat_rec;
         else if (strcmp(arg, "bfs-plain")==0) strategy = strat_bfs_plain;
         else if (strcmp(arg, "chain-rec")==0) strategy = strat_chain_rec;
+        else argp_usage(state);
+        break;
+    case 'o':
+        if (strcmp(arg, "seq")==0) loop_order = loop_seq;
+        else if (strcmp(arg, "par")==0) loop_order = loop_par;
         else argp_usage(state);
         break;
     case 4:
@@ -201,7 +213,7 @@ write_stats()
     char* benchname = basename((char*)model_filename);
     fprintf(fp, "%s, %d, %d, %d, %f, %f, %0.0f, %ld, %ld\n",
             benchname,
-            strategy,
+            strategy+loop_order,
             merge_relations,
             lace_workers(),
             stats.reach_time,
@@ -874,10 +886,37 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
         prev0 = s0;
         prev1 = s1;
 
-        s0 = CALL(go_rec, s0, r00, next_vars);
-        s1 = sylvan_or(s1, sylvan_relnext(s0, r01, next_vars));
-        s1 = CALL(go_rec, s1, r11, next_vars);
-        s0 = sylvan_or(s0, sylvan_relnext(s1, r10, next_vars));
+        if (loop_order == loop_seq) {
+            // sequential calls (in specific order)
+            s0 = CALL(go_rec, s0, r00, next_vars);
+            s1 = sylvan_or(s1, sylvan_relnext(s0, r01, next_vars));
+            s1 = CALL(go_rec, s1, r11, next_vars);
+            s0 = sylvan_or(s0, sylvan_relnext(s1, r10, next_vars));
+        }
+        else if (loop_order == loop_par) {
+            // 2 recursive calls in parallel
+            bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars));
+            bdd_refs_spawn(SPAWN(go_rec, s1, r11, next_vars));
+            s1 = bdd_refs_sync(SYNC(go_rec)); // syncs s1 = s1.r11*
+            s0 = bdd_refs_sync(SYNC(go_rec)); // syncs s0 = s0.r00*
+
+            // 2 relnext calls in parallel
+            bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
+            bdd_refs_spawn(SPAWN(sylvan_relnext, s1, r10, next_vars, 0));
+            BDD t0 = bdd_refs_sync(SYNC(sylvan_relnext)); // syncs t0 = s1.r10
+            BDD t1 = bdd_refs_sync(SYNC(sylvan_relnext)); // syncs t1 = s0.r01
+            bdd_refs_push(t1); // t0 doesn't need to be protected
+
+            // 2 or's in parallel ( or is implemented via !(!A ^ !B) )
+            bdd_refs_spawn(SPAWN(sylvan_and, sylvan_not(s0), sylvan_not(t0), 0));
+            bdd_refs_spawn(SPAWN(sylvan_and, sylvan_not(s1), sylvan_not(t1), 0));
+            s1 = sylvan_not(bdd_refs_sync(SYNC(sylvan_and))); // syncs s1 = !(!s1 ^ !t1)
+            s0 = sylvan_not(bdd_refs_sync(SYNC(sylvan_and))); // syncs s0 = !(!s0 ^ !t0)
+            bdd_refs_pop(1);
+        }
+        else {
+            Abort("Invalid loop order\n");
+        }
     }
 
     bdd_refs_popptr(9);
