@@ -28,6 +28,7 @@ static int workers = 0; // autodetect
 static char* model_filename = NULL; // filename of model
 static char* out_filename = NULL; // filename of output
 static char* stats_filename = NULL; // filename of csv stats output file
+static char* matrix_filename = NULL; // no reach, just log TS relation matrix
 #ifdef HAVE_PROFILER
 static char* profile_filename = NULL; // filename for profiling
 #endif
@@ -55,6 +56,7 @@ static struct argp_option options[] =
     {"count-table", 2, 0, 0, "Report table usage at each level", 1},
     {"merge-relations", 6, 0, 0, "Merge transition relations into one transition relation", 1},
     {"print-matrix", 4, 0, 0, "Print transition matrix", 1},
+    {"write-matrix", 8, "FILENAME", 0, "Write transition matrix to given file", 0},
     {"statsfile", 7, "FILENAME", 0, "Write stats to given filename (or append if exists)", 0},
     {0, 0, 0, 0, 0, 0}
 };
@@ -94,6 +96,10 @@ parse_opt(int key, char *arg, struct argp_state *state)
         break;
     case 7:
         stats_filename = arg;
+        break;
+    case 8:
+        print_transition_matrix = 1;
+        matrix_filename = arg;
         break;
 #ifdef HAVE_PROFILER
     case 'p':
@@ -374,19 +380,19 @@ print_example(MDD example)
 }
 
 static void
-print_matrix(size_t size, MDD meta)
+fprint_matrix_row(FILE *stream, size_t size, MDD meta)
 {
     if (size == 0) return;
     uint32_t val = lddmc_getvalue(meta);
     if (val == 1) {
-        printf("+");
-        print_matrix(size-1, lddmc_follow(lddmc_follow(meta, 1), 2));
+        fprintf(stream, "+");
+        fprint_matrix_row(stream, size-1, lddmc_follow(lddmc_follow(meta, 1), 2));
     } else {
-        if (val == (uint32_t)-1) printf("-");
-        else if (val == 0) printf("-");
-        else if (val == 3) printf("r");
-        else if (val == 4) printf("w");
-        print_matrix(size-1, lddmc_follow(meta, val));
+        if (val == (uint32_t)-1) fprintf(stream, "-");
+        else if (val == 0) fprintf(stream, "-");
+        else if (val == 3) fprintf(stream, "r");
+        else if (val == 4) fprintf(stream, "w");
+        fprint_matrix_row(stream, size-1, lddmc_follow(meta, val));
     }
 }
 
@@ -1008,9 +1014,20 @@ main(int argc, char **argv)
     if (print_transition_matrix) {
         for (int i=0; i<next_count; i++) {
             INFO("");
-            print_matrix(vector_size, next[i]->meta);
+            fprint_matrix_row(stdout, vector_size, next[i]->meta);
             printf(" (%d)\n", get_first(next[i]->meta));
         }
+    }
+
+    if (matrix_filename != NULL) {
+        INFO("Logging transition matrix to %s\n", matrix_filename);
+        f = fopen(matrix_filename, "w");
+        for (int i=0; i<next_count; i++) {
+            fprint_matrix_row(f, vector_size, next[i]->meta);
+            fprintf(f, "\n");
+        }
+        fclose(f);
+        exit(0);
     }
 
     if (merge_relations) {

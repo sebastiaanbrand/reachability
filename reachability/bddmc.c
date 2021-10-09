@@ -26,7 +26,8 @@ static int merge_relations = 0; // merge relations to 1 relation
 static int print_transition_matrix = 0; // print transition relation matrix
 static int workers = 0; // autodetect
 static char* model_filename = NULL; // filename of model
-static char *stats_filename = NULL; // filename of csv stats output file
+static char* stats_filename = NULL; // filename of csv stats output file
+static char* matrix_filename = NULL; // no reach, just log TS relation matrix
 #ifdef HAVE_PROFILER
 static char* profile_filename = NULL; // filename for profiling
 #endif
@@ -57,6 +58,7 @@ static struct argp_option options[] =
     {"count-table", 2, 0, 0, "Report table usage at each level", 1},
     {"merge-relations", 6, 0, 0, "Merge transition relations into one transition relation", 1},
     {"print-matrix", 4, 0, 0, "Print transition matrix", 1},
+    {"write-matrix", 8, "FILENAME", 0, "Write transition matrix to given file", 0},
     {"statsfile", 7, "FILENAME", 0, "Write stats to given filename (or append if exists)", 0},
     {0, 0, 0, 0, 0, 0}
 };
@@ -97,6 +99,10 @@ parse_opt(int key, char *arg, struct argp_state *state)
         break;
     case 7:
         stats_filename = arg;
+        break;
+    case 8:
+        print_transition_matrix = 1;
+        matrix_filename = arg;
         break;
 #ifdef HAVE_PROFILER
     case 'p':
@@ -1151,7 +1157,7 @@ TASK_2(BDD, big_union, int, first, int, count)
  * Print one row of the transition matrix (for vars)
  */
 static void
-print_matrix_row(rel_t rel)
+fprint_matrix_row(FILE *stream, rel_t rel)
 {
     int r_i = 0, w_i = 0;
     for (int i=0; i<vectorsize; i++) {
@@ -1164,10 +1170,10 @@ print_matrix_row(rel_t rel)
             s |= 2;
             w_i++;
         }
-        if (s == 0) fprintf(stdout, "-");
-        else if (s == 1) fprintf(stdout, "r");
-        else if (s == 2) fprintf(stdout, "w");
-        else if (s == 3) fprintf(stdout, "+");
+        if (s == 0) fprintf(stream, "-");
+        else if (s == 1) fprintf(stream, "r");
+        else if (s == 2) fprintf(stream, "w");
+        else if (s == 3) fprintf(stream, "+");
     }
 }
 
@@ -1293,9 +1299,21 @@ main(int argc, char **argv)
     if (print_transition_matrix) {
         for (int i=0; i<next_count; i++) {
             INFO(""); // print time prefix
-            print_matrix_row(next[i]); // print row
+            fprint_matrix_row(stdout, next[i]); // print row
             fprintf(stdout, "\n"); // print newline
         }
+    }
+
+    /* if requested, log matrix info */
+    if (matrix_filename != NULL) {
+        INFO("Logging transition matrix to %s\n", matrix_filename);
+        f = fopen(matrix_filename, "w");
+        for (int i=0; i<next_count; i++) {
+            fprint_matrix_row(f, next[i]);
+            fprintf(f, "\n");
+        }
+        fclose(f);
+        exit(0);
     }
 
     /* merge all relations to one big transition relation if requested */
