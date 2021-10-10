@@ -100,6 +100,62 @@ def assert_states_nodes():
                           row['final_nodecount']
                     ))
 
+def load_matrix(filepath):
+    print("reading {}".format(filepath))
+    file = open(filepath, 'r')
+    matrix = []
+    for line in file:
+        row = []
+        for char in line:
+            if (char == '+' or char == 'r' or char == 'w'):
+                row.append(1)
+            elif (char == '-'):
+                row.append(0)
+        matrix.append(row)
+    return np.array(matrix)
+
+def create_rel_vs_rel(var_matrix):
+    n = len(var_matrix)
+    rel_matrix = np.zeros((n,n), dtype=int)
+    for i in range(n):
+        for j in range(n):
+            shared = np.logical_and(var_matrix[i], var_matrix[j])
+            rel_matrix[i,j] = (np.count_nonzero(shared) != 0)
+    return rel_matrix
+
+def get_bandwidth(matrix):
+    max_bw = 0
+    sum_bw = 0
+    for row in matrix:
+        non_zeros = np.nonzero(row)[0]
+        if (len(non_zeros > 1)):
+            bw = non_zeros[-1] - non_zeros[0] + 1
+        else:
+            bw = 1
+        max_bw = max(max_bw, bw)
+        sum_bw += bw
+    return (max_bw, sum_bw / len(matrix))
+
+
+def process_matrix(filepath):
+    # Matrix of vars vs rels
+    var_matrix = load_matrix(filepath)
+    print(var_matrix)
+    density = np.sum(var_matrix) / np.size(var_matrix)
+    print("density = {}".format(density))
+    max_bw, avg_bw = get_bandwidth(var_matrix)
+    print("max bandwidth = {}".format(max_bw))
+    print("avg bandwidth = {}".format(avg_bw))
+
+    # Matrix of rels vs rels
+    rel_matrix = create_rel_vs_rel(var_matrix)
+    print(rel_matrix)
+    density = np.sum(rel_matrix) / np.size(rel_matrix)
+    print("density = {}".format(density))
+    max_bw, avg_bw = get_bandwidth(rel_matrix)
+    print("max bandwidth = {}".format(max_bw))
+    print("avg bandwidth = {}".format(avg_bw))
+
 """
 strat in {'bfs', 'sat', 'rec'}
 data in {'vn', 'ga'}
@@ -464,8 +520,9 @@ def plot_things():
 
 
 if __name__ == '__main__':
-    load_data()
-    pre_process()
-    assert_states_nodes()
-    plot_things()
+    #load_data()
+    #pre_process()
+    #assert_states_nodes()
+    #plot_things()
+    process_matrix('models/beem/matrices/bdds/sloan/adding.1.bdd.matrix')
 
