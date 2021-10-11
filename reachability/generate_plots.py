@@ -12,7 +12,7 @@ selections = {
  }
 
 fig_formats = ['png', 'pdf', 'eps']
-data_folder  = 'bench_data/old/6 - oct 9 - parallel/'
+data_folder  = 'bench_data/old/5 - oct 8/'
 plots_folder_temp = 'plots/{}/{}/' # output in plots/subfolder/fig_format/
 label_folder_temp = 'plots/{}/labeled/' # for plots with labels for all data-points
 plots_folder = ''
@@ -34,9 +34,12 @@ stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4,
                 'rec-par' : 14}
-axis_label = {'bfs' : 'BFS',
-              'sat' : 'saturation',
-              'rec' : 'new algorithm'}
+axis_label = {('bfs','bdd') : 'BFS',
+              ('sat','bdd') : 'Saturation',
+              ('rec','bdd') : 'Algorithm 1',
+              ('bfs','ldd') : 'BFS',
+              ('sat','ldd') : 'Saturation',
+              ('rec','ldd') : 'Algorithm 3'}
 
 verbose = True
 
@@ -238,8 +241,8 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
     ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
 
     # labels and formatting
-    ax.set_xlabel('{} time (s)'.format(axis_label[x_strat]))
-    ax.set_ylabel('{} time (s)'.format(axis_label[y_strat]))
+    ax.set_xlabel('{} time (s)'.format(axis_label[(x_strat,x_data_label[-3:],)]))
+    ax.set_ylabel('{} time (s)'.format(axis_label[(y_strat,y_data_label[-3:],)]))
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
@@ -392,9 +395,9 @@ def plot_comparison_shared_y(x1_strat, x1_data_label,
     axs[1].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
 
     # labels and formatting
-    axs[0].set_xlabel('{} time (s)'.format(axis_label[x1_strat]))
-    axs[1].set_xlabel('{} time (s)'.format(axis_label[x2_strat]))
-    axs[0].set_ylabel('{} time (s)'.format(axis_label[y_strat]))
+    axs[0].set_xlabel('{} time (s)'.format(axis_label[(x1_strat,x1_data_label[-3:])]))
+    axs[1].set_xlabel('{} time (s)'.format(axis_label[(x2_strat,x2_data_label[-3:])]))
+    axs[0].set_ylabel('{} time (s)'.format(axis_label[(y_strat, y_data_label[-3:])]))
     axs[0].set_xscale('log')
     axs[1].set_xscale('log')
     axs[0].set_yscale('log')
@@ -675,22 +678,14 @@ def set_subfolder_name(subfolder_name):
 
 def plot_things():
     # Parallel speedups
-    set_subfolder_name('Parallel speedups')
-    plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0)
-    plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
+    #set_subfolder_name('Parallel speedups')
+    #plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0)
+    #plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
 
-    """
     # Relative speedup compared to some metric of the relation matrix
-    set_subfolder_name('Relation metric comparison')
-    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-density')
-    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-density')
-
-    # BDDs vanilla
-    set_subfolder_name('BDDs vanilla')
-    plot_comparison_shared_y('bfs', 'vn-bdd', 'sat', 'vn-bdd', 'rec', 'vn-bdd')
-    plot_comparison('bfs', 'vn-bdd', 'rec', 'vn-bdd')
-    plot_comparison('sat', 'vn-bdd', 'rec', 'vn-bdd')
-    plot_comparison('bfs', 'vn-bdd', 'sat', 'vn-bdd')
+    #set_subfolder_name('Relation metric comparison')
+    #plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-density')
+    #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-density')
 
     # BDDs Sloan
     set_subfolder_name('BDDs Sloan')
@@ -699,19 +694,27 @@ def plot_things():
     plot_comparison('sat', 'sl-bdd', 'rec', 'sl-bdd')
     plot_comparison('bfs', 'sl-bdd', 'sat', 'sl-bdd')
 
-    # LDDs vanilla
-    set_subfolder_name('LDDs vanilla')
-    plot_comparison_shared_y('bfs', 'vn-ldd', 'sat', 'vn-ldd', 'rec', 'vn-ldd')
-    plot_comparison('bfs', 'vn-ldd', 'rec', 'vn-ldd')
-    plot_comparison('sat', 'vn-ldd', 'rec', 'vn-ldd')
-    plot_comparison('bfs', 'vn-ldd', 'sat', 'vn-ldd')
-
     # LDDs Sloan
     set_subfolder_name('LDDs Sloan')
     plot_comparison_shared_y('bfs', 'sl-ldd', 'sat', 'sl-ldd', 'rec', 'sl-ldd')
     plot_comparison('bfs', 'sl-ldd', 'rec', 'sl-ldd')
     plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd')
     plot_comparison('bfs', 'sl-ldd', 'sat', 'sl-ldd')
+
+    """
+    # BDDs vanilla
+    set_subfolder_name('BDDs vanilla')
+    plot_comparison_shared_y('bfs', 'vn-bdd', 'sat', 'vn-bdd', 'rec', 'vn-bdd')
+    plot_comparison('bfs', 'vn-bdd', 'rec', 'vn-bdd')
+    plot_comparison('sat', 'vn-bdd', 'rec', 'vn-bdd')
+    plot_comparison('bfs', 'vn-bdd', 'sat', 'vn-bdd')
+
+    # LDDs vanilla
+    set_subfolder_name('LDDs vanilla')
+    plot_comparison_shared_y('bfs', 'vn-ldd', 'sat', 'vn-ldd', 'rec', 'vn-ldd')
+    plot_comparison('bfs', 'vn-ldd', 'rec', 'vn-ldd')
+    plot_comparison('sat', 'vn-ldd', 'rec', 'vn-ldd')
+    plot_comparison('bfs', 'vn-ldd', 'sat', 'vn-ldd')
 
     # Sloan vs vanilla
     set_subfolder_name('Sloan vs vanilla')
