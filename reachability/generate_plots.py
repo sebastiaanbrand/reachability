@@ -12,7 +12,7 @@ selections = {
  }
 
 fig_formats = ['png', 'pdf', 'eps']
-data_folder  = 'bench_data/old/5 - oct 8/'
+data_folder  = 'bench_data/old/6 - oct 9 - parallel/'
 plots_folder_temp = 'plots/{}/{}/' # output in plots/subfolder/fig_format/
 label_folder_temp = 'plots/{}/labeled/' # for plots with labels for all data-points
 plots_folder = ''
@@ -32,7 +32,8 @@ datasetnames = ['beem', 'ptri']  # ['beem, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
-                'rec' : 4}
+                'rec' : 4,
+                'rec-par' : 14}
 axis_label = {'bfs' : 'BFS',
               'sat' : 'saturation',
               'rec' : 'new algorithm'}
@@ -569,6 +570,96 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric):
     plt.close(fig)
 
 
+def plot_parallel(strat1, strat2, strat3, data_label, min_time):
+    info("plotting parallel speedups {}, {}, {} on {} (mintime = {}s)".format(
+        strat1, strat2, strat3, data_label, min_time))
+    
+    scaling = 5.0 # default = ~6.0
+    fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
+    point_size = 8.0
+
+    all_xs = []
+    all_ys = []
+    all_names = [] # track for annotations
+
+    speedups1 = {2 : [], 4 : [], 8 : []}
+    speedups2 = {2 : [], 4 : [], 8 : []}
+    speedups3 = {2 : [], 4 : [], 8 : []}
+
+    for ds_name in datasetnames:
+        # get the relevant data (only where reach_time is at least 'min_time')
+        data = datamap[(ds_name, data_label)]
+        data = data.loc[data['reach_time'] >= min_time]
+
+        # select subsets of data for each strat
+        group1 = data.loc[data['strategy'] == stratIDs[strat1]]
+        group2 = data.loc[data['strategy'] == stratIDs[strat2]]
+        group3 = data.loc[data['strategy'] == stratIDs[strat3]]
+
+        # get numer number of workers
+        num_workers = np.unique(data['workers'])
+        assert(num_workers[0] == 1)
+
+        # for group1, 2 and 3, get data for 1 workers as ref
+        group1_w1 = group1.loc[data['workers'] == 1].set_index('benchmark')
+        group2_w1 = group2.loc[data['workers'] == 1].set_index('benchmark')
+        group3_w1 = group3.loc[data['workers'] == 1].set_index('benchmark')
+
+        for w in num_workers[1:]:
+            group1_ww = group1.loc[data['workers'] == w]
+            group2_ww = group2.loc[data['workers'] == w]
+            group3_ww = group3.loc[data['workers'] == w]
+
+            # inner join on 'benchmark' of groupj_w1 with groupj_ww
+            joined1 = group1_ww.join(group1_w1, on='benchmark', how='inner', lsuffix='_ww', rsuffix='_w1')
+            joined2 = group2_ww.join(group2_w1, on='benchmark', how='inner', lsuffix='_ww', rsuffix='_w1')
+            joined3 = group3_ww.join(group3_w1, on='benchmark', how='inner', lsuffix='_ww', rsuffix='_w1')
+
+            # compute speedups relative to 1 worker
+            speedups1[w].extend(joined1['reach_time_w1'].to_numpy() / joined1['reach_time_ww'].to_numpy())
+            speedups2[w].extend(joined2['reach_time_w1'].to_numpy() / joined2['reach_time_ww'].to_numpy())
+            speedups3[w].extend(joined3['reach_time_w1'].to_numpy() / joined3['reach_time_ww'].to_numpy())
+
+    # put speedups in boxplot (little bit of a hack with the position)
+    all_data = []
+    labels = []
+    positions = []
+    ticks = []
+    colors = []
+    i = 1
+    for key in speedups1.keys():
+        all_data.append(speedups1[key])
+        all_data.append(speedups2[key])
+        all_data.append(speedups3[key])
+        labels.extend(['', key, ''])
+        colors.extend(['pink','lightblue','lightgreen'])
+        positions.extend([i, i+1, i+2])
+        ticks.append(i+1)
+        i += 5 # keep a blank spot (or two)
+    bplot = ax.boxplot(all_data, patch_artist=True, labels=labels, 
+                       positions=positions, showfliers=False)
+
+    for patch, color in zip(bplot['boxes'], colors):
+        patch.set_facecolor(color)
+
+    # labels and formatting
+    ax.hlines(1, min(positions), max(positions), colors=['grey'], linestyles='--')
+    ax.set_xlabel('number of cores')
+    ax.set_ylabel('speedup')
+    ax.tick_params(axis='x', which='both',length=0)
+    ax.legend([bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]], 
+              ['Saturation [17]', 'Alg. 1', 'Alg. 1 parallel'],
+              loc='upper left', framealpha=1.0)
+    plt.tight_layout()
+
+     # plots without data-point lables
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}speedups_{}_{}_{}_on{}_mintime_{}.{}'.format(subfolder, 
+                    strat1, strat2, strat3, data_label, min_time, fig_format)
+        fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
+
 
 def set_subfolder_name(subfolder_name):
     global plots_folder, plots_folder_temp, label_folder, label_folder_temp
@@ -582,12 +673,17 @@ def set_subfolder_name(subfolder_name):
 
 
 def plot_things():
+    # Parallel speedups
+    set_subfolder_name('Parallel speedups')
+    plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0)
+    plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
+
+    """
     # Relative speedup compared to some metric of the relation matrix
     set_subfolder_name('Relation metric comparison')
     plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-density')
     plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-density')
 
-    """
     # BDDs vanilla
     set_subfolder_name('BDDs vanilla')
     plot_comparison_shared_y('bfs', 'vn-bdd', 'sat', 'vn-bdd', 'rec', 'vn-bdd')
