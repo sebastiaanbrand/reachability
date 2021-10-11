@@ -637,7 +637,8 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
         ticks.append(i+1)
         i += 5 # keep a blank spot (or two)
     bplot = ax.boxplot(all_data, patch_artist=True, labels=labels, 
-                       positions=positions, showfliers=False)
+                       positions=positions, showfliers=False, 
+                       medianprops={'color' : 'black'})
 
     for patch, color in zip(bplot['boxes'], colors):
         patch.set_facecolor(color)
@@ -648,7 +649,7 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
     ax.set_ylabel('speedup')
     ax.tick_params(axis='x', which='both',length=0)
     ax.legend([bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]], 
-              ['Saturation [17]', 'Alg. 1', 'Alg. 1 parallel'],
+              ['Saturation [16]', 'Algorithm 1', 'Algorithm 2'],
               loc='upper left', framealpha=1.0)
     plt.tight_layout()
 
