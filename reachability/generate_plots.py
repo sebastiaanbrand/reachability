@@ -11,17 +11,24 @@ selections = {
     'RAS-C' : ['RAS-C-3.bdd', 'RAS-C-5.bdd', 'RAS-C-10.bdd', 'RAS-C-15.bdd', 'RAS-C-20.bdd']
  }
 
-
 fig_formats = ['png', 'pdf', 'eps']
-data_folder  = 'bench_data/'
+data_folder  = 'bench_data/old/5 - oct 8/'
 plots_folder_temp = 'plots/{}/{}/' # output in plots/subfolder/fig_format/
 label_folder_temp = 'plots/{}/labeled/' # for plots with labels for all data-points
 plots_folder = ''
 label_folder = ''
 
 datamap = {} # map from ('dataset','type') -> dataframe
+matrix_folders = {  ('beem','vn-bdd') : 'models/beem/matrices/bdds/vanilla/', 
+                    ('beem','sl-bdd') : 'models/beem/matrices/bdds/sloan/',
+                    ('ptri','vn-bdd') : 'models/petrinets/matrices/bdds/vanilla/',
+                    ('ptri','sl-bdd') : 'models/petrinets/matrices/bdds/sloan/',
+                    ('beem','vn-ldd') : 'models/beem/matrices/ldds/vanilla/', 
+                    ('beem','sl-ldd') : 'models/beem/matrices/ldds/sloan/',
+                    ('ptri','vn-ldd') : 'models/petrinets/matrices/ldds/vanilla/',
+                    ('ptri','sl-ldd') : 'models/petrinets/matrices/ldds/sloan/'}
 
-datasetnames = ['beem']#, 'ptri', 'prom']
+datasetnames = ['beem', 'ptri']  # ['beem, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
@@ -32,9 +39,11 @@ axis_label = {'bfs' : 'BFS',
 
 verbose = True
 
+
 def info(str):
     if (verbose):
         print(str)
+
 
 def try_load_data(key, filepath):
     global datamap
@@ -44,18 +53,23 @@ def try_load_data(key, filepath):
     else:
         return 0
 
-"""
-load data from predefined filenames if those file exist
-"""
+
 def load_data():
+    # BDD data
     try_load_data(('beem','vn-bdd'), data_folder + 'beem_vanilla_stats_bdd.csv')
     try_load_data(('beem','sl-bdd'), data_folder + 'beem_sloan_stats_bdd.csv')
     try_load_data(('ptri','vn-bdd'), data_folder + 'petrinets_vanilla_stats_bdd.csv')
     try_load_data(('ptri','sl-bdd'), data_folder + 'petrinets_sloan_stats_bdd.csv')
     try_load_data(('prom','vn-bdd'), data_folder + 'promela_vanilla_stats_bdd.csv')
     try_load_data(('prom','sl-bdd'), data_folder + 'promela_sloan_stats_bdd.csv')
+
+    # LDD data
     try_load_data(('beem','vn-ldd'), data_folder + 'beem_vanilla_stats_ldd.csv')
     try_load_data(('beem','sl-ldd'), data_folder + 'beem_sloan_stats_ldd.csv')
+    try_load_data(('ptri','vn-ldd'), data_folder + 'petrinets_vanilla_stats_ldd.csv')
+    try_load_data(('ptri','sl-ldd'), data_folder + 'petrinets_sloan_stats_ldd.csv')
+    try_load_data(('prom','vn-ldd'), data_folder + 'promela_vanilla_stats_ldd.csv')
+    try_load_data(('prom','sl-ldd'), data_folder + 'promela_sloan_stats_ldd.csv')
 
 
 def pre_process():
@@ -72,6 +86,7 @@ def pre_process():
                          "merg_rels" : int, "workers" : int,
                          "reach_time" : float, "merge_time" : float,
                          "final_states" : float, "final_nodecount" : int})
+
 
 def assert_states_nodes():
     print("checking the state- and nodecounts")
@@ -100,10 +115,12 @@ def assert_states_nodes():
                           row['final_nodecount']
                     ))
 
+
 def load_matrix(filepath):
-    print("reading {}".format(filepath))
+    #info("reading {}".format(filepath))
     file = open(filepath, 'r')
     matrix = []
+    max_length = 0
     for line in file:
         row = []
         for char in line:
@@ -112,7 +129,12 @@ def load_matrix(filepath):
             elif (char == '-'):
                 row.append(0)
         matrix.append(row)
+        max_length = max(max_length, len(row))
+    # for LDDs this can produce ragged lists, so extend with 0's
+    for i, row in enumerate(matrix):
+        row.extend([0] * (max_length - len(row)) )
     return np.array(matrix)
+
 
 def create_rel_vs_rel(var_matrix):
     n = len(var_matrix)
@@ -122,6 +144,7 @@ def create_rel_vs_rel(var_matrix):
             shared = np.logical_and(var_matrix[i], var_matrix[j])
             rel_matrix[i,j] = (np.count_nonzero(shared) != 0)
     return rel_matrix
+
 
 def get_bandwidth(matrix):
     max_bw = 0
@@ -137,29 +160,38 @@ def get_bandwidth(matrix):
     return (max_bw, sum_bw / len(matrix))
 
 
-def process_matrix(filepath):
+def process_matrix(filepath, return_metric):
     # Matrix of vars vs rels
     var_matrix = load_matrix(filepath)
-    print(var_matrix)
-    density = np.sum(var_matrix) / np.size(var_matrix)
-    print("density = {}".format(density))
-    max_bw, avg_bw = get_bandwidth(var_matrix)
-    print("max bandwidth = {}".format(max_bw))
-    print("avg bandwidth = {}".format(avg_bw))
-
+    var_density = np.sum(var_matrix) / np.size(var_matrix)
+    var_max_bw, var_avg_bw = get_bandwidth(var_matrix)
+    if (return_metric == 'var-avg-bw'):
+        return var_avg_bw
+    elif (return_metric == 'var-max-bw'):
+        return var_max_bw
+    elif (return_metric == 'var-density'):
+        return var_density
+    
     # Matrix of rels vs rels
     rel_matrix = create_rel_vs_rel(var_matrix)
-    print(rel_matrix)
-    density = np.sum(rel_matrix) / np.size(rel_matrix)
-    print("density = {}".format(density))
-    max_bw, avg_bw = get_bandwidth(rel_matrix)
-    print("max bandwidth = {}".format(max_bw))
-    print("avg bandwidth = {}".format(avg_bw))
+    rel_density = np.sum(rel_matrix) / np.size(rel_matrix)
+    rel_max_bw, rel_avg_bw = get_bandwidth(rel_matrix)
+    if (return_metric == 'rel-avg-bw'):
+        return rel_avg_bw
+    elif (return_metric == 'rel-max-bw'):
+        return rel_max_bw
+    elif (return_metric == 'rel-density'):
+        return rel_density
 
-"""
-strat in {'bfs', 'sat', 'rec'}
-data in {'vn', 'ga'}
-"""
+def get_matrix_metrics(bench_names, data_label, metric):
+    # for all the benchmarks in bench_names, look up matrix info in folder
+    # which corresponds to data_label = ('dataset','ordering-ddtype')
+    metrics = np.zeros((len(bench_names)))
+    for i, bench_name in enumerate(bench_names):
+        filepath = matrix_folders[data_label] + bench_name + ".matrix"
+        metrics[i] = process_matrix(filepath, metric)
+    return metrics
+
 def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
     info("plotting {} ({}) vs {} ({})".format(x_strat, x_data_label, 
                                               y_strat, y_data_label))
@@ -383,6 +415,7 @@ def plot_comparison_shared_y(x1_strat, x1_data_label,
         fig.savefig(fig_name, dpi=300)
     plt.close(fig)
 
+
 def plot_comparison_sbs(x1_strat, x1_data_label, 
                         y1_strat, y1_data_label,
                         x2_strat, x2_data_label, 
@@ -469,6 +502,74 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
     plt.close(fig)
 
 
+def plot_rec_over_sat_vs_rel_metric(data_label, metric):
+    info("plotting rec/sat against {} on {}".format(metric, data_label))
+    
+    scaling = 5.0 # default = ~6.0
+    fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
+    point_size = 8.0
+
+    max_val = 0
+    min_val = 1e9
+    all_xs = []
+    all_ys = []
+    all_names = [] # track for annotations
+    for ds_name in datasetnames:
+        # get the relevant data
+        data = datamap[(ds_name), data_label]
+
+        # select sat and rec of y data
+        data_sat = data.loc[data['strategy'] == stratIDs['sat']]
+        data_rec = data.loc[data['strategy'] == stratIDs['rec']]
+
+        # inner join sat and rec results
+        data_rec = data_rec.set_index('benchmark')
+        joined   = data_sat.join(data_rec, on='benchmark', how='inner', 
+                                 lsuffix='_sat', rsuffix='_rec')
+
+        # get relative time of rec (this will be the y value in the plot)
+        sat_times = joined['reach_time_sat'].to_numpy()
+        rec_times = joined['reach_time_rec'].to_numpy()
+        relative_rec_times = rec_times / sat_times
+
+        # get relation matrix metric of each of the datapoints (x value)
+        matrix_metrics = get_matrix_metrics(joined['benchmark'], 
+                                            (ds_name, data_label), metric)
+
+        # plot x vs y
+        ax.scatter(matrix_metrics, relative_rec_times, 
+                   s=point_size, label=legend_names[ds_name])
+
+        # track for annotations
+        all_xs.extend(matrix_metrics)
+        all_ys.extend(relative_rec_times)
+        all_names.extend(joined['benchmark'])
+
+    # labels and formatting
+    ax.hlines(1, 0, 1, colors=['grey'], linestyles='--')
+    ax.set_xlabel('{}'.format(metric))
+    ax.set_ylabel('new algorithm time / saturation time')
+    ax.set_yscale('log')
+    ax.legend(framealpha=1.0)
+    plt.tight_layout()
+
+    # plots without data-point lables
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}rec_over_sat_vs_metric_{}_on_{}.{}'.format(subfolder, 
+                                                metric, data_label, fig_format)
+        fig.savefig(fig_name, dpi=300)
+
+    # add data-point labes and plot as pdf
+    for i, bench_name in enumerate(all_names):
+        ax.annotate(bench_name, (all_xs[i], all_ys[i]), fontsize=1.0)
+    fig_name = '{}rec_over_sat_vs_metric_{}_on_{}.{}'.format(label_folder,
+                                                      metric, data_label,'pdf')
+    fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
+
+
+
 def set_subfolder_name(subfolder_name):
     global plots_folder, plots_folder_temp, label_folder, label_folder_temp
     plots_folder = plots_folder_temp.format(subfolder_name, '{}')
@@ -481,6 +582,12 @@ def set_subfolder_name(subfolder_name):
 
 
 def plot_things():
+    # Relative speedup compared to some metric of the relation matrix
+    set_subfolder_name('Relation metric comparison')
+    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-density')
+    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-density')
+
+    """
     # BDDs vanilla
     set_subfolder_name('BDDs vanilla')
     plot_comparison_shared_y('bfs', 'vn-bdd', 'sat', 'vn-bdd', 'rec', 'vn-bdd')
@@ -517,12 +624,12 @@ def plot_things():
     plot_comparison('bfs', 'vn-ldd', 'bfs', 'sl-ldd')
     plot_comparison('sat', 'vn-ldd', 'sat', 'sl-ldd')
     plot_comparison('rec', 'vn-ldd', 'rec', 'sl-ldd')
+    """
 
 
 if __name__ == '__main__':
-    #load_data()
-    #pre_process()
-    #assert_states_nodes()
-    #plot_things()
-    process_matrix('models/beem/matrices/bdds/sloan/adding.1.bdd.matrix')
+    load_data()
+    pre_process()
+    assert_states_nodes()
+    plot_things()
 
