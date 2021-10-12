@@ -83,12 +83,12 @@ if [[ $bench_ptri_vn && $bench_ldd ]]; then echo "  - Petri Nets LDDs vanilla"; 
 if [[ $bench_ptri_sl && $bench_ldd ]]; then echo "  - Petri Nets LDDs Sloan"; fi
 if [[ $bench_ptri_f  && $bench_ldd ]]; then echo "  - Petri Nets LDDs Force"; fi
 
-if [[ $bench_prom_vn && $bench_bdd ]]; then echo "  - Petri Nets BDDs vanilla"; fi
-if [[ $bench_prom_sl && $bench_bdd ]]; then echo "  - Petri Nets BDDs Sloan"; fi
-if [[ $bench_prom_f  && $bench_bdd ]]; then echo "  - Petri Nets BDDs FORCE"; fi
-if [[ $bench_prom_vn && $bench_ldd ]]; then echo "  - Petri Nets LDDs vanilla"; fi
-if [[ $bench_prom_sl && $bench_ldd ]]; then echo "  - Petri Nets LDDs Sloan"; fi
-if [[ $bench_prom_f  && $bench_ldd ]]; then echo "  - Petri Nets LDDs FORCE"; fi
+if [[ $bench_prom_vn && $bench_bdd ]]; then echo "  - Promela BDDs vanilla"; fi
+if [[ $bench_prom_sl && $bench_bdd ]]; then echo "  - Promela BDDs Sloan"; fi
+if [[ $bench_prom_f  && $bench_bdd ]]; then echo "  - Promela BDDs FORCE"; fi
+if [[ $bench_prom_vn && $bench_ldd ]]; then echo "  - Promela LDDs vanilla"; fi
+if [[ $bench_prom_sl && $bench_ldd ]]; then echo "  - Promela LDDs Sloan"; fi
+if [[ $bench_prom_f  && $bench_ldd ]]; then echo "  - Promela LDDs FORCE"; fi
 
 if [[ $bench_awari && $bench_bdd ]]; then echo "  - Awari BDDs"; fi
 
