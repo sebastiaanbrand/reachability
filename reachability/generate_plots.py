@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
+import scipy
+from scipy import stats
 
 
 selections = {
@@ -23,10 +25,14 @@ matrix_folders = {  ('beem','vn-bdd') : 'models/beem/matrices/bdds/vanilla/',
                     ('beem','sl-bdd') : 'models/beem/matrices/bdds/sloan/',
                     ('ptri','vn-bdd') : 'models/petrinets/matrices/bdds/vanilla/',
                     ('ptri','sl-bdd') : 'models/petrinets/matrices/bdds/sloan/',
+                    ('prom','vn-bdd') : 'models/promela/matrices/bdds/vanilla/',
+                    ('prom','sl-bdd') : 'models/promela/matrices/bdds/sloan/',
                     ('beem','vn-ldd') : 'models/beem/matrices/ldds/vanilla/', 
                     ('beem','sl-ldd') : 'models/beem/matrices/ldds/sloan/',
                     ('ptri','vn-ldd') : 'models/petrinets/matrices/ldds/vanilla/',
-                    ('ptri','sl-ldd') : 'models/petrinets/matrices/ldds/sloan/'}
+                    ('ptri','sl-ldd') : 'models/petrinets/matrices/ldds/sloan/',
+                    ('prom','vn-ldd') : 'models/promela/matrices/ldds/vanilla/',
+                    ('prom','sl-ldd') : 'models/promela/matrices/ldds/sloan/',}
 
 datasetnames = ['beem', 'ptri', 'prom']  # ['beem, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
@@ -42,6 +48,13 @@ axis_label = {('bfs','bdd') : 'BFS',
               ('bfs','ldd') : 'BFS',
               ('sat','ldd') : 'Saturation',
               ('rec','ldd') : 'Algorithm 3'}
+
+metric_labels={'var-avg-bw':'average relative bandwidth', 
+               'var-max-bw':'maximum relative bandwidth',
+               'var-density':'matrix density',
+               'rel-avg-bw':'average relative bandwidth', 
+               'rel-max-bw':'maximum relative bandwidth',
+               'rel-density':'matrix density'}
 
 verbose = True
 
@@ -172,9 +185,9 @@ def process_matrix(filepath, return_metric):
     var_density = np.sum(var_matrix) / np.size(var_matrix)
     var_max_bw, var_avg_bw = get_bandwidth(var_matrix)
     if (return_metric == 'var-avg-bw'):
-        return var_avg_bw
+        return var_avg_bw / len(var_matrix[0]) # normalize by matrix width
     elif (return_metric == 'var-max-bw'):
-        return var_max_bw
+        return var_max_bw / len(var_matrix[0]) # normalize by matrix width
     elif (return_metric == 'var-density'):
         return var_density
     
@@ -183,9 +196,9 @@ def process_matrix(filepath, return_metric):
     rel_density = np.sum(rel_matrix) / np.size(rel_matrix)
     rel_max_bw, rel_avg_bw = get_bandwidth(rel_matrix)
     if (return_metric == 'rel-avg-bw'):
-        return rel_avg_bw
+        return rel_avg_bw / len(rel_matrix[0]) # normalize by matrix width
     elif (return_metric == 'rel-max-bw'):
-        return rel_max_bw
+        return rel_max_bw / len(rel_matrix[0]) # normalize by matrix width
     elif (return_metric == 'rel-density'):
         return rel_density
 
@@ -665,19 +678,23 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric):
         matrix_metrics = get_matrix_metrics(joined['benchmark'], 
                                             (ds_name, data_label), metric)
 
-        # plot x vs y
-        ax.scatter(matrix_metrics, relative_rec_times, 
-                   s=point_size, label=legend_names[ds_name])
+        # some styling
+        s = marker_size[ds_name]
+        m = markers[ds_name]
+        l = legend_names[ds_name]
 
-        # track for annotations
+        # plot x vs y
+        ax.scatter(matrix_metrics, relative_rec_times, marker=m, s=s, label=l)
+
+        # track for annotations (and trend line)
         all_xs.extend(matrix_metrics)
         all_ys.extend(relative_rec_times)
         all_names.extend(joined['benchmark'])
 
     # labels and formatting
     ax.hlines(1, 0, 1, colors=['grey'], linestyles='--')
-    ax.set_xlabel('{}'.format(metric))
-    ax.set_ylabel('new algorithm time / saturation time')
+    ax.set_xlabel(metric_labels[metric])
+    ax.set_ylabel('time Algorithm 1 / saturation')
     ax.set_yscale('log')
     ax.legend(framealpha=1.0)
     plt.tight_layout()
@@ -686,6 +703,20 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric):
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}rec_over_sat_vs_metric_{}_on_{}.{}'.format(subfolder, 
+                                                metric, data_label, fig_format)
+        fig.savefig(fig_name, dpi=300)
+    
+    # add trendline
+    a, b, r_val, p_val, std_err = scipy.stats.linregress(all_xs, all_ys)
+    p = np.poly1d([a, b])
+    x = np.linspace(min(all_xs), max(all_xs), num=100)
+    plt.plot(x, p(x), color='red', linestyle='--', label='trend ($r={}$)'.format(round(r_val,2)))
+    ax.legend(framealpha=1.0)
+
+    # plots with trendline
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}rec_over_sat_vs_metric_{}_on_{}_trend.{}'.format(subfolder, 
                                                 metric, data_label, fig_format)
         fig.savefig(fig_name, dpi=300)
 
@@ -811,6 +842,7 @@ def plot_things():
 
     # Sloan benchmarks
     if (data_folder[-12:] == '_sloan_data/'):
+        """
         set_subfolder_name('Sloan (BDDs and LDDs)')
         plot_comparison_shared_x_y('bfs', 'sl-bdd', 'sat', 'sl-bdd', 'rec', 'sl-bdd',
                                 'bfs', 'sl-ldd', 'sat', 'sl-ldd', 'rec', 'sl-ldd')
@@ -822,11 +854,22 @@ def plot_things():
         plot_comparison('bfs', 'sl-ldd', 'rec', 'sl-ldd')
         plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd')
         plot_comparison('bfs', 'sl-ldd', 'sat', 'sl-ldd')
+        """
 
         # Relative speedup compared to some metric of the relation matrix
-        #set_subfolder_name('Relation metric comparison')
-        #plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-density')
-        #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-density')
+        set_subfolder_name('Relation metric comparison')
+        plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-density')
+        plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-density')
+        plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-avg-bw')
+        plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-avg-bw')
+        plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-max-bw')
+        plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-max-bw')
+        plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-density')
+        plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-density')
+        plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw')
+        plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw')
+        plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-max-bw')
+        plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-max-bw')
 
 
 if __name__ == '__main__':
