@@ -30,6 +30,8 @@ matrix_folders = {  ('beem','vn-bdd') : 'models/beem/matrices/bdds/vanilla/',
 
 datasetnames = ['beem', 'ptri', 'prom']  # ['beem, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
+markers = {'beem': 's', 'ptri' : '^', 'prom' : 'x'}
+marker_size = {'beem': 8, 'ptri': 10, 'prom': 15}
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4,
@@ -437,7 +439,6 @@ def plot_comparison_shared_x_y(x11_strat, x11_data_label,
     scaling = 7.5 # default = ~6.0
     w = 0.95 # relative width
     fig, axs = plt.subplots(2, 2, sharey='all', sharex='all', figsize=(w*scaling, scaling*0.75))
-    point_size = 8.0
 
     max_val = 0
     min_val = 1e9
@@ -469,20 +470,25 @@ def plot_comparison_shared_x_y(x11_strat, x11_data_label,
                                     lsuffix='_x', rsuffix='_y')
         joined22 = group_x22.join(group_y2, on='benchmark', how='inner', 
                                     lsuffix='_x', rsuffix='_y')
+
+        # some styling
+        s = marker_size[ds_name]
+        m = markers[ds_name]
+        l = legend_names[ds_name]
         
-        # plot reachability time of x1 vs y and x2 vs y
+        # plot reachability times
         x11s = joined11['reach_time_x'].to_numpy()
         y11s = joined11['reach_time_y'].to_numpy()
-        axs[0,0].scatter(x11s, y11s, s=point_size, label=legend_names[ds_name])
+        axs[0,0].scatter(x11s, y11s, s=s, marker=m, label=l)
         x12s = joined12['reach_time_x'].to_numpy()
         y12s = joined12['reach_time_y'].to_numpy()
-        axs[0,1].scatter(x12s, y12s, s=point_size, label=legend_names[ds_name])
+        axs[0,1].scatter(x12s, y12s, s=s, marker=m, label=l)
         x21s = joined21['reach_time_x'].to_numpy()
         y21s = joined21['reach_time_y'].to_numpy()
-        axs[1,0].scatter(x21s, y21s, s=point_size, label=legend_names[ds_name])
+        axs[1,0].scatter(x21s, y21s, s=s, marker=m, label=l)
         x22s = joined22['reach_time_x'].to_numpy()
         y22s = joined22['reach_time_y'].to_numpy()
-        axs[1,1].scatter(x22s, y22s, s=point_size, label=legend_names[ds_name])
+        axs[1,1].scatter(x22s, y22s, s=s, marker=m, label=l)
 
         # max and min for diagonal lines
         max_val = max(max_val, np.max(x11s), np.max(y11s), np.max(x12s), np.max(y12s))
@@ -490,11 +496,23 @@ def plot_comparison_shared_x_y(x11_strat, x11_data_label,
         max_val = max(max_val, np.max(x21s), np.max(y21s), np.max(x22s), np.max(y22s))
         min_val = min(min_val, np.min(x21s), np.min(y21s), np.min(x22s), np.min(y22s))
 
-    # diagonal line
-    axs[0,0].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
-    axs[0,1].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
-    axs[1,0].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
-    axs[1,1].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+    # diagonal lines
+    axs[0,0].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
+    axs[0,1].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
+    axs[1,0].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
+    axs[1,1].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
+
+    # * 10 line
+    axs[0,0].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
+    axs[0,1].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
+    axs[1,0].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
+    axs[1,1].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
+
+    # / 10 line
+    axs[0,0].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
+    axs[0,1].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
+    axs[1,0].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
+    axs[1,1].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
 
     # labels and formatting
     axs[1,0].set_xlabel('{} time (s)'.format(axis_label[(x11_strat,x11_data_label[-3:])]))
