@@ -12,7 +12,7 @@ selections = {
  }
 
 fig_formats = ['png', 'pdf', 'eps']
-data_folder  = 'bench_data/old/5 - oct 8/'
+data_folder  = 'bench_data/old/5_sloan_data/'
 plots_folder_temp = 'plots/{}/{}/' # output in plots/subfolder/fig_format/
 label_folder_temp = 'plots/{}/labeled/' # for plots with labels for all data-points
 plots_folder = ''
@@ -28,7 +28,7 @@ matrix_folders = {  ('beem','vn-bdd') : 'models/beem/matrices/bdds/vanilla/',
                     ('ptri','vn-ldd') : 'models/petrinets/matrices/ldds/vanilla/',
                     ('ptri','sl-ldd') : 'models/petrinets/matrices/ldds/sloan/'}
 
-datasetnames = ['beem', 'ptri']  # ['beem, 'ptri', 'prom']
+datasetnames = ['beem', 'ptri', 'prom']  # ['beem, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
@@ -419,6 +419,113 @@ def plot_comparison_shared_y(x1_strat, x1_data_label,
         fig.savefig(fig_name, dpi=300)
     plt.close(fig)
 
+def plot_comparison_shared_x_y(x11_strat, x11_data_label, 
+                               x12_strat, x12_data_label,
+                               y1_strat,  y1_data_label,
+                               x21_strat, x21_data_label,
+                               x22_strat, x22_data_label,
+                               y2_strat,  y2_data_label):
+    info("plotting x11 = {} ({}), x12 = {} ({}) vs y1 = {} ({}) \n"
+         "     and x21 = {} ({}), x22 = {} ({}) vs y2 = {} ({})".format(
+          x11_strat, x11_data_label,
+          x12_strat, x12_data_label,
+          y1_strat,  y1_data_label,
+          x21_strat, x21_data_label,
+          x22_strat, x22_data_label,
+          y2_strat,  y2_data_label))
+
+    scaling = 7.5 # default = ~6.0
+    w = 0.95 # relative width
+    fig, axs = plt.subplots(2, 2, sharey='all', sharex='all', figsize=(w*scaling, scaling*0.75))
+    point_size = 8.0
+
+    max_val = 0
+    min_val = 1e9
+    for ds_name in datasetnames:
+        # get the relevant data
+        x11_data = datamap[(ds_name, x11_data_label)]
+        x12_data = datamap[(ds_name, x12_data_label)]
+        y1_data  = datamap[(ds_name, y1_data_label)]
+        x21_data = datamap[(ds_name, x21_data_label)]
+        x22_data = datamap[(ds_name, x22_data_label)]
+        y2_data  = datamap[(ds_name, y2_data_label)]
+
+        # select subsets of x and y data
+        group_x11 = x11_data.loc[x11_data['strategy'] == stratIDs[x11_strat]]
+        group_x12 = x12_data.loc[x12_data['strategy'] == stratIDs[x12_strat]]
+        group_y1  = y1_data.loc[y1_data['strategy'] == stratIDs[y1_strat]]
+        group_x21 = x21_data.loc[x21_data['strategy'] == stratIDs[x21_strat]]
+        group_x22 = x22_data.loc[x22_data['strategy'] == stratIDs[x22_strat]]
+        group_y2  = y2_data.loc[y2_data['strategy'] == stratIDs[y2_strat]]
+
+        # inner join x and y
+        group_y1 = group_y1.set_index('benchmark')
+        joined11 = group_x11.join(group_y1, on='benchmark', how='inner', 
+                                    lsuffix='_x', rsuffix='_y')
+        joined12 = group_x12.join(group_y1, on='benchmark', how='inner', 
+                                    lsuffix='_x', rsuffix='_y')
+        group_y2 = group_y2.set_index('benchmark')
+        joined21 = group_x21.join(group_y2, on='benchmark', how='inner', 
+                                    lsuffix='_x', rsuffix='_y')
+        joined22 = group_x22.join(group_y2, on='benchmark', how='inner', 
+                                    lsuffix='_x', rsuffix='_y')
+        
+        # plot reachability time of x1 vs y and x2 vs y
+        x11s = joined11['reach_time_x'].to_numpy()
+        y11s = joined11['reach_time_y'].to_numpy()
+        axs[0,0].scatter(x11s, y11s, s=point_size, label=legend_names[ds_name])
+        x12s = joined12['reach_time_x'].to_numpy()
+        y12s = joined12['reach_time_y'].to_numpy()
+        axs[0,1].scatter(x12s, y12s, s=point_size, label=legend_names[ds_name])
+        x21s = joined21['reach_time_x'].to_numpy()
+        y21s = joined21['reach_time_y'].to_numpy()
+        axs[1,0].scatter(x21s, y21s, s=point_size, label=legend_names[ds_name])
+        x22s = joined22['reach_time_x'].to_numpy()
+        y22s = joined22['reach_time_y'].to_numpy()
+        axs[1,1].scatter(x22s, y22s, s=point_size, label=legend_names[ds_name])
+
+        # max and min for diagonal lines
+        max_val = max(max_val, np.max(x11s), np.max(y11s), np.max(x12s), np.max(y12s))
+        min_val = min(min_val, np.min(x11s), np.min(y11s), np.min(x12s), np.min(y12s))
+        max_val = max(max_val, np.max(x21s), np.max(y21s), np.max(x22s), np.max(y22s))
+        min_val = min(min_val, np.min(x21s), np.min(y21s), np.min(x22s), np.min(y22s))
+
+    # diagonal line
+    axs[0,0].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+    axs[0,1].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+    axs[1,0].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+    axs[1,1].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+
+    # labels and formatting
+    axs[1,0].set_xlabel('{} time (s)'.format(axis_label[(x11_strat,x11_data_label[-3:])]))
+    axs[1,1].set_xlabel('{} time (s)'.format(axis_label[(x12_strat,x12_data_label[-3:])]))
+    axs[0,0].set_ylabel('{} time (s)'.format(axis_label[(y1_strat, y1_data_label[-3:])]))
+    axs[1,0].set_ylabel('{} time (s)'.format(axis_label[(y2_strat, y2_data_label[-3:])]))
+    axs[0,0].set_xscale('log')
+    axs[0,1].set_xscale('log')
+    axs[0,0].set_yscale('log')
+    axs[1,0].set_xscale('log')
+    axs[1,1].set_xscale('log')
+    axs[1,0].set_yscale('log')
+    axs[0,0].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[0,1].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[0,0].set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[1,0].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[1,1].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[1,0].set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[0,1].axes.yaxis.set_visible(False)
+    axs[0,0].legend(framealpha=1.0)
+    plt.tight_layout()
+
+    # plot for all formats
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}reachtime_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.{}'.format(subfolder,
+                    x11_strat, x11_data_label, x12_strat, x12_data_label, y1_strat, y1_data_label,
+                    x21_strat, x21_data_label, x22_strat, x22_data_label, y2_strat, y2_data_label,
+                    fig_format)
+        fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
 
 def plot_comparison_sbs(x1_strat, x1_data_label, 
                         y1_strat, y1_data_label,
@@ -677,54 +784,31 @@ def set_subfolder_name(subfolder_name):
 
 
 def plot_things():
+
     # Parallel speedups
-    #set_subfolder_name('Parallel speedups')
-    #plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0)
-    #plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
+    if (data_folder[-15:] == '_parallel_data/'):
+        set_subfolder_name('Parallel speedups')
+        plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0)
+        plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
 
-    # Relative speedup compared to some metric of the relation matrix
-    #set_subfolder_name('Relation metric comparison')
-    #plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-density')
-    #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-density')
+    # Sloan benchmarks
+    if (data_folder[-12:] == '_sloan_data/'):
+        set_subfolder_name('Sloan (BDDs and LDDs)')
+        plot_comparison_shared_x_y('bfs', 'sl-bdd', 'sat', 'sl-bdd', 'rec', 'sl-bdd',
+                                'bfs', 'sl-ldd', 'sat', 'sl-ldd', 'rec', 'sl-ldd')
+        plot_comparison_shared_y('bfs', 'sl-bdd', 'sat', 'sl-bdd', 'rec', 'sl-bdd')
+        plot_comparison_shared_y('bfs', 'sl-ldd', 'sat', 'sl-ldd', 'rec', 'sl-ldd')
+        plot_comparison('bfs', 'sl-bdd', 'rec', 'sl-bdd')
+        plot_comparison('sat', 'sl-bdd', 'rec', 'sl-bdd')
+        plot_comparison('bfs', 'sl-bdd', 'sat', 'sl-bdd')
+        plot_comparison('bfs', 'sl-ldd', 'rec', 'sl-ldd')
+        plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd')
+        plot_comparison('bfs', 'sl-ldd', 'sat', 'sl-ldd')
 
-    # BDDs Sloan
-    set_subfolder_name('BDDs Sloan')
-    plot_comparison_shared_y('bfs', 'sl-bdd', 'sat', 'sl-bdd', 'rec', 'sl-bdd')
-    plot_comparison('bfs', 'sl-bdd', 'rec', 'sl-bdd')
-    plot_comparison('sat', 'sl-bdd', 'rec', 'sl-bdd')
-    plot_comparison('bfs', 'sl-bdd', 'sat', 'sl-bdd')
-
-    # LDDs Sloan
-    set_subfolder_name('LDDs Sloan')
-    plot_comparison_shared_y('bfs', 'sl-ldd', 'sat', 'sl-ldd', 'rec', 'sl-ldd')
-    plot_comparison('bfs', 'sl-ldd', 'rec', 'sl-ldd')
-    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd')
-    plot_comparison('bfs', 'sl-ldd', 'sat', 'sl-ldd')
-
-    """
-    # BDDs vanilla
-    set_subfolder_name('BDDs vanilla')
-    plot_comparison_shared_y('bfs', 'vn-bdd', 'sat', 'vn-bdd', 'rec', 'vn-bdd')
-    plot_comparison('bfs', 'vn-bdd', 'rec', 'vn-bdd')
-    plot_comparison('sat', 'vn-bdd', 'rec', 'vn-bdd')
-    plot_comparison('bfs', 'vn-bdd', 'sat', 'vn-bdd')
-
-    # LDDs vanilla
-    set_subfolder_name('LDDs vanilla')
-    plot_comparison_shared_y('bfs', 'vn-ldd', 'sat', 'vn-ldd', 'rec', 'vn-ldd')
-    plot_comparison('bfs', 'vn-ldd', 'rec', 'vn-ldd')
-    plot_comparison('sat', 'vn-ldd', 'rec', 'vn-ldd')
-    plot_comparison('bfs', 'vn-ldd', 'sat', 'vn-ldd')
-
-    # Sloan vs vanilla
-    set_subfolder_name('Sloan vs vanilla')
-    plot_comparison('bfs', 'vn-bdd', 'bfs', 'sl-bdd')
-    plot_comparison('sat', 'vn-bdd', 'sat', 'sl-bdd')
-    plot_comparison('rec', 'vn-bdd', 'rec', 'sl-bdd')
-    plot_comparison('bfs', 'vn-ldd', 'bfs', 'sl-ldd')
-    plot_comparison('sat', 'vn-ldd', 'sat', 'sl-ldd')
-    plot_comparison('rec', 'vn-ldd', 'rec', 'sl-ldd')
-    """
+        # Relative speedup compared to some metric of the relation matrix
+        #set_subfolder_name('Relation metric comparison')
+        #plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-density')
+        #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-density')
 
 
 if __name__ == '__main__':
