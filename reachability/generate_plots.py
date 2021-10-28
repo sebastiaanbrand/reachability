@@ -529,20 +529,21 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
         s = marker_size[ds_name]
         m = markers[ds_name]
         l = legend_names[ds_name]
-        
-        # plot reachability time of x1 vs y and x2 vs y
+
+        # get X's and Y's to plot
         x1s = joined1['reach_time_x'].to_numpy()
         y1s = joined1['reach_time_y'].to_numpy()
-        axs[0].scatter(x1s, y1s, s=s, marker=m, label=l)
         x2s = joined2['reach_time_x'].to_numpy()
         y2s = joined2['reach_time_y'].to_numpy()
-        axs[1].scatter(x2s, y2s, s=s, marker=m, label=l)
-
         if (add_merge_time):
             x1s += joined1['merge_time_x'].to_numpy()
             y1s += joined1['merge_time_y'].to_numpy()
             x2s += joined2['merge_time_x'].to_numpy()
             y2s += joined2['merge_time_y'].to_numpy()
+        
+        # plot reachability time of x1 vs y and x2 vs y
+        axs[0].scatter(x1s, y1s, s=s, marker=m, label=l)
+        axs[1].scatter(x2s, y2s, s=s, marker=m, label=l)
         
         # max and min for diagonal lines
         max_val = max(max_val, np.max(x1s), np.max(y1s), np.max(x2s), np.max(y2s))
@@ -595,11 +596,10 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
     plt.close(fig)
 
 
-# TODO: add merge time
 def plot_rec_over_sat_vs_rel_metric(data_label, metric):
     info("plotting rec/sat against {} on {}".format(metric, data_label), end='')
     if (metric[:3] == 'rel'):
-        info(" (might take some time)")
+        info(" (takes some time)")
     
     scaling = 5.0 # default = ~6.0
     fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
@@ -766,7 +766,7 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
     ax.set_ylabel('speedup')
     ax.tick_params(axis='x', which='both',length=0)
     ax.legend([bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]], 
-              ['Parallel saturation', 'ReachableBDD', 'ReachableBDD-par'],
+              ['Parallel saturation', 'ReachBDD', 'ReachBDD-par'],
               loc='upper left', framealpha=1.0)
     plt.tight_layout()
 
@@ -798,13 +798,14 @@ def plot_paper_plot_sat_vs_rec():
     set_subfolder_name('Saturation vs REACH (Figure 9)')
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec', 'sl-ldd', 
-                        'Saturation time (s)', 'ReachableBDD/MDD time (s)', 
-                        add_merge_time=True)
+                        'Saturation time (s)', 'ReachBDD/MDD time (s)', 
+                        add_merge_time=False)
 
 
 def plot_paper_plot_locality():
     set_subfolder_name('Locality metric comparison (Figure 10)')
     plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw')
+    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw')
 
 
 def plot_paper_plot_parallel():
