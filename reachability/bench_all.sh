@@ -67,7 +67,7 @@ for var in "$@"; do
 done
 
 
-echo "Running following benchmarks:"
+echo "Running following benchmarks with [$num_workers] workers:"
 
 if [[ $bench_beem_vn && $bench_bdd ]]; then echo "  - BEEM BDDs vanilla"; fi
 if [[ $bench_beem_sl && $bench_bdd ]]; then echo "  - BEEM BDDs Sloan"; fi
@@ -92,8 +92,9 @@ if [[ $bench_prom_f  && $bench_ldd ]]; then echo "  - Promela LDDs FORCE"; fi
 
 if [[ $bench_awari && $bench_bdd ]]; then echo "  - Awari BDDs"; fi
 
-if [[ $test_par && $bench_bdd ]]; then echo "  * Testing parallelism for BDD rec-reach for [$num_workers] workers"; fi
+if [[ $test_par && $bench_bdd ]]; then echo "  * Testing parallelism for BDD rec-reach"; fi
 
+echo "timeout per run is $maxtime"
 read -p "Press enter to start"
 
 
