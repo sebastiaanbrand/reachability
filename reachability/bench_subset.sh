@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# usage:
+# bash bench_subset.sh [-w workers] [-t maxtime] [-n amount_per_dataset]
+
+beem_sl_stats="bench_data/subset/beem_sloan_stats.csv"
+petri_sl_stats="bench_data/subset/petrinets_sloan_stats_bdd.csv"
+promela_sl_stats="bench_data/subset/promela_sloan_stats_bdd.csv"
+beem_sl_stats_ldd="bench_data/subset/beem_sloan_stats_ldd.csv"
+petri_sl_stats_ldd="bench_data/subset/petrinets_sloan_stats_ldd.csv"
+promela_sl_stats_ldd="bench_data/subset/promela_sloan_stats_ldd.csv"
+
+mkdir -p bench_data/subset
+
+num_workers=1
+maxtime=10s
+amount=10
+
+while getopts "w:t:n:" opt; do
+  case $opt in
+    w) num_workers="$OPTARG"
+    ;;
+    t) maxtime="$OPTARG"
+    ;;
+    n) amount="$OPTARG"
+    ;;
+    \?) echo "Invalid option -$OPTARG" >&1; exit 1;
+    ;;
+  esac
+done
+
+for var in "$@"; do
+  if [[ $var == 'test-par' ]]; then test_par=true; fi
+done
+
+echo "Running following benchmarks with [$num_workers] workers:"
+echo "  - BEEM BDDs Sloan ($amount random small instances)"
+echo "  - BEEM LDDs Sloan ($amount random small instances)"
+echo "  - Petri Nets BDDs Sloan ($amount random small instances)"
+echo "  - Petri Nets LDDs Sloan ($amount random small instances)"
+echo "  - Promela BDDs Sloan ($amount random small instances)"
+echo "  - Promela LDDs Sloan ($amount random small instances)"
+if [[ $test_par ]]; then echo "  * Testing parallelism for BDD rec-reach"; fi
+
+
+echo "timeout per run is $maxtime"
+read -p "Press enter to start"
+
+# BEEM, Sloan BDDs
+shuf -n $amount models/beem/small_bdd.txt | while read filename; do
+  filepath=models/beem/bdds/sloan/$filename
+  for nw in $num_workers; do
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats
+      if [[ $test_par ]]; then
+          timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$beem_sl_stats
+      fi
+  done
+done
+
+# Petri nets, Sloan BDDs
+shuf -n $amount models/petrinets/small_bdd.txt | while read filename; do
+  filepath=models/petrinets/bdds/sloan/$filename
+  for nw in $num_workers; do
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats
+      if [[ $test_par ]]; then
+          timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$petri_sl_stats
+      fi
+  done
+done
+
+# Promela, Sloan BDDs
+shuf -n $amount models/promela/small_bdd.txt | while read filename; do
+  filepath=models/promela/bdds/sloan/$filename
+  for nw in $num_workers; do
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats
+      timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats
+      if [[ $test_par ]]; then
+          timeout $maxtime ./../build/reachability/bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$promela_sl_stats
+      fi
+  done
+done
+
+# BEEM, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+shuf -n $amount models/beem/small_ldd.txt | while read filename; do
+  filepath=models/beem/ldds/sloan/overapprox/$filename
+  for nw in $num_workers; do
+      timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+      timeout $maxtime ./../build/reachability/lddmc models/beem/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
+      timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+  done
+done
+
+# Petri nets, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+shuf -n $amount models/petrinets/small_ldd.txt | while read filename; do
+  filepath=models/petrinets/ldds/sloan/overapprox/$filename
+  for nw in $num_workers; do
+      timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+      timeout $maxtime ./../build/reachability/lddmc models/petrinets/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
+      timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+  done
+done
+
+# Promela, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+shuf -n $amount models/promela/small_ldd.txt | while read filename; do
+  filepath=models/promela/ldds/sloan/overapprox/$filename
+    for nw in $num_workers; do
+        timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+        timeout $maxtime ./../build/reachability/lddmc models/promela/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
+        timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+    done
+done
