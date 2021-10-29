@@ -30,9 +30,11 @@ mkdir -p bench_data
 maxtime=2m # todo: add as command line argument
 num_workers=1 # can pass e.g. -w "1 2 4 8" to run with 1, 2, 4, and 8 workers
 
-while getopts ":w:" opt; do
+while getopts "w:t:" opt; do
   case $opt in
     w) num_workers="$OPTARG"
+    ;;
+    t) maxtime="$OPTARG"
     ;;
     \?) echo "Invalid option -$OPTARG" >&1; exit 1;
     ;;
