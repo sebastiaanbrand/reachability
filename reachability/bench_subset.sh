@@ -3,15 +3,6 @@
 # usage:
 # bash bench_subset.sh [-w workers] [-t maxtime] [-n amount_per_dataset]
 
-beem_sl_stats="bench_data/subset/beem_sloan_stats.csv"
-petri_sl_stats="bench_data/subset/petrinets_sloan_stats_bdd.csv"
-promela_sl_stats="bench_data/subset/promela_sloan_stats_bdd.csv"
-beem_sl_stats_ldd="bench_data/subset/beem_sloan_stats_ldd.csv"
-petri_sl_stats_ldd="bench_data/subset/petrinets_sloan_stats_ldd.csv"
-promela_sl_stats_ldd="bench_data/subset/promela_sloan_stats_ldd.csv"
-
-mkdir -p bench_data/subset
-
 num_workers=1
 maxtime=10s
 amount=10
@@ -42,9 +33,26 @@ echo "  - Promela BDDs Sloan ($amount random small instances)"
 echo "  - Promela LDDs Sloan ($amount random small instances)"
 if [[ $test_par ]]; then echo "  * Testing parallelism for BDD rec-reach"; fi
 
+# output folder
+if [[ $num_workers == 1 ]]; then
+  outputfolder=bench_data/subset/single_worker
+else
+  outputfolder=bench_data/subset/par
+fi
+mkdir -p $outputfolder
 
 echo "timeout per run is $maxtime"
+echo "writing .csv output files to folder $outputfolder"
 read -p "Press enter to start"
+
+# output files
+beem_sl_stats="$outputfolder/beem_sloan_stats.csv"
+petri_sl_stats="$outputfolder/petrinets_sloan_stats_bdd.csv"
+promela_sl_stats="$outputfolder/promela_sloan_stats_bdd.csv"
+beem_sl_stats_ldd="$outputfolder/beem_sloan_stats_ldd.csv"
+petri_sl_stats_ldd="$outputfolder/petrinets_sloan_stats_ldd.csv"
+promela_sl_stats_ldd="$outputfolder/promela_sloan_stats_ldd.csv"
+
 
 # BEEM, Sloan BDDs
 shuf -n $amount models/beem/small_bdd.txt | while read filename; do

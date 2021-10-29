@@ -3,30 +3,6 @@
 # usage:
 # bash bench_all.sh [-w workers] [beem|petri|promela]-[all|vanilla|sloan|force] [bdd|ldd] [test-par]
 
-# output files
-beem_vn_stats="bench_data/beem_vanilla_stats_bdd.csv"
-beem_sl_stats="bench_data/beem_sloan_stats_bdd.csv"
-beem_f_stats="bench_data/beem_force_stats_bdd.csv"
-petri_vn_stats="bench_data/petrinets_vanilla_stats_bdd.csv"
-petri_sl_stats="bench_data/petrinets_sloan_stats_bdd.csv"
-petri_f_stats="bench_data/petrinets_force_stats_bdd.csv"
-promela_vn_stats="bench_data/promela_vanilla_stats_bdd.csv"
-promela_sl_stats="bench_data/promela_sloan_stats_bdd.csv"
-promela_f_stats="bench_data/promela_force_stats_bdd.csv"
-awari_stats="bench_data/awari_stats_bdd.csv"
-
-beem_vn_stats_ldd="bench_data/beem_vanilla_stats_ldd.csv"
-beem_sl_stats_ldd="bench_data/beem_sloan_stats_ldd.csv"
-beem_f_stats_ldd="bench_data/beem_force_stats_ldd.csv"
-petri_vn_stats_ldd="bench_data/petrinets_vanilla_stats_ldd.csv"
-petri_sl_stats_ldd="bench_data/petrinets_sloan_stats_ldd.csv"
-petri_f_stats_ldd="bench_data/petrinets_force_stats_ldd.csv"
-promela_vn_stats_ldd="bench_data/promela_vanilla_stats_ldd.csv"
-promela_sl_stats_ldd="bench_data/promela_sloan_stats_ldd.csv"
-promela_f_stats_ldd="bench_data/promela_force_stats_ldd.csv"
-
-mkdir -p bench_data
-
 maxtime=2m # todo: add as command line argument
 num_workers=1 # can pass e.g. -w "1 2 4 8" to run with 1, 2, 4, and 8 workers
 
@@ -67,6 +43,36 @@ for var in "$@"; do
         bench_awari=true;
     fi
 done
+
+# output folder
+if [[ $num_workers == 1 ]]; then
+  outputfolder=bench_data/all/single_worker
+else
+  outputfolder=bench_data/all/par
+fi
+mkdir -p $outputfolder
+
+# output files
+beem_vn_stats="$outputfolder/beem_vanilla_stats_bdd.csv"
+beem_sl_stats="$outputfolder/beem_sloan_stats_bdd.csv"
+beem_f_stats="$outputfolder/beem_force_stats_bdd.csv"
+petri_vn_stats="$outputfolder/petrinets_vanilla_stats_bdd.csv"
+petri_sl_stats="$outputfolder/petrinets_sloan_stats_bdd.csv"
+petri_f_stats="$outputfolder/petrinets_force_stats_bdd.csv"
+promela_vn_stats="$outputfolder/promela_vanilla_stats_bdd.csv"
+promela_sl_stats="$outputfolder/promela_sloan_stats_bdd.csv"
+promela_f_stats="$outputfolder/promela_force_stats_bdd.csv"
+awari_stats="$outputfolder/awari_stats_bdd.csv"
+
+beem_vn_stats_ldd="$outputfolder/beem_vanilla_stats_ldd.csv"
+beem_sl_stats_ldd="$outputfolder/beem_sloan_stats_ldd.csv"
+beem_f_stats_ldd="$outputfolder/beem_force_stats_ldd.csv"
+petri_vn_stats_ldd="$outputfolder/petrinets_vanilla_stats_ldd.csv"
+petri_sl_stats_ldd="$outputfolder/petrinets_sloan_stats_ldd.csv"
+petri_f_stats_ldd="$outputfolder/petrinets_force_stats_ldd.csv"
+promela_vn_stats_ldd="$outputfolder/promela_vanilla_stats_ldd.csv"
+promela_sl_stats_ldd="$outputfolder/promela_sloan_stats_ldd.csv"
+promela_f_stats_ldd="$outputfolder/promela_force_stats_ldd.csv"
 
 
 echo "Running following benchmarks with [$num_workers] workers:"
