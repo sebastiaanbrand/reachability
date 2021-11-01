@@ -819,13 +819,13 @@ def plot_paper_plot_parallel(subfolder):
 
 def plot_paper_plots(subfolder):
     # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-    #load_data('bench_data/'+ subfolder + '/single_worker/')
-    #pre_process()
-    #assert_states_nodes()
-    #plot_paper_plot_sat_vs_rec(subfolder)
+    load_data('bench_data/'+ subfolder + '/single_worker/')
+    pre_process()
+    assert_states_nodes()
+    plot_paper_plot_sat_vs_rec(subfolder)
 
     # Plot locality metric correlation (Figure 10) (on same data)
-    #plot_paper_plot_locality(subfolder)
+    plot_paper_plot_locality(subfolder)
 
     # Plot parallel
     load_data('bench_data/' + subfolder + '/par/')
