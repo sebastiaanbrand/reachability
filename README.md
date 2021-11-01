@@ -2,6 +2,13 @@
 
 ## 1. Dependencies
 (Docker container already has relevant dependencies installed )
+* C compilation tools (gcc, cmake)
+* GMP 
+```
+sudo apt update
+sudo apt install cmake cmake-data build essential
+sudo apt install libgmp-dev
+```
 
 ## 2. Compilation
 Run `./compile_sources.sh` to (re)compile 
