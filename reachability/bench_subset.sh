@@ -46,7 +46,7 @@ echo "writing .csv output files to folder $outputfolder"
 read -p "Press enter to start"
 
 # output files
-beem_sl_stats="$outputfolder/beem_sloan_stats.csv"
+beem_sl_stats="$outputfolder/beem_sloan_stats_bdd.csv"
 petri_sl_stats="$outputfolder/petrinets_sloan_stats_bdd.csv"
 promela_sl_stats="$outputfolder/promela_sloan_stats_bdd.csv"
 beem_sl_stats_ldd="$outputfolder/beem_sloan_stats_ldd.csv"
@@ -94,31 +94,37 @@ shuf -n $amount models/promela/small_bdd.txt | while read filename; do
 done
 
 # BEEM, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
-shuf -n $amount models/beem/small_ldd.txt | while read filename; do
-  filepath=models/beem/ldds/sloan/overapprox/$filename
-  for nw in $num_workers; do
-      timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
-      timeout $maxtime ./../build/reachability/lddmc models/beem/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
-      timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+if [[ $num_workers == 1 ]]; then
+  shuf -n $amount models/beem/small_ldd.txt | while read filename; do
+    filepath=models/beem/ldds/sloan/overapprox/$filename
+    for nw in $num_workers; do
+        timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+        timeout $maxtime ./../build/reachability/lddmc models/beem/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
+        timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+    done
   done
-done
+fi
 
 # Petri nets, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
-shuf -n $amount models/petrinets/small_ldd.txt | while read filename; do
-  filepath=models/petrinets/ldds/sloan/overapprox/$filename
-  for nw in $num_workers; do
-      timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
-      timeout $maxtime ./../build/reachability/lddmc models/petrinets/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
-      timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+if [[ $num_workers == 1 ]]; then
+  shuf -n $amount models/petrinets/small_ldd.txt | while read filename; do
+    filepath=models/petrinets/ldds/sloan/overapprox/$filename
+    for nw in $num_workers; do
+        timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+        timeout $maxtime ./../build/reachability/lddmc models/petrinets/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
+        timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+    done
   done
-done
+fi
 
 # Promela, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
-shuf -n $amount models/promela/small_ldd.txt | while read filename; do
-  filepath=models/promela/ldds/sloan/overapprox/$filename
-    for nw in $num_workers; do
-        timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
-        timeout $maxtime ./../build/reachability/lddmc models/promela/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
-        timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
-    done
-done
+if [[ $num_workers == 1 ]]; then
+  shuf -n $amount models/promela/small_ldd.txt | while read filename; do
+    filepath=models/promela/ldds/sloan/overapprox/$filename
+      for nw in $num_workers; do
+          timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+          timeout $maxtime ./../build/reachability/lddmc models/promela/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
+          timeout $maxtime ./../build/reachability/lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+      done
+  done
+fi
