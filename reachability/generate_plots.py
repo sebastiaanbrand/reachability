@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -762,7 +763,7 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
 
     # labels and formatting
     ax.hlines(1, min(positions), max(positions), colors=['grey'], linestyles='--')
-    ax.set_xlabel('number of cores\n (96 core machine)')
+    ax.set_xlabel('number of cores')
     ax.set_ylabel('speedup')
     ax.tick_params(axis='x', which='both',length=0)
     ax.legend([bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]], 
@@ -794,42 +795,46 @@ def set_subfolder_name(subfolder_name):
     Path(label_folder).mkdir(parents=True, exist_ok=True)
 
 
-def plot_paper_plot_sat_vs_rec():
-    set_subfolder_name('Saturation vs REACH (Figure 9)')
+def plot_paper_plot_sat_vs_rec(subfolder):
+    set_subfolder_name(subfolder + '/Saturation vs REACH (Figure 9)')
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
                         add_merge_time=False)
 
 
-def plot_paper_plot_locality():
-    set_subfolder_name('Locality metric comparison (Figure 10)')
+def plot_paper_plot_locality(subfolder):
+    set_subfolder_name(subfolder + '/Locality metric comparison (Figure 10)')
     plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw')
     plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw')
 
 
-def plot_paper_plot_parallel():
-    set_subfolder_name('Parallel speedups (Figure 11)')
-    plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
+def plot_paper_plot_parallel(subfolder):
+    set_subfolder_name(subfolder + '/Parallel speedups (Figure 11)')
+    if subfolder == 'subset':
+        plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0)
+    else:
+        plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
 
 
-def plot_paper_plots():
+def plot_paper_plots(subfolder):
     # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-    load_data('bench_data/old/5_sloan_data/')
-    pre_process()
-    assert_states_nodes()
-    plot_paper_plot_sat_vs_rec()
+    #load_data('bench_data/'+ subfolder + '/single_worker/')
+    #pre_process()
+    #assert_states_nodes()
+    #plot_paper_plot_sat_vs_rec(subfolder)
 
     # Plot locality metric correlation (Figure 10) (on same data)
-    plot_paper_plot_locality()
+    #plot_paper_plot_locality(subfolder)
 
     # Plot parallel
-    load_data('bench_data/old/6_parallel_data/')
+    load_data('bench_data/' + subfolder + '/par/')
     pre_process()
     assert_states_nodes()
-    plot_paper_plot_parallel()
+    plot_paper_plot_parallel(subfolder)
 
 
 if __name__ == '__main__':
-    plot_paper_plots()
+    subfolder = sys.argv[1]
+    plot_paper_plots(subfolder)
 
