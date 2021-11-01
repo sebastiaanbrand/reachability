@@ -57,6 +57,13 @@ def info(str, end='\n'):
     if (verbose):
         print(str, end=end)
 
+def parse_args():
+    if (len(sys.argv) <= 1):
+        print("please specify a subfolder in bench_data/")
+        exit(1)
+    subfolder = sys.argv[1]
+    return subfolder
+       
 
 def try_load_data(key, filepath):
     global datamap
@@ -835,6 +842,6 @@ def plot_paper_plots(subfolder):
 
 
 if __name__ == '__main__':
-    subfolder = sys.argv[1]
+    subfolder = parse_args()
     plot_paper_plots(subfolder)
 
