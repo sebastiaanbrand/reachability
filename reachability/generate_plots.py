@@ -50,6 +50,8 @@ metric_labels={'var-avg-bw':'average relative bandwidth',
                'rel-max-bw':'maximum relative bandwidth',
                'rel-density':'matrix density'}
 
+n_workers = set() # unique number of workers
+
 verbose = True
 
 
@@ -74,10 +76,10 @@ def try_load_data(key, filepath):
         return 0
 
 
-def load_data(data_folder):
+def load_data(data_folder, expected=0):
     # make sure datamap is empty
     global datamap
-    datamap = {} 
+    datamap = {}
 
     # BDD data
     try_load_data(('beem','vn-bdd'), data_folder + 'beem_vanilla_stats_bdd.csv')
@@ -95,6 +97,7 @@ def load_data(data_folder):
     try_load_data(('prom','vn-ldd'), data_folder + 'promela_vanilla_stats_ldd.csv')
     try_load_data(('prom','sl-ldd'), data_folder + 'promela_sloan_stats_ldd.csv')
 
+    return ( len(datamap.keys()) >= expected )
 
 def pre_process():
     print("pre-processing data")
@@ -110,6 +113,13 @@ def pre_process():
                          "merg_rels" : int, "workers" : int,
                          "reach_time" : float, "merge_time" : float,
                          "final_states" : float, "final_nodecount" : int})
+    
+    # get all the unique number of workers
+    global n_workers
+    n_workers = set()
+    for df in datamap.values():
+        _workers = np.unique(df['workers'])
+        n_workers.update(_workers)
 
 
 def assert_states_nodes():
@@ -706,9 +716,13 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
     all_ys = []
     all_names = [] # track for annotations
 
-    speedups1 = {2 : [], 4 : [], 8 : [], 16 : [], 32 : [], 64 : [], 96 : []}
-    speedups2 = {2 : [], 4 : [], 8 : [], 16 : [], 32 : [], 64 : [], 96 : []}
-    speedups3 = {2 : [], 4 : [], 8 : [], 16 : [], 32 : [], 64 : [], 96 : []}
+    speedups1 = {}
+    speedups2 = {}
+    speedups3 = {}
+    for workers in sorted(n_workers):
+        speedups1[workers] = []
+        speedups2[workers] = []
+        speedups3[workers] = []
 
     for ds_name in datasetnames:
         # get the relevant data (only where reach_time is at least 'min_time')
@@ -826,19 +840,25 @@ def plot_paper_plot_parallel(subfolder):
 
 def plot_paper_plots(subfolder):
     # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-    load_data('bench_data/'+ subfolder + '/single_worker/')
-    pre_process()
-    assert_states_nodes()
-    plot_paper_plot_sat_vs_rec(subfolder)
+    data_folder = 'bench_data/'+ subfolder + '/single_worker/'
+    if(load_data(data_folder, expected=6)):
+        pre_process()
+        assert_states_nodes()
+        plot_paper_plot_sat_vs_rec(subfolder)
 
-    # Plot locality metric correlation (Figure 10) (on same data)
-    plot_paper_plot_locality(subfolder)
+        # Plot locality metric correlation (Figure 10) (on same data)
+        plot_paper_plot_locality(subfolder)
+    else:
+        print('no complete data found in ' + data_folder)
 
-    # Plot parallel
-    load_data('bench_data/' + subfolder + '/par/')
-    pre_process()
-    assert_states_nodes()
-    plot_paper_plot_parallel(subfolder)
+    # Plot parallel (Figure 11)
+    data_folder = 'bench_data/' + subfolder + '/par/'
+    if(load_data(data_folder, expected=3)):
+        pre_process()
+        assert_states_nodes()
+        plot_paper_plot_parallel(subfolder)
+    else:
+        print('no complete data found in ' + data_folder)
 
 
 if __name__ == '__main__':
