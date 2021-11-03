@@ -11,7 +11,7 @@
 #include <gperftools/profiler.h>
 #endif
 
-#include <sylvan_int.h>
+#include "sylvan_int.h"
 
 #include "getrss.h"
 #include "cache_op_ids.h"

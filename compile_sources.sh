@@ -1,11 +1,21 @@
 #!/bin/bash
 
-# TODO: install gmp (and other dependencies)
-
-# Sylvan and the reachability experiments all compile as one
+# (re)compile Sylvan
+cd sylvan
 rm -r -f build
 mkdir -p build
 cd build
 cmake ..
 make
+cd ..
+cd ..
+
+# (re)compile reachability code
+cd reach_algs
+rm -r -f build
+mkdir -p build
+cd build
+cmake ..
+make
+cd ..
 cd ..

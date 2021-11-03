@@ -10,6 +10,6 @@
 build/
 
 # ignore several GBs of models for now
-reachability/models/
-reachability/bench_data/
-reachability/plots/
+# models/
+bench_data/
+plots/
