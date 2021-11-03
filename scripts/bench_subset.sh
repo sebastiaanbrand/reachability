@@ -40,6 +40,10 @@ if [[ $test_par ]]; then echo "  * Testing parallelism for BDD rec-reach"; fi
 # output folder
 if [[ $num_workers == 1 ]]; then
   outputfolder=bench_data/subset/single_worker
+elif [[ $num_workers == "1 2 4 8" ]]; then
+  outputfolder=bench_data/subset/par_8
+elif [[ $num_workers == "16 32 64 96" ]]; then
+  outputfolder=bench_data/subset/par_96
 else
   outputfolder=bench_data/subset/par
 fi

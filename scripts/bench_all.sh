@@ -51,6 +51,10 @@ done
 # output folder
 if [[ $num_workers == 1 ]]; then
   outputfolder=bench_data/all/single_worker
+elif [[ $num_workers == "1 2 4 8" ]]; then
+  outputfolder=bench_data/all/par_8
+elif [[ $num_workers == "16 32 64 96" ]]; then
+  outputfolder=bench_data/all/par_96
 else
   outputfolder=bench_data/all/par
 fi
@@ -107,6 +111,7 @@ if [[ $bench_awari && $bench_bdd ]]; then echo "  - Awari BDDs"; fi
 if [[ $test_par && $bench_bdd ]]; then echo "  * Testing parallelism for BDD rec-reach"; fi
 
 echo "timeout per run is $maxtime"
+echo "writing .csv output files to folder $outputfolder"
 read -p "Press enter to start"
 
 

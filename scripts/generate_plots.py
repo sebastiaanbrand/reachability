@@ -725,6 +725,9 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
         speedups3[workers] = []
 
     for ds_name in datasetnames:
+        if (not (ds_name, data_label) in datamap):
+            continue
+
         # get the relevant data (only where reach_time is at least 'min_time')
         data = datamap[(ds_name, data_label)]
         data = data.loc[data['reach_time'] >= min_time]
@@ -795,14 +798,10 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
      # plots without data-point lables
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
-        fig_name = '{}speedups_{}_{}_{}_on{}_mintime_{}_96_cores.{}'.format(subfolder, 
-                    strat1, strat2, strat3, data_label, min_time, fig_format)
+        fig_name = '{}speedups_{}_{}_{}_on{}_mintime_{}_{}_cores.{}'.format(subfolder, 
+                    strat1, strat2, strat3, data_label, min_time, max(n_workers), fig_format)
         fig.savefig(fig_name, dpi=300)
     plt.close(fig)
-
-
-def plot_96_core_plot():
-    pass
 
 
 def set_subfolder_name(subfolder_name):
@@ -852,8 +851,17 @@ def plot_paper_plots(subfolder):
         print('no complete data found in ' + data_folder)
 
     # Plot parallel (Figure 11)
-    data_folder = 'bench_data/' + subfolder + '/par/'
+    data_folder = 'bench_data/' + subfolder + '/par_8/'
     if(load_data(data_folder, expected=3)):
+        pre_process()
+        assert_states_nodes()
+        plot_paper_plot_parallel(subfolder)
+    else:
+        print('no complete data found in ' + data_folder)
+    
+    # Plot parallel (Figure 11)
+    data_folder = 'bench_data/' + subfolder + '/par_96/'
+    if(load_data(data_folder, expected=1)):
         pre_process()
         assert_states_nodes()
         plot_paper_plot_parallel(subfolder)
