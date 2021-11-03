@@ -6,6 +6,9 @@
 .project
 .settings
 
+# vscode files
+.vscode/
+
 # Build
 build/
 

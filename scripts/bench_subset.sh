@@ -25,6 +25,7 @@ done
 
 for var in "$@"; do
   if [[ $var == 'test-par' ]]; then test_par=true; fi
+  if [[ $var == 'bfs' ]]; then test_bfs=true; fi
 done
 
 echo "Running following benchmarks with [$num_workers] workers:"
@@ -61,7 +62,9 @@ promela_sl_stats_ldd="$outputfolder/promela_sloan_stats_ldd.csv"
 shuf -n $amount models/beem/small_bdd.txt | while read filename; do
   filepath=models/beem/bdds/sloan/$filename
   for nw in $num_workers; do
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats
+      if [[ $test_bfs ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats
+      fi
       timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats
       timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats
       if [[ $test_par ]]; then
@@ -74,7 +77,9 @@ done
 shuf -n $amount models/petrinets/small_bdd.txt | while read filename; do
   filepath=models/petrinets/bdds/sloan/$filename
   for nw in $num_workers; do
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats
+      if [[ $test_bfs ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats
+      fi
       timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats
       timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats
       if [[ $test_par ]]; then
@@ -87,7 +92,9 @@ done
 shuf -n $amount models/promela/small_bdd.txt | while read filename; do
   filepath=models/promela/bdds/sloan/$filename
   for nw in $num_workers; do
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats
+      if [[ $test_bfs ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats
+      fi
       timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats
       timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats
       if [[ $test_par ]]; then
@@ -101,7 +108,9 @@ if [[ $num_workers == 1 ]]; then
   shuf -n $amount models/beem/small_ldd.txt | while read filename; do
     filepath=models/beem/ldds/sloan/overapprox/$filename
     for nw in $num_workers; do
-        timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+        if [[ $test_bfs ]]; then
+          timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+        fi
         timeout $maxtime ./$lddmc models/beem/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
         timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
     done
@@ -113,7 +122,9 @@ if [[ $num_workers == 1 ]]; then
   shuf -n $amount models/petrinets/small_ldd.txt | while read filename; do
     filepath=models/petrinets/ldds/sloan/overapprox/$filename
     for nw in $num_workers; do
-        timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+        if [[ $test_bfs ]]; then
+          timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+        fi
         timeout $maxtime ./$lddmc models/petrinets/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
         timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
     done
@@ -125,7 +136,9 @@ if [[ $num_workers == 1 ]]; then
   shuf -n $amount models/promela/small_ldd.txt | while read filename; do
     filepath=models/promela/ldds/sloan/overapprox/$filename
       for nw in $num_workers; do
-          timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+          if [[ $test_bfs ]]; then
+            timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+          fi
           timeout $maxtime ./$lddmc models/promela/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
           timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
       done
