@@ -64,7 +64,11 @@ def parse_args():
         print("please specify a subfolder in bench_data/")
         exit(1)
     subfolder = sys.argv[1]
-    return subfolder
+    add_merge_time=True
+    if (len(sys.argv) > 2):
+        if (sys.argv[2] == 'no-merge-time'):
+            add_merge_time=False
+    return subfolder, add_merge_time
        
 
 def try_load_data(key, filepath):
@@ -614,7 +618,7 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
     plt.close(fig)
 
 
-def plot_rec_over_sat_vs_rel_metric(data_label, metric):
+def plot_rec_over_sat_vs_rel_metric(data_label, metric, add_merge_time=False):
     info("plotting rec/sat against {} on {}".format(metric, data_label), end='')
     if (metric[:3] == 'rel'):
         info(" (takes some time)")
@@ -644,6 +648,11 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric):
         # get relative time of rec (this will be the y value in the plot)
         sat_times = joined['reach_time_sat'].to_numpy()
         rec_times = joined['reach_time_rec'].to_numpy()
+
+        if (add_merge_time):
+            sat_times += joined['merge_time_sat'].to_numpy()
+            rec_times += joined['merge_time_rec'].to_numpy()
+
         relative_rec_times = rec_times / sat_times
 
         # get relation matrix metric of each of the datapoints (x value)
@@ -677,8 +686,8 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric):
     # plots without data-point lables
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
-        fig_name = '{}rec_over_sat_vs_metric_{}_on_{}.{}'.format(subfolder, 
-                                                metric, data_label, fig_format)
+        fig_name = '{}rec_over_sat_vs_metric_{}_on_{}_incmergetime{}.{}'.format(subfolder, 
+                                                metric, data_label, add_merge_time, fig_format)
         fig.savefig(fig_name, dpi=300)
     
     # add trendline
@@ -691,8 +700,8 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric):
     # plots with trendline
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
-        fig_name = '{}rec_over_sat_vs_metric_{}_on_{}_trend.{}'.format(subfolder, 
-                                                metric, data_label, fig_format)
+        fig_name = '{}rec_over_sat_vs_metric_{}_on_{}_incmergetime{}_trend.{}'.format(subfolder, 
+                                                metric, data_label, add_merge_time, fig_format)
         fig.savefig(fig_name, dpi=300)
 
     # add data-point labes and plot as pdf
@@ -815,18 +824,18 @@ def set_subfolder_name(subfolder_name):
     Path(label_folder).mkdir(parents=True, exist_ok=True)
 
 
-def plot_paper_plot_sat_vs_rec(subfolder):
+def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
     set_subfolder_name(subfolder + '/Saturation vs REACH (Figure 9)')
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
-                        add_merge_time=False)
+                        add_merge_time=add_merge_time)
 
 
-def plot_paper_plot_locality(subfolder):
+def plot_paper_plot_locality(subfolder, add_merge_time):
     set_subfolder_name(subfolder + '/Locality metric comparison (Figure 10)')
-    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw')
-    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw')
+    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw', add_merge_time)
 
 
 def plot_paper_plot_parallel(subfolder):
@@ -837,16 +846,16 @@ def plot_paper_plot_parallel(subfolder):
         plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
 
 
-def plot_paper_plots(subfolder):
+def plot_paper_plots(subfolder, add_merge_time):
     # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
     data_folder = 'bench_data/'+ subfolder + '/single_worker/'
     if(load_data(data_folder, expected=6)):
         pre_process()
         assert_states_nodes()
-        plot_paper_plot_sat_vs_rec(subfolder)
+        plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
         # Plot locality metric correlation (Figure 10) (on same data)
-        plot_paper_plot_locality(subfolder)
+        plot_paper_plot_locality(subfolder, add_merge_time)
     else:
         print('no complete data found in ' + data_folder)
 
@@ -870,6 +879,6 @@ def plot_paper_plots(subfolder):
 
 
 if __name__ == '__main__':
-    subfolder = parse_args()
-    plot_paper_plots(subfolder)
+    subfolder, add_merge_time = parse_args()
+    plot_paper_plots(subfolder, add_merge_time)
 
