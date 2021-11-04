@@ -2,6 +2,7 @@
 
 ## Docker
 Loading the Docker image and starting a container:
+
 1. `docker load < tacas_126_docker_image.tar`
 2. `docker run -it tacas_126:v1.0 bash`
 
