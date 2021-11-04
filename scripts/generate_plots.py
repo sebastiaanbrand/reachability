@@ -855,7 +855,7 @@ def plot_paper_plots(subfolder, add_merge_time):
         plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
         # Plot locality metric correlation (Figure 10) (on same data)
-        plot_paper_plot_locality(subfolder, add_merge_time)
+        plot_paper_plot_locality(subfolder, add_merge_time=False)
     else:
         print('no complete data found in ' + data_folder)
 
