@@ -52,7 +52,7 @@ From the `~/tacas_126/` folder:
 
 To generate plots from the generated data run `python3 scripts/generate_plots.py all`. The plots are outputted to `plots/all/`.
 
-### Important information about plots
+## Important information about plots
 During the preparation of this artifact we uncovered a mistake with the plots in the paper. Specifically: the text in the paper mentions that the time it takes to merge a number of partial transition relations into a single global transition relation is included in the total reachability time, whereas the plots in the paper do in fact not include this "merge time". This is primarily relevant for Figure 9 in the paper, where the runtime of saturation is compared against our REACH algorithms. 
 
 Regarding the overhead of this "merge time", we see a trend that for larger models this overhead is relatively small compared to the actual time to compute reachability, although for some (smaller) models it can add significantly to the total time. Before any potential acceptance of the paper the plots would have to be updated. However, because of the trend in this "merge time" we believe our conclusions could remain largely the same.
