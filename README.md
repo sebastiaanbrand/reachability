@@ -23,7 +23,7 @@ When running the code from the provided Docker image, step 1 can be skipped, as 
 ### 1. Dependencies
 For Ubuntu, the relevant dependencies can be installed with the following after running `sudo apt update`.
 
-* C compilation tools (gcc, cmake): `sudo apt install cmake cmake-data build essential`
+* C compilation tools (gcc, cmake): `sudo apt install cmake cmake-data build-essential`
 * GMP: `sudo apt install libgmp-dev`
 * Python3: `sudo apt install python3`
 * Python packages:
@@ -56,9 +56,9 @@ From the `~/tacas_126/` folder:
 To generate plots from the generated data run `python3 scripts/generate_plots.py all`. The plots are outputted to `plots/all/`.
 
 ## Important information about plots
-During the preparation of this artifact we uncovered a mistake with the plots in the paper. Specifically: the text in the paper mentions that the time it takes to merge a number of partial transition relations into a single global transition relation is included in the total reachability time, whereas the plots in the paper do in fact not include this "merge time". This affects only Figure 9. Since Figures 10 and 11 do not compare the performance of REACH against saturation directly, but rather investigate two other properties (locality and parallelism), we would still exclude this "merge time" in these Figures.
+During the preparation of this artifact we uncovered a mistake with the plots in the paper. Specifically: the text in the paper mentions that the time it takes to merge a number of partial transition relations into a single global transition relation is included in the total reachability time, whereas the plots in the paper do in fact not include this "merge time". This affects only Figure 9. The other figures are not affected: Since Figures 10 and 11 only investigate the effects of locality and parallelism, the "merge time” not included in these Figures (as explained in the text).
 
-Regarding the overhead of this "merge time", we see a trend that for larger models this overhead is relatively small compared to the actual time to compute reachability, although for some (smaller) models it can add significantly to the total time. "Larger" in this case means (for LDDs) instances where the reachability time > 0.1 sec. For reference, both the plots including and excluding this "merge time" have been added to the artifact zip file.
+Regarding the overhead of this "merge time", we see a trend that for larger models this overhead is relatively small compared to the actual time to compute reachability, although for some (smaller) models it can add significantly to the total time. "Larger" in this case means (for LDDs) instances where the reachability time > 0.1 sec. For reference, both the plots including and excluding this "merge time" have been added to the artifact zip file. These Figures can also be found online [here](https://surfdrive.surf.nl/files/index.php/s/nZx8ULmYeFCOJPe).
 
 Before any potential acceptance of the paper the plots would have to be updated. However, because of the trend in this "merge time" we believe our conclusions could remain the same, aside from a brief discussion about this "merge time" overhead on the smaller (< 0.1 sec) instances.
 
