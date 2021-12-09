@@ -813,6 +813,74 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
     plt.close(fig)
 
 
+def plot_merge_overhead(data_label):
+    info("plotting relative merge overhead for {}".format(data_label))
+
+    # get the relevant data from beem, petri, prom datasets
+    datasets = []
+    for ds_name in datasetnames:
+        datasets.append(datamap[(ds_name, data_label)])
+    data = pd.concat(datasets)
+
+    # separate into data for saturation and recursive alg
+    sat_data = data.loc[data['strategy'] == stratIDs['sat']]
+    rec_data = data.loc[data['strategy'] == stratIDs['rec']]
+
+    # inner join sat and rec data on 'benchmark'
+    sat_data = sat_data.set_index('benchmark')
+    joined = rec_data.join(sat_data, on='benchmark', how='inner',
+                            lsuffix='_rec', rsuffix='_sat')
+
+    # rec_reach_time / sat_reach_time
+    relative_reach = joined['reach_time_rec'] / joined['reach_time_sat']
+    relative_merge = joined['merge_time_rec'] / joined['reach_time_sat']
+
+    # create buckets (log scale)
+    lowest = 10**(np.floor(np.log10(min(joined['reach_time_sat']))))
+    highest = 10**(np.ceil(np.log10(max(joined['reach_time_sat']))))
+    bucket_labels = []
+    bucket_reach  = []
+    bucket_merge  = []
+
+    while (lowest <= highest):
+        lower_edge = joined['reach_time_sat'] >= lowest/2
+        upper_edge = joined['reach_time_sat'] < lowest*5
+        selection = lower_edge & upper_edge
+        if (sum(selection) > 0):
+            bucket_reach.append(relative_reach.loc[selection])
+            bucket_merge.append(relative_merge.loc[selection])
+            bucket_labels.append('[{},\n{})'.format(lowest/2, lowest*5))
+        lowest *= 10
+
+    # compute averages
+    bucket_sizes = [len(x) for x in bucket_reach]
+    avg_reach = [np.average(x) for x in bucket_reach]
+    avg_merge = [np.average(x) for x in bucket_merge]
+    info('\tbucket sizes: {}'.format(bucket_sizes))
+    #print(avg_reach)
+    #print(avg_merge)
+
+    #  plot data, formatting and lables
+    reach_label = "Alg. 2 time"
+    if (data_label[-3:] == 'ldd'):
+        reach_label = "Alg. 3 time"
+    merge_label = "relation merging overhead"
+    fig, ax = plt.subplots()
+    ax.bar(bucket_labels, avg_reach, width=0.35, label=reach_label)
+    ax.bar(bucket_labels, avg_merge, width=0.35, bottom=avg_reach, label=merge_label)
+    ax.legend(framealpha=1.0)
+    ax.set_xlabel('saturation time (s)')
+    ax.set_ylabel(reach_label + '/ saturation time')
+    plt.tight_layout()
+
+    # plot for all formats
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}merge_overhead_{}.{}'.format(subfolder, data_label, fig_format)
+        fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
+
+
 def set_subfolder_name(subfolder_name):
     global plots_folder, plots_folder_temp, label_folder, label_folder_temp
     plots_folder = plots_folder_temp.format(subfolder_name, '{}')
@@ -845,20 +913,29 @@ def plot_paper_plot_parallel(subfolder):
     else:
         plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
 
+def plot_paper_plot_merge_overhead(subfolder):
+    set_subfolder_name(subfolder + '/Merge overhead (New Figure)')
+    plot_merge_overhead('sl-bdd')
+    plot_merge_overhead('sl-ldd')
 
 def plot_paper_plots(subfolder, add_merge_time):
-    # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
+    # Plot Fig 9, Fig 10, New Fig
     data_folder = 'bench_data/'+ subfolder + '/single_worker/'
     if(load_data(data_folder, expected=6)):
         pre_process()
         assert_states_nodes()
-        plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
+        # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
+        #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
         # Plot locality metric correlation (Figure 10) (on same data)
-        plot_paper_plot_locality(subfolder, add_merge_time=False)
+        #plot_paper_plot_locality(subfolder, add_merge_time=False)
+
+        # Plot relative merge time overhead (New Figure)
+        plot_paper_plot_merge_overhead(subfolder)
     else:
         print('no complete data found in ' + data_folder)
 
+    """
     # Plot parallel (Figure 11)
     data_folder = 'bench_data/' + subfolder + '/par_8/'
     if(load_data(data_folder, expected=3)):
@@ -876,6 +953,7 @@ def plot_paper_plots(subfolder, add_merge_time):
         plot_paper_plot_parallel(subfolder)
     else:
         print('no complete data found in ' + data_folder)
+    """
 
 
 if __name__ == '__main__':
