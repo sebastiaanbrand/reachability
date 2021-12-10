@@ -870,7 +870,7 @@ def plot_merge_overhead(data_label):
     ax.bar(bucket_labels, avg_merge, width=0.35, bottom=avg_reach, label=merge_label)
     ax.legend(framealpha=1.0)
     ax.set_xlabel('saturation time (s)')
-    ax.set_ylabel(reach_label + '/ saturation time')
+    ax.set_ylabel('runtime relative to saturation')
     plt.tight_layout()
 
     # plot for all formats
@@ -925,17 +925,17 @@ def plot_paper_plots(subfolder, add_merge_time):
         pre_process()
         assert_states_nodes()
         # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-        #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
+        plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
         # Plot locality metric correlation (Figure 10) (on same data)
-        #plot_paper_plot_locality(subfolder, add_merge_time=False)
+        plot_paper_plot_locality(subfolder, add_merge_time=False)
 
         # Plot relative merge time overhead (New Figure)
         plot_paper_plot_merge_overhead(subfolder)
     else:
         print('no complete data found in ' + data_folder)
 
-    """
+
     # Plot parallel (Figure 11)
     data_folder = 'bench_data/' + subfolder + '/par_8/'
     if(load_data(data_folder, expected=3)):
@@ -953,7 +953,6 @@ def plot_paper_plots(subfolder, add_merge_time):
         plot_paper_plot_parallel(subfolder)
     else:
         print('no complete data found in ' + data_folder)
-    """
 
 
 if __name__ == '__main__':
