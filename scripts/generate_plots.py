@@ -861,16 +861,16 @@ def plot_merge_overhead(data_label):
     #print(avg_merge)
 
     #  plot data, formatting and lables
-    reach_label = "Alg. 2 time"
+    reach_label = "Alg. 2 time (average)"
     if (data_label[-3:] == 'ldd'):
-        reach_label = "Alg. 3 time"
-    merge_label = "relation merging overhead"
+        reach_label = "Alg. 3 time (average)"
+    merge_label = "relation merging overhead (average)"
     fig, ax = plt.subplots()
     ax.bar(bucket_labels, avg_reach, width=0.35, label=reach_label)
     ax.bar(bucket_labels, avg_merge, width=0.35, bottom=avg_reach, label=merge_label)
     ax.legend(framealpha=1.0)
     ax.set_xlabel('saturation time (s)')
-    ax.set_ylabel('runtime relative to saturation')
+    ax.set_ylabel('average runtime relative to saturation')
     plt.tight_layout()
 
     # plot for all formats
