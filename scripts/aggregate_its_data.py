@@ -10,7 +10,7 @@ def write_header():
 
 def write_line(data):
     with open(output_file, 'a') as f:
-        f.write('{}, {}, {}, {}\n'.format(*data))
+        f.write('{}, {}, {}, {}, {}\n'.format(*data))
 
 def process_line(data_line):
     data = data_line.split(',')
@@ -27,12 +27,16 @@ def load_file(folder, filename):
             if (line == look_for):
                 data = process_line(lines[index+1])
                 bench_name = filename[:-4]
-                if (bench_name[-8:] == '.img.gal'):
-                    data[0] = bench_name[:-8]
+                if (bench_name[-13:] == '.pnml.img.gal'):
+                    data[0] = bench_name[:-13]
                     data[1] = '.img.gal'
-                else:
-                    data[0] = bench_name[:-4]
+                elif (bench_name[-9:] == '.pnml.gal'):
+                    data[0] = bench_name[:-9]
                     data[1] = '.img'
+                else:
+                    print("unexpected file extension in benchmark name:")
+                    print(bench_name)
+                    exit(1)
                 write_line(data)
                 
 
