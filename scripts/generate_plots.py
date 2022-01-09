@@ -881,6 +881,17 @@ def plot_merge_overhead(data_label):
     plt.close(fig)
 
 
+def plot_its_vs_dd(dd_type, dd_strat):
+    data_its = pd.read_csv('bench_data/its_tools/its_tools_petrinets.csv')
+    data_dd = datamap[('ptri', dd_type)]
+
+    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.ldd', '')
+    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.bdd', '')
+    
+    print(data_its)
+    print(data_dd)
+
+
 def set_subfolder_name(subfolder_name):
     global plots_folder, plots_folder_temp, label_folder, label_folder_temp
     plots_folder = plots_folder_temp.format(subfolder_name, '{}')
@@ -918,12 +929,18 @@ def plot_paper_plot_merge_overhead(subfolder):
     plot_merge_overhead('sl-bdd')
     plot_merge_overhead('sl-ldd')
 
-def plot_paper_plots(subfolder, add_merge_time):
+def plot_paper_plot_its_tools_vs_dds(subfolder):
+    set_subfolder_name(subfolder + '/ITS-Tools vs DDs (New Figure)')
+    plot_its_vs_dd('sl-ldd', 'rec')
+
+
+def plot_paper_plots(subfolder, add_merge_time):   
     # Plot Fig 9, Fig 10, New Fig
     data_folder = 'bench_data/'+ subfolder + '/single_worker/'
     if(load_data(data_folder, expected=6)):
         pre_process()
         assert_states_nodes()
+        """
         # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
         plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
@@ -932,10 +949,14 @@ def plot_paper_plots(subfolder, add_merge_time):
 
         # Plot relative merge time overhead (New Figure)
         plot_paper_plot_merge_overhead(subfolder)
+        """
+
+        # Plot ITStools vs DDs
+        plot_paper_plot_its_tools_vs_dds(subfolder)
     else:
         print('no complete data found in ' + data_folder)
 
-
+    """
     # Plot parallel (Figure 11)
     data_folder = 'bench_data/' + subfolder + '/par_8/'
     if(load_data(data_folder, expected=3)):
@@ -953,6 +974,7 @@ def plot_paper_plots(subfolder, add_merge_time):
         plot_paper_plot_parallel(subfolder)
     else:
         print('no complete data found in ' + data_folder)
+    """
 
 
 if __name__ == '__main__':
