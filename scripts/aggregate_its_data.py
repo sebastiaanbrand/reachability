@@ -6,7 +6,7 @@ output_file = 'bench_data/its_tools/its_tools_petrinets.csv'
 
 def write_header():
     with open(output_file, 'w') as f:
-        f.write('benchmark, time, memory_kb, states\n')
+        f.write('benchmark, type, time, memory_kb, states\n')
 
 def write_line(data):
     with open(output_file, 'a') as f:
@@ -17,15 +17,22 @@ def process_line(data_line):
     states = data[1]
     time = data[2]
     memory = data[3]
-    return [0, time, memory, states]
+    return [0, 0, time, memory, states]
 
 def load_file(folder, filename):
+    print("processing {}{}".format(folder, filename))
     with open(folder + filename, 'r') as f:
         lines = f.readlines()
         for index, line in enumerate(lines):
             if (line == look_for):
                 data = process_line(lines[index+1])
-                data[0] = filename[:-4]
+                bench_name = filename[:-4]
+                if (bench_name[-8:] == '.img.gal'):
+                    data[0] = bench_name[:-8]
+                    data[1] = '.img.gal'
+                else:
+                    data[0] = bench_name[:-4]
+                    data[1] = '.img'
                 write_line(data)
                 
 
