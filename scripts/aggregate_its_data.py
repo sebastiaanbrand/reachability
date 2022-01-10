@@ -6,7 +6,7 @@ output_file = 'bench_data/its_tools/its_tools_petrinets.csv'
 
 def write_header():
     with open(output_file, 'w') as f:
-        f.write('benchmark, type, time, memory_kb, states\n')
+        f.write('benchmark, type, reach_time, memory_kb, final_states\n')
 
 def write_line(data):
     with open(output_file, 'a') as f:
@@ -32,7 +32,7 @@ def load_file(folder, filename):
                     data[1] = '.img.gal'
                 elif (bench_name[-9:] == '.pnml.gal'):
                     data[0] = bench_name[:-9]
-                    data[1] = '.img'
+                    data[1] = '.gal'
                 else:
                     print("unexpected file extension in benchmark name:")
                     print(bench_name)
@@ -42,7 +42,7 @@ def load_file(folder, filename):
 
 def process_data(folder):
     write_header()
-    for filename in os.listdir(folder):
+    for filename in sorted(os.listdir(folder)):
         load_file(folder, filename)
 
 

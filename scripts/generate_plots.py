@@ -125,6 +125,19 @@ def pre_process():
         _workers = np.unique(df['workers'])
         n_workers.update(_workers)
 
+def load_its_data():
+    # load csv
+    its_data = pd.read_csv('bench_data/its_tools/its_tools_petrinets.csv')
+
+    # some pre-processing
+    its_data.columns = its_data.columns.str.strip()
+    its_data = its_data.astype({"benchmark" : str, "type" : str,
+                                "reach_time" : float, "memory_kb" : float, 
+                                "final_states" : float})
+    its_data['type'] = its_data['type'].str.strip()
+
+    return its_data
+    
 
 def assert_states_nodes():
     print("checking the state- and nodecounts")
@@ -881,15 +894,78 @@ def plot_merge_overhead(data_label):
     plt.close(fig)
 
 
-def plot_its_vs_dd(dd_type, dd_strat):
-    data_its = pd.read_csv('bench_data/its_tools/its_tools_petrinets.csv')
+def plot_its_vs_dd(dd_type, dd_strat, its_type):
+    data_its = load_its_data()
     data_dd = datamap[('ptri', dd_type)]
 
     data_dd['benchmark'] = data_dd['benchmark'].str.replace('.ldd', '')
     data_dd['benchmark'] = data_dd['benchmark'].str.replace('.bdd', '')
     
-    print(data_its)
-    print(data_dd)
+    # select relevant subset
+    data_dd = data_dd.loc[data_dd['strategy'] == stratIDs[dd_strat]]
+    data_its = data_its.loc[data_its['type'] == its_type]
+    data_its = data_its.loc[data_its['reach_time'] != 0]
+
+    # inner join
+    data_its = data_its.set_index('benchmark')
+    joined = data_dd.join(data_its, on='benchmark', how='inner',
+                            lsuffix='_dd', rsuffix='_its')
+    
+    neq_states = joined['final_states_dd'] != joined['final_states_its']
+    if (sum(neq_states) > 0):
+        print("WARNING: ITS-tools and Sylvan disagree on # states for:")
+        issue_cases = joined.loc[neq_states]
+        print(issue_cases)
+
+    scaling = 4.8 # default = ~6.0
+    fig, ax = plt.subplots(1, 1, figsize=(scaling, scaling*0.75))
+    c = 'tab:orange'
+    s = marker_size['ptri']
+    m = markers['ptri']
+    l = legend_names['ptri']
+
+    # scatter plot
+    xs = joined['reach_time_its'].to_numpy()
+    ys = joined['reach_time_dd'].to_numpy()
+    ax.scatter(xs, ys, c=c, s=s, marker=m, label=l)
+    all_names = joined['benchmark']
+
+    # diagonal lines
+    max_val = max(np.max(xs), np.max(ys))
+    min_val = min(np.min(xs), np.min(ys))
+    ax.plot([min_val, max_val], [min_val, max_val], ls='--', c="#5d5d5d")
+    ax.plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
+    ax.plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
+
+    # lables and formatting
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_ylabel("{}".format(axis_label[(dd_strat,dd_type[-3:])]))
+    ax.set_xlabel("ITS-tools")
+    ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
+    ax.legend(framealpha=1.0)
+    plt.tight_layout()
+
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}its{}_vs_{}_{}.{}'.format(subfolder,
+                                            its_type.replace('.','_'), 
+                                            dd_type, 
+                                            dd_strat,
+                                            fig_format)
+        fig.savefig(fig_name, dpi=300)
+    
+    # add data-point labels and plot as pdf
+    for i, bench_name in enumerate(all_names):
+        ax.annotate(bench_name, (xs[i], ys[i]), fontsize=1.0)
+    fig_name = fig_name = '{}its{}_vs_{}_{}.{}'.format(label_folder,
+                                            its_type.replace('.','_'), 
+                                            dd_type, 
+                                            dd_strat,
+                                            'pdf')
+    fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
 
 
 def set_subfolder_name(subfolder_name):
@@ -931,7 +1007,11 @@ def plot_paper_plot_merge_overhead(subfolder):
 
 def plot_paper_plot_its_tools_vs_dds(subfolder):
     set_subfolder_name(subfolder + '/ITS-Tools vs DDs (New Figure)')
-    plot_its_vs_dd('sl-ldd', 'rec')
+    load_its_data()
+    plot_its_vs_dd('sl-ldd', 'rec', '.gal')
+    plot_its_vs_dd('sl-ldd', 'rec', '.img.gal')
+    plot_its_vs_dd('sl-bdd', 'rec', '.gal')
+    plot_its_vs_dd('sl-bdd', 'rec', '.img.gal')
 
 
 def plot_paper_plots(subfolder, add_merge_time):   
