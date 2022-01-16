@@ -125,9 +125,12 @@ def pre_process():
         _workers = np.unique(df['workers'])
         n_workers.update(_workers)
 
-def load_its_data():
+def load_its_data(its_type):
     # load csv
-    its_data = pd.read_csv('bench_data/its_tools/its_tools_petrinets.csv')
+    if (its_type == 'RD'):
+        its_data = pd.read_csv('bench_data/its_tools/its_tools_petrinets_deadlocks.csv')
+    else:
+        its_data = pd.read_csv('bench_data/its_tools/its_tools_petrinets.csv')
 
     # some pre-processing
     its_data.columns = its_data.columns.str.strip()
@@ -895,7 +898,7 @@ def plot_merge_overhead(data_label):
 
 
 def plot_its_vs_dd(dd_type, dd_strat, its_type):
-    data_its = load_its_data()
+    data_its = load_its_data(its_type)
     data_dd = datamap[('ptri', dd_type)]
 
     data_dd['benchmark'] = data_dd['benchmark'].str.replace('.ldd', '')
@@ -1007,11 +1010,12 @@ def plot_paper_plot_merge_overhead(subfolder):
 
 def plot_paper_plot_its_tools_vs_dds(subfolder):
     set_subfolder_name(subfolder + '/ITS-Tools vs DDs (New Figure)')
-    load_its_data()
-    plot_its_vs_dd('sl-ldd', 'rec', '.gal')
-    plot_its_vs_dd('sl-ldd', 'rec', '.img.gal')
-    plot_its_vs_dd('sl-bdd', 'rec', '.gal')
-    plot_its_vs_dd('sl-bdd', 'rec', '.img.gal')
+    #plot_its_vs_dd('sl-ldd', 'rec', '.gal')
+    #plot_its_vs_dd('sl-ldd', 'rec', '.img.gal')
+    #plot_its_vs_dd('sl-bdd', 'rec', '.gal')
+    #plot_its_vs_dd('sl-bdd', 'rec', '.img.gal')
+    plot_its_vs_dd('sl-ldd', 'rec', 'RD')
+    plot_its_vs_dd('sl-bdd', 'rec', 'RD')
 
 
 def plot_paper_plots(subfolder, add_merge_time):   
