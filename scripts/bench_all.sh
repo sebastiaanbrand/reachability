@@ -50,13 +50,13 @@ done
 
 # output folder
 if [[ $num_workers == 1 ]]; then
-  outputfolder=bench_data/all/single_worker
+  outputfolder=bench_data/all/single_worker/$maxtime/
 elif [[ $num_workers == "1 2 4 8" ]]; then
-  outputfolder=bench_data/all/par_8
+  outputfolder=bench_data/all/par_8/$maxtime/
 elif [[ $num_workers == "16 32 64 96" ]]; then
-  outputfolder=bench_data/all/par_96
+  outputfolder=bench_data/all/par_96/$maxtime/
 else
-  outputfolder=bench_data/all/par
+  outputfolder=bench_data/all/par/$maxtime/
 fi
 mkdir -p $outputfolder
 
