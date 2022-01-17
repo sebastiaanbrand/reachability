@@ -161,11 +161,14 @@ static rel_t *next; // each partition of the transition relation
 typedef struct stats {
     double reach_time;
     double merge_rel_time;
+    double total_time;
     double final_states;
+    int found_deadlock; // is set to 1 if found
     size_t final_nodecount;
     size_t peaknodes;
 } stats_t;
 stats_t stats = {0};
+
 
 /**
  * Obtain current wallclock time
@@ -203,22 +206,25 @@ print_memory_usage(void)
 static void
 write_stats()
 {
+    if (check_deadlocks == 0) stats.found_deadlock = -1;
     FILE *fp = fopen(stats_filename, "a");
     // write header if file is empty
     fseek (fp, 0, SEEK_END);
         long size = ftell(fp);
         if (size == 0)
-            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, merge_time, final_states, final_nodecount, peaknodes");
+            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, merge_time, total_time, final_states, deadlocks, final_nodecount, peaknodes");
     // append stats of this run
     char* benchname = basename((char*)model_filename);
-    fprintf(fp, "%s, %d, %d, %d, %f, %f, %0.0f, %ld, %ld\n",
+    fprintf(fp, "%s, %d, %d, %d, %f, %f, %f, %0.0f, %d, %ld, %ld\n",
             benchname,
             strategy+loop_order,
             merge_relations,
             lace_workers(),
             stats.reach_time,
             stats.merge_rel_time,
+            stats.total_time,
             stats.final_states,
+            stats.found_deadlock,
             stats.final_nodecount,
             stats.peaknodes);
     fclose(fp);
@@ -531,6 +537,7 @@ VOID_TASK_1(par, set_t, set)
                 printf("example: ");
                 print_example(deadlocks, set->variables);
                 check_deadlocks = 0;
+                stats.found_deadlock = 1;
             }
             printf("\n");
         }
@@ -647,6 +654,7 @@ VOID_TASK_1(bfs, set_t, set)
                 printf("example: ");
                 print_example(deadlocks, set->variables);
                 check_deadlocks = 0;
+                stats.found_deadlock = 1;
             }
             printf("\n");
         }
@@ -1110,6 +1118,10 @@ VOID_TASK_1(rec, set_t, set)
 {
     if (next_count != 1) Abort("Strategy rec requires merge-relations");
     set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, next[0]->variables);
+    if (check_deadlocks) {
+        // TODO: check deadlocks
+        Abort("TODO: implement deadlock checking for rec reach");
+    }
 }
 
 /**
@@ -1471,6 +1483,8 @@ main(int argc, char **argv)
 
     lace_stop();
 
+    double t_end = wctime();
+    stats.total_time = t_end-t_start;
     if (stats_filename != NULL) {
         INFO("Writing stats to %s\n", stats_filename);
         write_stats();

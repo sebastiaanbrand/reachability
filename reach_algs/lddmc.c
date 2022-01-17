@@ -146,6 +146,7 @@ static rel_t *next; // each partition of the transition relation
 typedef struct stats {
     double reach_time;
     double merge_rel_time;
+    double total_time;
     double final_states;
     size_t final_nodecount;
     size_t peaknodes;
@@ -333,16 +334,17 @@ write_stats()
     fseek (fp, 0, SEEK_END);
         long size = ftell(fp);
         if (size == 0)
-            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, merge_time, final_states, final_nodecount, peaknodes");
+            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, merge_time, total_time, final_states, final_nodecount, peaknodes");
     // append stats of this run
     char* benchname = basename((char*)model_filename);
-    fprintf(fp, "%s, %d, %d, %d, %f, %f, %0.0f, %ld, %ld\n",
+    fprintf(fp, "%s, %d, %d, %d, %f, %f, %f, %0.0f, %ld, %ld\n",
             benchname,
             strategy,
             merge_relations,
             lace_workers(),
             stats.reach_time,
             stats.merge_rel_time,
+            stats.total_time,
             stats.final_states,
             stats.final_nodecount,
             stats.peaknodes);
@@ -1140,6 +1142,8 @@ main(int argc, char **argv)
 
     lace_stop();
 
+    double t_end = wctime();
+    stats.total_time = t_end-t_start;
     if (stats_filename != NULL) {
         INFO("Writing stats to %s\n", stats_filename);
         write_stats();
