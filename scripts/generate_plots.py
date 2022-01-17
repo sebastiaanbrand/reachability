@@ -535,8 +535,8 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
     info(" right: {} ({}) vs {} ({})".format(x2_strat, x2_data_label, 
                                             y2_strat, y2_data_label))
 
-    scaling = 4.8 # default = ~6.0
-    w = 1.5 # relative width
+    scaling = 4.9 # default = ~6.0
+    w = 1.6 # relative width
     fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
     point_size = 8.0
 
@@ -605,7 +605,6 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
     axs[0].set_title('BDDs')
     axs[1].set_title('LDDs')
     fig.text(0.54, 0.01, x_label, ha='center')
-    #fig.text(0.54, 0.1, x_label, ha='center')
     axs[0].set_ylabel(y_label)
     axs[0].set_xscale('log')
     axs[1].set_xscale('log')
@@ -1020,23 +1019,21 @@ def plot_paper_plot_its_tools_vs_dds(subfolder):
 
 def plot_paper_plots(subfolder, add_merge_time):   
     # Plot Fig 9, Fig 10, New Fig
-    data_folder = 'bench_data/'+ subfolder + '/single_worker/'
+    data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/'
     if(load_data(data_folder, expected=6)):
         pre_process()
         assert_states_nodes()
-        """
         # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
         plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
         # Plot locality metric correlation (Figure 10) (on same data)
-        plot_paper_plot_locality(subfolder, add_merge_time=False)
+        #plot_paper_plot_locality(subfolder, add_merge_time=False)
 
         # Plot relative merge time overhead (New Figure)
         plot_paper_plot_merge_overhead(subfolder)
-        """
 
         # Plot ITStools vs DDs
-        plot_paper_plot_its_tools_vs_dds(subfolder)
+        #plot_paper_plot_its_tools_vs_dds(subfolder)
     else:
         print('no complete data found in ' + data_folder)
 
