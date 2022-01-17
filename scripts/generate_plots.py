@@ -900,8 +900,8 @@ def plot_its_vs_dd(dd_type, dd_strat, its_type):
     data_its = load_its_data(its_type)
     data_dd = datamap[('ptri', dd_type)]
 
-    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.ldd', '')
-    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.bdd', '')
+    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.ldd', '', regex=False)
+    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.bdd', '', regex=False)
     
     # select relevant subset
     data_dd = data_dd.loc[data_dd['strategy'] == stratIDs[dd_strat]]
@@ -1033,7 +1033,7 @@ def plot_paper_plots(subfolder, add_merge_time):
         plot_paper_plot_merge_overhead(subfolder)
 
         # Plot ITStools vs DDs
-        #plot_paper_plot_its_tools_vs_dds(subfolder)
+        plot_paper_plot_its_tools_vs_dds(subfolder)
     else:
         print('no complete data found in ' + data_folder)
 
