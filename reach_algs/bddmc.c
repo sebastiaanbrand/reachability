@@ -1114,13 +1114,36 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
     return res;
 }
 
+BDD
+prime_variables(BDD a)
+{
+    if (a == sylvan_false || a == sylvan_true) return a;
+
+    BDD l = prime_variables(sylvan_low(a));
+    BDD h = prime_variables(sylvan_high(a));
+    BDDVAR new_var = sylvan_var(a) + 1;
+    return sylvan_makenode(new_var, l, h);
+}
+
 VOID_TASK_1(rec, set_t, set)
 {
     if (next_count != 1) Abort("Strategy rec requires merge-relations");
     set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, next[0]->variables);
     if (check_deadlocks) {
-        // TODO: check deadlocks
-        Abort("TODO: implement deadlock checking for rec reach");
+        BDD primed_vars = prime_variables(set->variables);
+        sylvan_protect(&primed_vars);
+        BDD rel = sylvan_project(next[0]->bdd, next[0]->variables);
+        BDD all_deadlocks = sylvan_forall(sylvan_not(rel), primed_vars);
+        BDD reach_deadlocks = sylvan_and(set->bdd, all_deadlocks);
+        double num_deadlocks = sylvan_satcount(reach_deadlocks, set->variables);
+        INFO("Found %'0.0f deadlock states... ", num_deadlocks);
+        if (num_deadlocks > 0) {
+            printf("example: ");
+            print_example(reach_deadlocks, set->variables);
+            stats.found_deadlock = 1;
+        }
+        printf("\n");
+        sylvan_unprotect(&primed_vars);
     }
 }
 
