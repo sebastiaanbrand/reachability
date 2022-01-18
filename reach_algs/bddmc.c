@@ -206,7 +206,6 @@ print_memory_usage(void)
 static void
 write_stats()
 {
-    if (check_deadlocks == 0) stats.found_deadlock = -1;
     FILE *fp = fopen(stats_filename, "a");
     // write header if file is empty
     fseek (fp, 0, SEEK_END);
@@ -1440,6 +1439,9 @@ main(int argc, char **argv)
     // appears to fix things.
     // However: there might be an underlying issue (with LTSmin?) which causes
     // these vars >= 1000000 to appear in the first place...
+
+    // set to -1 if we're not checking
+    if (check_deadlocks == 0) stats.found_deadlock = -1; 
 
     if (strategy == strat_bfs) {
         double t1 = wctime();
