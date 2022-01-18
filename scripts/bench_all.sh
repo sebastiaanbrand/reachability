@@ -61,17 +61,21 @@ else
 fi
 mkdir -p $outputfolder
 
+if [[ $deadlocks ]]; then
+    filename_app="_deadlocks"
+fi
+
 # output files
-beem_vn_stats="$outputfolder/beem_vanilla_stats_bdd.csv"
-beem_sl_stats="$outputfolder/beem_sloan_stats_bdd.csv"
-beem_f_stats="$outputfolder/beem_force_stats_bdd.csv"
-petri_vn_stats="$outputfolder/petrinets_vanilla_stats_bdd.csv"
-petri_sl_stats="$outputfolder/petrinets_sloan_stats_bdd.csv"
-petri_f_stats="$outputfolder/petrinets_force_stats_bdd.csv"
-promela_vn_stats="$outputfolder/promela_vanilla_stats_bdd.csv"
-promela_sl_stats="$outputfolder/promela_sloan_stats_bdd.csv"
-promela_f_stats="$outputfolder/promela_force_stats_bdd.csv"
-awari_stats="$outputfolder/awari_stats_bdd.csv"
+beem_vn_stats="$outputfolder/beem_vanilla_stats_bdd$filename_app.csv"
+beem_sl_stats="$outputfolder/beem_sloan_stats_bdd$filename_app.csv"
+beem_f_stats="$outputfolder/beem_force_stats_bdd$filename_app.csv"
+petri_vn_stats="$outputfolder/petrinets_vanilla_stats_bdd$filename_app.csv"
+petri_sl_stats="$outputfolder/petrinets_sloan_stats_bdd$filename_app.csv"
+petri_f_stats="$outputfolder/petrinets_force_stats_bdd$filename_app.csv"
+promela_vn_stats="$outputfolder/promela_vanilla_stats_bdd$filename_app.csv"
+promela_sl_stats="$outputfolder/promela_sloan_stats_bdd$filename_app.csv"
+promela_f_stats="$outputfolder/promela_force_stats_bdd$filename_app.csv"
+awari_stats="$outputfolder/awari_stats_bdd_$filename_app.csv"
 
 beem_vn_stats_ldd="$outputfolder/beem_vanilla_stats_ldd.csv"
 beem_sl_stats_ldd="$outputfolder/beem_sloan_stats_ldd.csv"

@@ -51,14 +51,18 @@ else
 fi
 mkdir -p $outputfolder
 
+if [[ $deadlocks ]]; then
+    filename_app="_deadlocks"
+fi
+
 echo "timeout per run is $maxtime"
 echo "writing .csv output files to folder $outputfolder"
 read -p "Press enter to start"
 
 # output files
-beem_sl_stats="$outputfolder/beem_sloan_stats_bdd.csv"
-petri_sl_stats="$outputfolder/petrinets_sloan_stats_bdd.csv"
-promela_sl_stats="$outputfolder/promela_sloan_stats_bdd.csv"
+beem_sl_stats="$outputfolder/beem_sloan_stats_bdd$filename_app.csv"
+petri_sl_stats="$outputfolder/petrinets_sloan_stats_bdd$filename_app.csv"
+promela_sl_stats="$outputfolder/promela_sloan_stats_bdd$filename_app.csv"
 beem_sl_stats_ldd="$outputfolder/beem_sloan_stats_ldd.csv"
 petri_sl_stats_ldd="$outputfolder/petrinets_sloan_stats_ldd.csv"
 promela_sl_stats_ldd="$outputfolder/promela_sloan_stats_ldd.csv"
