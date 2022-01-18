@@ -39,6 +39,7 @@ for var in "$@"; do
     if [[ $var == 'ldd' ]]; then bench_ldd=true; fi
     if [[ $var == 'test-par' ]]; then test_par=true; fi
     if [[ $var == 'bfs' ]]; then test_bfs=true; fi
+    if [[ $var == 'deadlocks' ]]; then deadlocks="--deadlocks"; fi
     if [[ $var == 'all' ]]; then
         bench_beem_vn=true; bench_ptri_vn=true; bench_prom_vn=true
         bench_beem_sl=true; bench_ptri_sl=true; bench_prom_sl=true
@@ -109,6 +110,8 @@ if [[ $bench_prom_f  && $bench_ldd ]]; then echo "  - Promela LDDs FORCE"; fi
 if [[ $bench_awari && $bench_bdd ]]; then echo "  - Awari BDDs"; fi
 
 if [[ $test_par && $bench_bdd ]]; then echo "  * Testing parallelism for BDD rec-reach"; fi
+if [[ $deadlocks && $bench_bdd ]]; then echo "  * Computing deadlocks with BDD algs"; fi
+
 
 echo "timeout per run is $maxtime"
 echo "writing .csv output files to folder $outputfolder"
@@ -120,12 +123,12 @@ if [[ $bench_beem_vn && $bench_bdd ]]; then
     for filename in models/beem/bdds/vanilla/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_vn_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$beem_vn_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_vn_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_vn_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$beem_vn_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations $deadlocks --count-nodes --statsfile=$beem_vn_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$beem_vn_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations $deadlocks --count-nodes --statsfile=$beem_vn_stats
             fi
         done
     done
@@ -136,12 +139,12 @@ if [[ $bench_beem_sl && $bench_bdd ]]; then
     for filename in models/beem/bdds/sloan/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$beem_sl_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$beem_sl_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
             fi
         done
     done
@@ -152,12 +155,12 @@ if [[ $bench_beem_f && $bench_bdd ]]; then
     for filename in models/beem/bdds/force/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_f_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$beem_f_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_f_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_f_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$beem_f_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$beem_f_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$beem_f_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$beem_f_stats
             fi
         done
     done
@@ -168,12 +171,12 @@ if [[ $bench_ptri_vn && $bench_bdd ]]; then
     for filename in models/petrinets/bdds/vanilla/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_vn_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$petri_vn_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_vn_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_vn_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$petri_vn_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$petri_vn_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$petri_vn_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$petri_vn_stats
             fi
         done
     done
@@ -184,12 +187,12 @@ if [[ $bench_ptri_sl && $bench_bdd ]]; then
     for filename in models/petrinets/bdds/sloan/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$petri_sl_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$petri_sl_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
             fi
         done
     done
@@ -200,12 +203,12 @@ if [[ $bench_ptri_f && $bench_bdd ]]; then
     for filename in models/petrinets/bdds/force/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_f_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$petri_f_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_f_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_f_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$petri_f_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$petri_f_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$petri_f_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$petri_f_stats
             fi
         done
     done
@@ -216,12 +219,12 @@ if [[ $bench_prom_vn && $bench_bdd ]]; then
     for filename in models/promela/bdds/vanilla/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_vn_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$promela_vn_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_vn_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_vn_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$promela_vn_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$promela_vn_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$promela_vn_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$promela_vn_stats
             fi
         done
     done
@@ -232,12 +235,12 @@ if [[ $bench_prom_sl && $bench_bdd ]]; then
     for filename in models/promela/bdds/sloan/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$promela_sl_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$promela_sl_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
             fi
         done
     done
@@ -248,12 +251,12 @@ if [[ $bench_prom_f && $bench_bdd ]]; then
     for filename in models/promela/bdds/force/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_f_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$promela_f_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_f_stats
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_f_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$promela_f_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$promela_f_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$promela_f_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$promela_f_stats
             fi
         done
     done
@@ -264,11 +267,11 @@ if [[ $bench_awari && $bench_bdd ]]; then
     for filename in models/awari/*.bdd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$awari_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$awari_stats
             fi
-            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$awari_stats
+            timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations $deadlocks --count-nodes --statsfile=$awari_stats
             if [[ $test_par ]]; then
-                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes --statsfile=$awari_stats
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$awari_stats
             fi
         done
     done
