@@ -51,13 +51,13 @@ done
 
 # output folder
 if [[ $num_workers == 1 ]]; then
-  outputfolder=bench_data/all/single_worker/$maxtime/
+  outputfolder=bench_data/all/single_worker/$maxtime
 elif [[ $num_workers == "1 2 4 8" ]]; then
-  outputfolder=bench_data/all/par_8/$maxtime/
+  outputfolder=bench_data/all/par_8/$maxtime
 elif [[ $num_workers == "16 32 64 96" ]]; then
-  outputfolder=bench_data/all/par_96/$maxtime/
+  outputfolder=bench_data/all/par_96/$maxtime
 else
-  outputfolder=bench_data/all/par/$maxtime/
+  outputfolder=bench_data/all/par/$maxtime
 fi
 mkdir -p $outputfolder
 
@@ -296,13 +296,13 @@ fi
 
 # BEEM, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
 if [[ $bench_beem_sl && $bench_ldd ]]; then
-    for filename in models/beem/ldds/sloan/overapprox/*.ldd; do
+    for filename in models/beem/ldds/sloan/*.ldd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
             fi
-            timeout $maxtime ./$lddmc models/beem/ldds/sloan/$(basename $filename) --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
-            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
+            timeout $maxtime ./$lddmc models/beem/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
         done
     done
 fi
@@ -335,13 +335,13 @@ fi
 
 # Petri nets, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
 if [[ $bench_ptri_sl && $bench_ldd ]]; then
-    for filename in models/petrinets/ldds/sloan/overapprox/*.ldd; do
+    for filename in models/petrinets/ldds/sloan/*.ldd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
             fi
-            timeout $maxtime ./$lddmc models/petrinets/ldds/sloan/$(basename $filename) --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
-            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
+            timeout $maxtime ./$lddmc models/petrinets/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
         done
     done
 fi
@@ -374,13 +374,14 @@ fi
 
 # Promela, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
 if [[ $bench_prom_sl && $bench_ldd ]]; then
-    for filename in models/promela/ldds/sloan/overapprox/*.ldd; do
+    #for filename in models/promela/ldds/sloan/overapprox/*.ldd; do
+    for filename in models/promela/ldds/sloan/*.ldd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
             fi
-            timeout $maxtime ./$lddmc models/promela/ldds/sloan/$(basename $filename) --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
-            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
+            timeout $maxtime ./$lddmc models/promela/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
         done
     done
 fi
