@@ -14,6 +14,8 @@ label_folder_temp = 'plots/{}/labeled/' # for plots with labels for all data-poi
 plots_folder = ''
 label_folder = ''
 
+maxtime = 600 # time in seconds
+
 datamap = {} # map from ('dataset','type') -> dataframe
 matrix_folders = {  ('beem','vn-bdd') : 'models/beem/matrices/bdds/vanilla/', 
                     ('beem','sl-bdd') : 'models/beem/matrices/bdds/sloan/',
@@ -32,6 +34,7 @@ datasetnames = ['beem', 'ptri', 'prom']  # ['beem, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
 markers = {'beem': 's', 'ptri' : '^', 'prom' : 'x'}
 marker_size = {'beem': 8, 'ptri': 10, 'prom': 15}
+marker_colors = {'beem' : 'tab:blue', 'ptri' : 'tab:orange', 'prom' : 'tab:green'}
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4,
@@ -542,6 +545,7 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
 
     max_val = 0
     min_val = 1e9
+    colors = ['tab:blue', 'tab:orange', 'tab:green']
     for ds_name in datasetnames:
         # get the relevant data
         x1_data = datamap[(ds_name, x1_data_label)]
@@ -558,16 +562,11 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
         # inner join x and y
         group_y1 = group_y1.set_index('benchmark')
         group_y2 = group_y2.set_index('benchmark')
-        joined1 = group_x1.join(group_y1, on='benchmark', how='inner', 
+        joined1 = group_x1.join(group_y1, on='benchmark', how='outer', 
                                     lsuffix='_x', rsuffix='_y')
-        joined2 = group_x2.join(group_y2, on='benchmark', how='inner', 
+        joined2 = group_x2.join(group_y2, on='benchmark', how='outer', 
                                     lsuffix='_x', rsuffix='_y')
         
-        # some styling
-        s = marker_size[ds_name]
-        m = markers[ds_name]
-        l = legend_names[ds_name]
-
         # get X's and Y's to plot
         x1s = joined1['reach_time_x'].to_numpy()
         y1s = joined1['reach_time_y'].to_numpy()
@@ -579,9 +578,27 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
             x2s += joined2['merge_time_x'].to_numpy()
             y2s += joined2['merge_time_y'].to_numpy()
         
+        # some styling
+        s = marker_size[ds_name]
+        m = markers[ds_name]
+        l = legend_names[ds_name]
+        ec = marker_colors[ds_name]
+        fc1 = np.array([marker_colors[ds_name]]*len(x1s))
+        fc2 = np.array([marker_colors[ds_name]]*len(x2s))
+        fc1[np.isnan(x1s)] = 'none'
+        fc1[np.isnan(y1s)] = 'none'
+        fc2[np.isnan(x2s)] = 'none'
+        fc2[np.isnan(y2s)] = 'none'
+
+        factor = 1 # factor for vizualization
+        x1s[np.isnan(x1s)] = maxtime*factor
+        y1s[np.isnan(y1s)] = maxtime*factor
+        x2s[np.isnan(x2s)] = maxtime*factor
+        y2s[np.isnan(y2s)] = maxtime*factor
+        
         # plot reachability time of x1 vs y and x2 vs y
-        axs[0].scatter(x1s, y1s, s=s, marker=m, label=l)
-        axs[1].scatter(x2s, y2s, s=s, marker=m, label=l)
+        axs[0].scatter(x1s, y1s, s=s, marker=m, facecolors=fc1, edgecolors=ec, label=l)
+        axs[1].scatter(x2s, y2s, s=s, marker=m, facecolors=fc2, edgecolors=ec, label=l)
         
         # max and min for diagonal lines
         max_val = max(max_val, np.max(x1s), np.max(y1s), np.max(x2s), np.max(y2s))
