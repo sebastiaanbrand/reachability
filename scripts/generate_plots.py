@@ -104,6 +104,9 @@ def load_data(data_folder, expected=0):
     try_load_data(('prom','vn-ldd'), data_folder + 'promela_vanilla_stats_ldd.csv')
     try_load_data(('prom','sl-ldd'), data_folder + 'promela_sloan_stats_ldd.csv')
 
+    # Deadlocks
+    try_load_data(('ptri-dl', 'sl-bdd'), data_folder + 'petrinets_sloan_stats_bdd_deadlocks.csv')
+
     return ( len(datamap.keys()) >= expected )
 
 def pre_process():
@@ -139,7 +142,7 @@ def load_its_data(its_type):
     its_data.columns = its_data.columns.str.strip()
     its_data = its_data.astype({"benchmark" : str, "type" : str,
                                 "reach_time" : float, "memory_kb" : float, 
-                                "final_states" : float})
+                                "deadlocks" : int})
     its_data['type'] = its_data['type'].str.strip()
 
     return its_data
@@ -915,7 +918,7 @@ def plot_merge_overhead(data_label):
 
 def plot_its_vs_dd(dd_type, dd_strat, its_type):
     data_its = load_its_data(its_type)
-    data_dd = datamap[('ptri', dd_type)]
+    data_dd = datamap[('ptri-dl', dd_type)]
 
     data_dd['benchmark'] = data_dd['benchmark'].str.replace('.ldd', '', regex=False)
     data_dd['benchmark'] = data_dd['benchmark'].str.replace('.bdd', '', regex=False)
@@ -927,26 +930,55 @@ def plot_its_vs_dd(dd_type, dd_strat, its_type):
 
     # inner join
     data_its = data_its.set_index('benchmark')
-    joined = data_dd.join(data_its, on='benchmark', how='inner',
+    joined = data_dd.join(data_its, on='benchmark', how='outer',
                             lsuffix='_dd', rsuffix='_its')
     
-    neq_states = joined['final_states_dd'] != joined['final_states_its']
-    if (sum(neq_states) > 0):
-        print("WARNING: ITS-tools and Sylvan disagree on # states for:")
-        issue_cases = joined.loc[neq_states]
-        print(issue_cases)
+    if ('final_states_its' in joined):
+        neq_states = joined['final_states_dd'] != joined['final_states_its']
+        if (sum(neq_states) > 0):
+            print("WARNING: ITS-tools and Sylvan disagree on # states for:")
+            issue_cases = joined.loc[neq_states]
+            print(issue_cases)
+    
+    # split into deadlocks and no deadlocks
+    joined_deadlocks = joined.loc[joined['deadlocks_its'] == 1]
+    joined_no_deadlocks = joined.loc[joined['deadlocks_its'] == 0]
+    x_key = 'reach_time_its'
+    y_key = 'total_time'
+    xs = joined[x_key].to_numpy()
+    ys = joined[y_key].to_numpy()
+    xsDL = joined_deadlocks[x_key].to_numpy()
+    ysDL = joined_deadlocks[y_key].to_numpy()
+    xsNDL = joined_no_deadlocks[x_key].to_numpy()
+    ysNDL = joined_no_deadlocks[y_key].to_numpy()
 
+    # some styling
     scaling = 4.8 # default = ~6.0
     fig, ax = plt.subplots(1, 1, figsize=(scaling, scaling*0.75))
-    c = 'tab:orange'
+    c = marker_colors['ptri']
     s = marker_size['ptri']
     m = markers['ptri']
     l = legend_names['ptri']
+    ecDL  = 'tab:blue'
+    ecNDL = 'tab:orange'
+    fcDL  = np.array([ecDL]*len(xsDL))
+    fcNDL = np.array([ecNDL]*len(xsNDL))
+    fcDL[np.isnan(xsDL)] = 'none'
+    fcDL[np.isnan(ysDL)] = 'none'
+    fcNDL[np.isnan(xsNDL)] = 'none'
+    fcNDL[np.isnan(ysNDL)] = 'none'
+
+    factor = 1 # factor for vizualization
+    xs[np.isnan(xs)] = maxtime*factor
+    ys[np.isnan(ys)] = maxtime*factor
+    xsDL[np.isnan(xsDL)] = maxtime*factor
+    ysDL[np.isnan(ysDL)] = maxtime*factor
+    xsNDL[np.isnan(xsNDL)] = maxtime*factor
+    ysNDL[np.isnan(ysNDL)] = maxtime*factor
 
     # scatter plot
-    xs = joined['reach_time_its'].to_numpy()
-    ys = joined['reach_time_dd'].to_numpy()
-    ax.scatter(xs, ys, c=c, s=s, marker=m, label=l)
+    ax.scatter(xsDL, ysDL, s=s, marker=m, facecolors=fcDL, edgecolors=ecDL, label="PTs with deadlocks")
+    ax.scatter(xsNDL, ysNDL, s=s, marker=m, facecolors=fcNDL, edgecolors=ecNDL, label="PTs without deadlocks")
     all_names = joined['benchmark']
 
     # diagonal lines
@@ -959,7 +991,7 @@ def plot_its_vs_dd(dd_type, dd_strat, its_type):
     # lables and formatting
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_ylabel("{}".format(axis_label[(dd_strat,dd_type[-3:])]))
+    ax.set_ylabel("{} + compute deadlocks".format(axis_label[(dd_strat,dd_type[-3:])]))
     ax.set_xlabel("ITS-tools")
     ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
     ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
@@ -1030,7 +1062,7 @@ def plot_paper_plot_its_tools_vs_dds(subfolder):
     #plot_its_vs_dd('sl-ldd', 'rec', '.img.gal')
     #plot_its_vs_dd('sl-bdd', 'rec', '.gal')
     #plot_its_vs_dd('sl-bdd', 'rec', '.img.gal')
-    plot_its_vs_dd('sl-ldd', 'rec', 'RD')
+    #plot_its_vs_dd('sl-ldd', 'rec', 'RD')
     plot_its_vs_dd('sl-bdd', 'rec', 'RD')
 
 
@@ -1041,13 +1073,13 @@ def plot_paper_plots(subfolder, add_merge_time):
         pre_process()
         assert_states_nodes()
         # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-        plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
+        #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
         # Plot locality metric correlation (Figure 10) (on same data)
         #plot_paper_plot_locality(subfolder, add_merge_time=False)
 
         # Plot relative merge time overhead (New Figure)
-        plot_paper_plot_merge_overhead(subfolder)
+        #plot_paper_plot_merge_overhead(subfolder)
 
         # Plot ITStools vs DDs
         plot_paper_plot_its_tools_vs_dds(subfolder)
