@@ -747,13 +747,11 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric, add_merge_time=False):
     plt.close(fig)
 
 
-def plot_parallel(strat1, strat2, strat3, data_label, min_time):
+def plot_parallel(strat1, strat2, strat3, data_label, min_time, plot_legend=True):
     info("plotting parallel speedups {}, {}, {} on {} (mintime = {}s)".format(
         strat1, strat2, strat3, data_label, min_time))
     
-    scaling = 5.0 # default = ~6.0
-    fig, ax = plt.subplots(figsize=(scaling*0.85, scaling*0.75)) # *0.70
-    point_size = 8.0
+    
 
     all_xs = []
     all_ys = []
@@ -766,6 +764,14 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
         speedups1[workers] = []
         speedups2[workers] = []
         speedups3[workers] = []
+    
+    scaling = 5.0 # default = ~6.0
+    width = 1
+    if (plot_legend == False):
+        width = 1.25
+        scaling = 4.0
+    fig, ax = plt.subplots(figsize=(scaling*0.85, scaling*0.75*width)) # *0.70
+    point_size = 8.0
 
     for ds_name in datasetnames:
         if (not (ds_name, data_label) in datamap):
@@ -833,9 +839,10 @@ def plot_parallel(strat1, strat2, strat3, data_label, min_time):
     ax.set_xlabel('number of cores')
     ax.set_ylabel('speedup')
     ax.tick_params(axis='x', which='both',length=0)
-    ax.legend([bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]], 
-              ['Parallel saturation', 'ReachBDD', 'ReachBDD-par'],
-              loc='upper left', framealpha=1.0)
+    if (plot_legend):
+        ax.legend([bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]], 
+                ['Parallel saturation', 'ReachBDD', 'ReachBDD-par'],
+                loc='upper left', framealpha=1.0)
     plt.tight_layout()
 
      # plots without data-point lables
@@ -1132,12 +1139,12 @@ def plot_paper_plot_locality(subfolder, add_merge_time):
     plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw', add_merge_time)
 
 
-def plot_paper_plot_parallel(subfolder):
+def plot_paper_plot_parallel(subfolder, plot_legend=True):
     set_subfolder_name(subfolder + '/Parallel speedups (Figure 11)')
     if subfolder == 'subset':
-        plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0)
+        plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0, plot_legend)
     else:
-        plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1)
+        plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1, plot_legend)
 
 def plot_paper_plot_merge_overhead(subfolder):
     set_subfolder_name(subfolder + '/Merge overhead (New Figure)')
@@ -1155,6 +1162,7 @@ def plot_paper_plot_its_tools_vs_dds(subfolder):
 
 def plot_paper_plots(subfolder, add_merge_time):   
     # Plot Fig 9, Fig 10, New Fig
+    """
     data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/'
     if(load_data(data_folder, expected=6)):
         pre_process()
@@ -1172,14 +1180,15 @@ def plot_paper_plots(subfolder, add_merge_time):
         plot_paper_plot_its_tools_vs_dds(subfolder)
     else:
         print('no complete data found in ' + data_folder)
-
     """
+
+    
     # Plot parallel (Figure 11)
     data_folder = 'bench_data/' + subfolder + '/par_8/'
     if(load_data(data_folder, expected=3)):
         pre_process()
         assert_states_nodes()
-        plot_paper_plot_parallel(subfolder)
+        plot_paper_plot_parallel(subfolder, plot_legend=False)
     else:
         print('no complete data found in ' + data_folder)
     
@@ -1191,7 +1200,6 @@ def plot_paper_plots(subfolder, add_merge_time):
         plot_paper_plot_parallel(subfolder)
     else:
         print('no complete data found in ' + data_folder)
-    """
 
 
 if __name__ == '__main__':
