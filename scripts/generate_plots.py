@@ -191,6 +191,8 @@ def round_sig(x, sig):
     return np.round(x, sig-int(np.floor(np.log10(np.abs(x))))-1)
 
 def compare_counts_its_reach(data_label, dd_type):
+    # this removes all entries from the (data_label, dd_type) df which 
+    # disagree with  the state counts from its-reach
     data_its = load_its_data('not RD')
     data_dd = datamap[(data_label, dd_type)]
 
@@ -214,7 +216,11 @@ def compare_counts_its_reach(data_label, dd_type):
     disagree_bench = disagree_bench.loc[np.logical_not(np.isnan(disagree_bench['final_states_dd']))]
     print("ITS disagrees with ({}, {}) on:".format(data_label, dd_type))
     print(disagree_bench)
-    return disagree_bench
+
+    print("removing these from ({}, {}) data\n".format(data_label, dd_type))
+    new_df = data_dd.loc[~data_dd['benchmark'].isin(disagree_bench['benchmark'])]
+    datamap[(data_label, dd_type)] = new_df
+
 
 def load_matrix(filepath):
     #info("reading {}".format(filepath))
@@ -1172,7 +1178,12 @@ def set_subfolder_name(subfolder_name):
 
 def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
     set_subfolder_name(subfolder + '/Saturation vs REACH (Figure 9)')
+
+    # this removes all entries from the ('ptri','sl-ldd-static') df which 
+    # disagree with  the state counts from its-reach
     compare_counts_its_reach('ptri', 'sl-ldd-static')
+
+
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
