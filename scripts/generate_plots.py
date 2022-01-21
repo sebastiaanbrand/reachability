@@ -105,8 +105,8 @@ def load_data(data_folder, expected=0):
     try_load_data(('prom','sl-ldd'), data_folder + 'promela_sloan_stats_ldd.csv')
 
     # Static BDDs / LDDs
-    try_load_data(('ptri', 'sl-bdd-static'), data_folder + 'petrinets_sloan_stats_bdd_static.csv')
-    try_load_data(('ptri', 'sl-ldd-static'), data_folder + 'petrinets_sloan_stats_ldd_static.csv')
+    try_load_data(('ptri', 'sl-bdd-static'), data_folder + 'petrinets_sloan_stats_bdd_static_9.csv')
+    try_load_data(('ptri', 'sl-ldd-static'), data_folder + 'petrinets_sloan_stats_ldd_static_6.csv')
 
     # Deadlocks
     try_load_data(('ptri-dl', 'sl-bdd'), data_folder + 'petrinets_sloan_stats_bdd_deadlocks.csv')
@@ -145,7 +145,8 @@ def load_its_data(its_type):
     # some pre-processing
     its_data.columns = its_data.columns.str.strip()
     its_data = its_data.astype({"benchmark" : str, "type" : str,
-                                "reach_time" : float})
+                                "reach_time" : float,
+                                "final_states" : float})
     its_data['type'] = its_data['type'].str.strip()
 
     return its_data
@@ -184,6 +185,36 @@ def assert_states_nodes():
                                                        total_wrong_states,
                                                        len(df.index)))
 
+def round_sig(x, sig):
+    if(np.isnan(x) or np.isinf(x) or np.isneginf(x)):
+        return x
+    return np.round(x, sig-int(np.floor(np.log10(np.abs(x))))-1)
+
+def compare_counts_its_reach(data_label, dd_type):
+    data_its = load_its_data('not RD')
+    data_dd = datamap[(data_label, dd_type)]
+
+    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.ldd', '', regex=False)
+    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.bdd', '', regex=False)
+
+    # inner join
+    data_its = data_its.set_index('benchmark')
+    joined = data_dd.join(data_its, on='benchmark', how='outer', lsuffix='_dd', rsuffix='_its')
+
+    final_states_dd = joined['final_states_dd'].to_numpy()
+    final_states_its = joined['final_states_its'].to_numpy()
+    for i in range(len(joined)):
+        final_states_dd[i] = round_sig(final_states_dd[i], sig=6)
+        final_states_its[i] = round_sig(final_states_its[i], sig=6)
+
+    disagree = final_states_dd != final_states_its
+
+    disagree_bench = joined.loc[disagree]
+    disagree_bench = disagree_bench.loc[np.logical_not(np.isnan(disagree_bench['final_states_its']))]
+    disagree_bench = disagree_bench.loc[np.logical_not(np.isnan(disagree_bench['final_states_dd']))]
+    print("ITS disagrees with ({}, {}) on:".format(data_label, dd_type))
+    print(disagree_bench)
+    return disagree_bench
 
 def load_matrix(filepath):
     #info("reading {}".format(filepath))
@@ -1141,6 +1172,7 @@ def set_subfolder_name(subfolder_name):
 
 def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
     set_subfolder_name(subfolder + '/Saturation vs REACH (Figure 9)')
+    compare_counts_its_reach('ptri', 'sl-ldd-static')
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
@@ -1149,12 +1181,12 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
                         'sat', 'sl-ldd', 'rec', 'sl-ldd-static', 
                         'Saturation (on pnml2lts-sym DDs) time (s)', 
                         'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
-                        add_merge_time=add_merge_time)
+                        add_merge_time=False)
     plot_comparison_sbs('rec', 'sl-bdd', 'rec', 'sl-bdd-static', 
                         'rec', 'sl-ldd', 'rec', 'sl-ldd-static', 
                         'ReachBDD/MDD (on pnml2lts-sym DDs) time (s)', 
                         'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
-                        add_merge_time=add_merge_time)
+                        add_merge_time=False)
 
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
