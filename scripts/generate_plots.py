@@ -104,6 +104,10 @@ def load_data(data_folder, expected=0):
     try_load_data(('prom','vn-ldd'), data_folder + 'promela_vanilla_stats_ldd.csv')
     try_load_data(('prom','sl-ldd'), data_folder + 'promela_sloan_stats_ldd.csv')
 
+    # Static BDDs / LDDs
+    try_load_data(('ptri', 'sl-bdd-static'), data_folder + 'petrinets_sloan_stats_bdd_static.csv')
+    try_load_data(('ptri', 'sl-ldd-static'), data_folder + 'petrinets_sloan_stats_ldd_static.csv')
+
     # Deadlocks
     try_load_data(('ptri-dl', 'sl-bdd'), data_folder + 'petrinets_sloan_stats_bdd_deadlocks.csv')
 
@@ -150,19 +154,22 @@ def load_its_data(its_type):
 def assert_states_nodes():
     print("checking the state- and nodecounts")
     n_states = {} # dict : benchmark -> number of final states
-    for df in datamap.values():
+    for df_key, df in datamap.items():
         n_nodes  = {} # dict : benchmark -> number of final nodes
+        total_wrong_states = 0
         for _, row in df.iterrows():
             # check final_states
             if (row['benchmark'] not in n_states):
                 n_states[row['benchmark']] = row['final_states']
             else:
                 if (n_states[row['benchmark']] != row['final_states']):
-                    print("final_states not equal for {} ({} != {})".format(
+                    print("final_states not equal for {}: {} != {} ({})".format(
                           row['benchmark'],
                           n_states[row['benchmark']],
-                          row['final_states']
+                          row['final_states'],
+                          df_key
                     ))
+                    total_wrong_states += 1
             # check final nodes
             if (row['benchmark'] not in n_nodes):
                 n_nodes[row['benchmark']] = row['final_nodecount']
@@ -173,6 +180,9 @@ def assert_states_nodes():
                           n_nodes[row['benchmark']],
                           row['final_nodecount']
                     ))
+        print("wrong statecount for {} = {}/{}".format(df_key, 
+                                                       total_wrong_states,
+                                                       len(df.index)))
 
 
 def load_matrix(filepath):
@@ -550,10 +560,14 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
     colors = ['tab:blue', 'tab:orange', 'tab:green']
     for ds_name in datasetnames:
         # get the relevant data
-        x1_data = datamap[(ds_name, x1_data_label)]
-        y1_data = datamap[(ds_name, y1_data_label)]
-        x2_data = datamap[(ds_name, x2_data_label)]
-        y2_data = datamap[(ds_name, y2_data_label)]
+        try:
+            x1_data = datamap[(ds_name, x1_data_label)]
+            y1_data = datamap[(ds_name, y1_data_label)]
+            x2_data = datamap[(ds_name, x2_data_label)]
+            y2_data = datamap[(ds_name, y2_data_label)]
+        except:
+            print("Could not find complete data for dataset '{}', skipping...".format(ds_name))
+            continue
 
         # select subsets of x and y data
         group_x1 = x1_data.loc[x1_data['strategy'] == stratIDs[x1_strat]]
@@ -1131,6 +1145,16 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
                         'sat', 'sl-ldd', 'rec', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
                         add_merge_time=add_merge_time)
+    plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd-static', 
+                        'sat', 'sl-ldd', 'rec', 'sl-ldd-static', 
+                        'Saturation (on pnml2lts-sym DDs) time (s)', 
+                        'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
+                        add_merge_time=add_merge_time)
+    plot_comparison_sbs('rec', 'sl-bdd', 'rec', 'sl-bdd-static', 
+                        'rec', 'sl-ldd', 'rec', 'sl-ldd-static', 
+                        'ReachBDD/MDD (on pnml2lts-sym DDs) time (s)', 
+                        'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
+                        add_merge_time=add_merge_time)
 
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
@@ -1162,13 +1186,12 @@ def plot_paper_plot_its_tools_vs_dds(subfolder):
 
 def plot_paper_plots(subfolder, add_merge_time):   
     # Plot Fig 9, Fig 10, New Fig
-    """
     data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/'
     if(load_data(data_folder, expected=6)):
         pre_process()
         assert_states_nodes()
         # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-        #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
+        plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
         # Plot locality metric correlation (Figure 10) (on same data)
         #plot_paper_plot_locality(subfolder, add_merge_time=False)
@@ -1177,13 +1200,13 @@ def plot_paper_plots(subfolder, add_merge_time):
         #plot_paper_plot_merge_overhead(subfolder)
 
         # Plot ITStools vs DDs
-        plot_paper_plot_its_tools_vs_dds(subfolder)
+        #plot_paper_plot_its_tools_vs_dds(subfolder)
     else:
         print('no complete data found in ' + data_folder)
-    """
 
     
     # Plot parallel (Figure 11)
+    """
     data_folder = 'bench_data/' + subfolder + '/par_8/'
     if(load_data(data_folder, expected=3)):
         pre_process()
@@ -1200,6 +1223,7 @@ def plot_paper_plots(subfolder, add_merge_time):
         plot_paper_plot_parallel(subfolder)
     else:
         print('no complete data found in ' + data_folder)
+    """
 
 
 if __name__ == '__main__':
