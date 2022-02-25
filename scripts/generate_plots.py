@@ -612,6 +612,13 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
         group_x2 = x2_data.loc[x2_data['strategy'] == stratIDs[x2_strat]]
         group_y2 = y2_data.loc[y2_data['strategy'] == stratIDs[y2_strat]]
 
+        # remove '.ldd' / '.bdd' (TODO: do this in pre-processing)
+        group_x1['benchmark'] = group_x1['benchmark'].str.replace('.ldd', '', regex=False)
+        group_y1['benchmark'] = group_y1['benchmark'].str.replace('.ldd', '', regex=False)
+        group_x2['benchmark'] = group_x2['benchmark'].str.replace('.ldd', '', regex=False)
+        group_y2['benchmark'] = group_y2['benchmark'].str.replace('.ldd', '', regex=False)
+        
+
         # inner join x and y
         group_y1 = group_y1.set_index('benchmark')
         group_y2 = group_y2.set_index('benchmark')
@@ -620,6 +627,8 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
         joined2 = group_x2.join(group_y2, on='benchmark', how='outer', 
                                     lsuffix='_x', rsuffix='_y')
         
+        pd.set_option('display.max_rows', 500)
+        print(joined2)
         # get X's and Y's to plot
         x1s = joined1['reach_time_x'].to_numpy()
         y1s = joined1['reach_time_y'].to_numpy()
@@ -1183,7 +1192,7 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
     # disagree with  the state counts from its-reach
     compare_counts_its_reach('ptri', 'sl-ldd-static')
 
-
+    """
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
@@ -1193,6 +1202,7 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
                         'Saturation (on pnml2lts-sym DDs) time (s)', 
                         'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
                         add_merge_time=False)
+    """
     plot_comparison_sbs('rec', 'sl-bdd', 'rec', 'sl-bdd-static', 
                         'rec', 'sl-ldd', 'rec', 'sl-ldd-static', 
                         'ReachBDD/MDD (on pnml2lts-sym DDs) time (s)', 
