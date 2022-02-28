@@ -1096,6 +1096,10 @@ main(int argc, char **argv)
         Abort("Invalid strategy set?!\n");
     }
 
+    if (merge_relations) {
+        INFO("Merge time: %f\n", stats.merge_rel_time);
+    }
+
 #ifdef HAVE_PROFILER
     if (profile_filename != NULL) ProfilerStop();
 #endif
