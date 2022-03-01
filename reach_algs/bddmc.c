@@ -843,6 +843,7 @@ VOID_TASK_1(bfs_plain, set_t, set)
 /**
  * Implementation of recursive reachability algorithm for a single global
  * relation.
+ * (Quite slow, maybe there are things which can be better optimized)
  */
 TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 {
@@ -940,7 +941,7 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 
 /**
  * Implementation of recursive reachability algorithm for a partial relation
- * over given vars. (WIP)
+ * over given vars.
  */
 TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
 {
@@ -1007,7 +1008,7 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
         partition_state(s, level, &s0, &s1);
 
         bdd_refs_pushptr(&s0);
-        bdd_refs_pushptr(&s0);
+        bdd_refs_pushptr(&s1);
         bdd_refs_pushptr(&r00);
         bdd_refs_pushptr(&r01);
         bdd_refs_pushptr(&r10);
@@ -1023,15 +1024,15 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
             prev1 = s1;
 
             /* Do in parallel */
-            bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars));
+            bdd_refs_spawn(SPAWN(go_rec_partial, s0, r00, next_vars));
             bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
             bdd_refs_spawn(SPAWN(sylvan_relnext, s1, r10, next_vars, 0));
-            bdd_refs_spawn(SPAWN(go_rec, s1, r11, next_vars));
+            bdd_refs_spawn(SPAWN(go_rec_partial, s1, r11, next_vars));
 
-            BDD t11 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t11);
+            BDD t11 = bdd_refs_sync(SYNC(go_rec_partial));  bdd_refs_push(t11);
             BDD t10 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t10);
             BDD t01 = bdd_refs_sync(SYNC(sylvan_relnext));  bdd_refs_push(t01);
-            BDD t00 = bdd_refs_sync(SYNC(go_rec));          bdd_refs_push(t00);
+            BDD t00 = bdd_refs_sync(SYNC(go_rec_partial));  bdd_refs_push(t00);
 
             /* Union with previously reachable set */
             s0 = sylvan_or(s0, t00);
@@ -1066,24 +1067,24 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
         if (r0 != r1) {
             if (s0 == s1) {
                 /* Quantify "r" variables */
-                bdd_refs_spawn(SPAWN(go_rec, s0, r0, vars));
-                bdd_refs_spawn(SPAWN(go_rec, s1, r1, vars));
+                bdd_refs_spawn(SPAWN(go_rec_partial, s0, r0, vars));
+                bdd_refs_spawn(SPAWN(go_rec_partial, s1, r1, vars));
 
-                BDD res1 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res1);
-                BDD res0 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res0);
+                BDD res1 = bdd_refs_sync(SYNC(go_rec_partial)); bdd_refs_push(res1);
+                BDD res0 = bdd_refs_sync(SYNC(go_rec_partial)); bdd_refs_push(res0);
                 res = sylvan_or(res0, res1);
                 bdd_refs_pop(2);
             } else {
                 /* Quantify "r" variables, but keep "a" variables */
-                bdd_refs_spawn(SPAWN(go_rec, s0, r0, vars));
-                bdd_refs_spawn(SPAWN(go_rec, s0, r1, vars));
-                bdd_refs_spawn(SPAWN(go_rec, s1, r0, vars));
-                bdd_refs_spawn(SPAWN(go_rec, s1, r1, vars));
+                bdd_refs_spawn(SPAWN(go_rec_partial, s0, r0, vars));
+                bdd_refs_spawn(SPAWN(go_rec_partial, s0, r1, vars));
+                bdd_refs_spawn(SPAWN(go_rec_partial, s1, r0, vars));
+                bdd_refs_spawn(SPAWN(go_rec_partial, s1, r1, vars));
 
-                BDD res11 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res11);
-                BDD res10 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res10);
-                BDD res01 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res01);
-                BDD res00 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res00);
+                BDD res11 = bdd_refs_sync(SYNC(go_rec_partial)); bdd_refs_push(res11);
+                BDD res10 = bdd_refs_sync(SYNC(go_rec_partial)); bdd_refs_push(res10);
+                BDD res01 = bdd_refs_sync(SYNC(go_rec_partial)); bdd_refs_push(res01);
+                BDD res00 = bdd_refs_sync(SYNC(go_rec_partial)); bdd_refs_push(res00);
 
                 bdd_refs_spawn(SPAWN(sylvan_ite, res00, sylvan_true, res01, 0));
                 bdd_refs_spawn(SPAWN(sylvan_ite, res10, sylvan_true, res11, 0));
@@ -1096,11 +1097,11 @@ TASK_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
             }
         } else { // r0 == r1
             /* Keep "s" variables */
-            bdd_refs_spawn(SPAWN(go_rec, s0, r0, vars));
-            bdd_refs_spawn(SPAWN(go_rec, s1, r1, vars));
+            bdd_refs_spawn(SPAWN(go_rec_partial, s0, r0, vars));
+            bdd_refs_spawn(SPAWN(go_rec_partial, s1, r1, vars));
 
-            BDD res1 = bdd_refs_sync(SYNC(go_rec)); bdd_refs_push(res1);
-            BDD res0 = bdd_refs_sync(SYNC(go_rec));
+            BDD res1 = bdd_refs_sync(SYNC(go_rec_partial)); bdd_refs_push(res1);
+            BDD res0 = bdd_refs_sync(SYNC(go_rec_partial));
             bdd_refs_pop(1);
             res = sylvan_makenode(level, res0, res1);
         }
