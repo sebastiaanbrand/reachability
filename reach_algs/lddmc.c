@@ -12,6 +12,7 @@
 #endif
 
 #include "sylvan_int.h"
+#include "ldd_custom.h"
 
 #include "getrss.h"
 #include "cache_op_ids.h"
@@ -797,11 +798,11 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
     while (_set != prev) {
         prev = _set;
 
-        // Iterate over over all reads (i) of 'rel'
+        // Iterate over all reads (i) of 'rel'
         for (itr_r = rel;  itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
 
             uint32_t i = lddmc_getvalue(itr_r);
-            set_i  = lddmc_follow(_set, i);
+            set_i = lddmc_follow(_set, i);
 
             // Iterate over all writes (j) corresponding to reading 'i'
             for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
@@ -813,15 +814,18 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                     set_i = CALL(go_rec, set_i, rel_ij, next_meta);
                 }
                 else {
-                    MDD succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
+                    // TODO: USE CALL instead of RUN?
+                    // TODO: make it optional to use Tom's image (relprod) or
+                    // the custom one
+                    MDD succ_j = lddmc_image(set_i, rel_ij, next_meta);
 
-                    // extend succ_j and add to 'set'
+                    // Extend succ_j and add to 'set'
                     MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
                     _set = lddmc_union(_set, set_j_ext);
                 } 
             }
 
-            // extend set_i and add to 'set'
+            // Extend set_i and add to 'set'
             MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
             _set = lddmc_union(_set, set_i_ext);
         }
