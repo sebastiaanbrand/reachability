@@ -24,7 +24,6 @@ static int report_nodes = 0; // report number of nodes of LDDs
 static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING, 4 = REC
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly
 static int merge_relations = 0; // merge relations to 1 relation
-static int custom_img = 0; // use a custom image function for REC
 static int print_transition_matrix = 0; // print transition relation matrix
 static int workers = 0; // autodetect
 static char* model_filename = NULL; // filename of model
@@ -99,7 +98,8 @@ parse_opt(int key, char *arg, struct argp_state *state)
         merge_relations = 1;
         break;
     case 9:
-        custom_img = 1;
+        if (strategy == strat_rec) strategy = strat_rec_custom_img;
+        else argp_usage(state);
         break;
     case 7:
         stats_filename = arg;
@@ -822,7 +822,7 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                 else {
                     // TODO: USE CALL instead of RUN?
                     MDD succ_j;
-                    if (custom_img)
+                    if (strategy == strat_rec_custom_img)
                         succ_j = lddmc_image(set_i, rel_ij, next_meta);
                     else
                         succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
@@ -1098,7 +1098,7 @@ main(int argc, char **argv)
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("CHAINING Time: %f\n", stats.reach_time);
-    } else if (strategy == strat_rec) {
+    } else if (strategy == strat_rec || strategy == strat_rec_custom_img) {
         double t1 = wctime();
         RUN(rec, states);
         double t2 = wctime();
