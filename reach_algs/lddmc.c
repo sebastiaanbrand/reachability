@@ -24,6 +24,7 @@ static int report_nodes = 0; // report number of nodes of LDDs
 static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING, 4 = REC
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly
 static int merge_relations = 0; // merge relations to 1 relation
+static int custom_img = 0; // use a custom image function for REC
 static int print_transition_matrix = 0; // print transition relation matrix
 static int workers = 0; // autodetect
 static char* model_filename = NULL; // filename of model
@@ -40,6 +41,7 @@ typedef enum strats {
     strat_sat,
     strat_chaining,
     strat_rec,
+    strat_rec_custom_img,
     num_strats
 } strategy_t;
 
@@ -56,6 +58,7 @@ static struct argp_option options[] =
     {"count-states", 1, 0, 0, "Report #states at each level", 1},
     {"count-table", 2, 0, 0, "Report table usage at each level", 1},
     {"merge-relations", 6, 0, 0, "Merge transition relations into one transition relation", 1},
+    {"custom-image", 9, 0, 0, "Use a custom image function for strategy 'rec'", 1},
     {"print-matrix", 4, 0, 0, "Print transition matrix", 1},
     {"write-matrix", 8, "FILENAME", 0, "Write transition matrix to given file", 0},
     {"statsfile", 7, "FILENAME", 0, "Write stats to given filename (or append if exists)", 0},
@@ -94,6 +97,9 @@ parse_opt(int key, char *arg, struct argp_state *state)
         break;
     case 6:
         merge_relations = 1;
+        break;
+    case 9:
+        custom_img = 1;
         break;
     case 7:
         stats_filename = arg;
@@ -815,9 +821,11 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                 }
                 else {
                     // TODO: USE CALL instead of RUN?
-                    // TODO: make it optional to use Tom's image (relprod) or
-                    // the custom one
-                    MDD succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                    MDD succ_j;
+                    if (custom_img)
+                        succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                    else
+                        succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
 
                     // Extend succ_j and add to 'set'
                     MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
