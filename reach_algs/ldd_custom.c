@@ -18,6 +18,32 @@ get_next_meta(MDD meta)
     return meta;
 }
 
+static int
+match_ldds(MDD *one, MDD *two)
+{
+    MDD m1 = *one, m2 = *two;
+    if (m1 == lddmc_false || m2 == lddmc_false) return 0;
+    mddnode_t n1 = LDD_GETNODE(m1), n2 = LDD_GETNODE(m2);
+    uint32_t v1 = mddnode_getvalue(n1), v2 = mddnode_getvalue(n2);
+    while (v1 != v2) {
+        if (v1 < v2) {
+            m1 = mddnode_getright(n1);
+            if (m1 == lddmc_false) return 0;
+            n1 = LDD_GETNODE(m1);
+            v1 = mddnode_getvalue(n1);
+        } else if (v1 > v2) {
+            m2 = mddnode_getright(n2);
+            if (m2 == lddmc_false) return 0;
+            n2 = LDD_GETNODE(m2);
+            v2 = mddnode_getvalue(n2);
+        }
+    }
+    *one = m1;
+    *two = m2;
+    return 1;
+}
+
+
 TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 {
     if (set == lddmc_false) return lddmc_false; // empty.R = empty
@@ -34,27 +60,25 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
     }
     assert(lddmc_getvalue(meta) == 1);
 
-    /* Consult cache */
-    // TODO: more normalization / preprocessing before caching?
-    // e.g. sync set and rel on their first common node?
-    // (look at Tom's lddmc_relprod)
-    int cachenow = 1;
-    if (cachenow) {
-        MDD res;
-        if (cache_get3(CACHE_LDD_IMAGE, set, rel, 0, &res)) return res;
+    /* Skip nodes if possible */
+    if (!mddnode_getcopy(LDD_GETNODE(rel))) {
+        if (!match_ldds(&set, &rel)) return lddmc_false;
     }
+
+    /* Consult cache */
+    MDD res = lddmc_false;
+    if (cache_get3(CACHE_LDD_IMAGE, set, rel, 0, &res)) return res;
 
     MDD next_meta = get_next_meta(meta);
     MDD itr_r  = lddmc_false;   lddmc_refs_pushptr(&itr_r);
     MDD itr_w  = lddmc_false;   lddmc_refs_pushptr(&itr_w);
     MDD rel_ij = lddmc_false;   lddmc_refs_pushptr(&rel_ij);
     MDD set_i  = lddmc_false;   lddmc_refs_pushptr(&set_i);
-    MDD succ   = lddmc_false;   lddmc_refs_pushptr(&succ);
+    lddmc_refs_pushptr(&res);
     
     // NOTE: Sylvan's lddmc_relprod, instead of this loop over children, simply
     // delegates this "iterating to the right" by using recursion. I find this
     // loop easier to think about, but maybe pure recursion is more efficient?
-    // (This is e.g. inefficient if R is really dense and S is quite sparse).
     // (Also by using pure recursion it is easier to parallelize this func)
 
     // Iterate over all reads (i) of 'rel'
@@ -74,15 +98,14 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
         
             // Extend succ_j and add to successors
             MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
-            succ = lddmc_union(succ, succ_j_ext);
+            res = lddmc_union(res, succ_j_ext);
         }
     }
 
     lddmc_refs_popptr(5);
 
-    /* TODO: Put in cache */
-    if (cachenow)
-        cache_put3(CACHE_LDD_IMAGE, set, rel, 0, succ);
+    /* Put in cache */
+    cache_put3(CACHE_LDD_IMAGE, set, rel, 0, res);
 
-    return succ;
+    return res;
 }
