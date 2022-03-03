@@ -38,13 +38,15 @@ marker_colors = {'beem' : 'tab:blue', 'ptri' : 'tab:orange', 'prom' : 'tab:green
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4,
+                'rec-custom-img' : 5,
                 'rec-par' : 14}
 axis_label = {('bfs','bdd') : 'BFS',
               ('sat','bdd') : 'Saturation',
               ('rec','bdd') : 'Algorithm 1',
               ('bfs','ldd') : 'BFS',
               ('sat','ldd') : 'Saturation',
-              ('rec','ldd') : 'Algorithm 3'}
+              ('rec','ldd') : 'Algorithm 3',
+              ('rec-custom-img', 'ldd') : 'Alg. 3 w/ custom img'}
 
 metric_labels={'var-avg-bw':'average relative bandwidth', 
                'var-max-bw':'maximum relative bandwidth',
@@ -1174,6 +1176,7 @@ def plot_its_vs_dd_deadlocks(dd_type, dd_strat, its_type):
     fig.savefig(fig_name, dpi=300)
     plt.close(fig)
 
+
 def set_subfolder_name(subfolder_name):
     global plots_folder, plots_folder_temp, label_folder, label_folder_temp
     plots_folder = plots_folder_temp.format(subfolder_name, '{}')
@@ -1183,6 +1186,16 @@ def set_subfolder_name(subfolder_name):
     for fig_format in fig_formats:
         Path(plots_folder.format(fig_format)).mkdir(parents=True, exist_ok=True)
     Path(label_folder).mkdir(parents=True, exist_ok=True)
+
+
+def plot_image_test_comparison():
+    data_folder = 'bench_data/all/custom_image_test/'
+    load_data(data_folder)
+    pre_process()
+    assert_states_nodes()
+
+    set_subfolder_name('all/Custom image test')
+    plot_comparison('rec', 'sl-ldd', 'rec-custom-img', 'sl-ldd')
 
 
 def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
@@ -1223,10 +1236,12 @@ def plot_paper_plot_parallel(subfolder, plot_legend=True):
     else:
         plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 1, plot_legend)
 
+
 def plot_paper_plot_merge_overhead(subfolder):
     set_subfolder_name(subfolder + '/Merge overhead (New Figure)')
     plot_merge_overhead('sl-bdd')
     plot_merge_overhead('sl-ldd')
+
 
 def plot_paper_plot_its_tools_vs_dds(subfolder):
     set_subfolder_name(subfolder + '/ITS-Tools vs DDs (New Figure)')
@@ -1280,6 +1295,7 @@ def plot_paper_plots(subfolder, add_merge_time):
 
 
 if __name__ == '__main__':
-    subfolder, add_merge_time = parse_args()
-    plot_paper_plots(subfolder, add_merge_time)
+    #subfolder, add_merge_time = parse_args()
+    #plot_paper_plots(subfolder, add_merge_time)
+    plot_image_test_comparison()
 
