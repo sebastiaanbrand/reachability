@@ -158,12 +158,13 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     if (cache_get3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, &res)) return res;
 
     uint32_t meta_val = lddmc_getvalue(meta);
+    assert(meta_val != 5); // shouldn't run into a 5
 
     /* Get right and down */
     MDD right, down;
     uint32_t value;
     if (rel == lddmc_false || rel == lddmc_true) {
-        right = rel;
+        right = lddmc_false;
         down  = rel;
     }
     else {
@@ -179,12 +180,13 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
         next_meta = meta;
     else
         next_meta = lddmc_getdown(meta);
-    
+
     /* Call function on children */
     assert(right != lddmc_true);
+    uint32_t next_nvars = (meta_val == 1) ? nvars : nvars-1;
     if (right != lddmc_false)
         right = CALL(lddmc_extend_rel, right, meta, nvars);
-    down = CALL(lddmc_extend_rel, down, next_meta, nvars-1);
+    down = CALL(lddmc_extend_rel, down, next_meta, next_nvars);
 
     // meta == 'read' : change nothing
     if (meta_val == 1) {
@@ -196,14 +198,13 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
         res = lddmc_makenode(value, down, right);
     }
     // meta == 'skipped variable' : change into two levels of *
-    else if (meta_val == 0) {
-        assert(lddmc_iscopy(rel));
+    else if (meta_val == 0 || meta_val == (uint32_t)-1) {
+        assert(lddmc_iscopy(rel) || rel == lddmc_true || rel == lddmc_false);
         assert(right == lddmc_false); // in rels, * nodes shouldn't have neighbors        
         down = lddmc_make_copynode(down, lddmc_false);
         res = lddmc_make_copynode(down, lddmc_false);
     }
     // TODO: handle meta_val == 3 and 4
-    // TODO: I think meta_val -1 and 5 can just be handled under meta_val == 0
 
      /* Put in cache */
     cache_put3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, res);
