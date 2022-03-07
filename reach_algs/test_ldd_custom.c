@@ -75,10 +75,15 @@ int runtests()
     // we are not testing garbage collection
     sylvan_gc_disable();
 
-    printf("Testing custom lddmc_image.\n");
+    printf("Testing custom lddmc_image w/o copy nodes...    ");
+    fflush(stdout);
     if (test_lddmc_image()) return 1;
-    printf("Testing custom lddmc_image with copy nodes.\n");
+    printf("OK\n");
+
+    printf("Testing custom lddmc_image with copy nodes...   ");
+    fflush(stdout);
     if (test_lddmc_image_copy_nodes()) return 1;
+    printf("OK\n");
 
     return 0;
 }

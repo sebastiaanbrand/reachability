@@ -100,45 +100,45 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
         }
 
         lddmc_refs_popptr(3);
+        rel = lddmc_getright(rel);
     }
-    else {
-        MDD itr_r  = lddmc_false;   lddmc_refs_pushptr(&itr_r);
-        MDD itr_w  = lddmc_false;   lddmc_refs_pushptr(&itr_w);
-        MDD rel_ij = lddmc_false;   lddmc_refs_pushptr(&rel_ij);
-        MDD set_i  = lddmc_false;   lddmc_refs_pushptr(&set_i);
-        lddmc_refs_pushptr(&res);
-    
-        // NOTE: Sylvan's lddmc_relprod, instead of this loop over children, 
-        // simply delegates this "iterating to the right" by using recursion. 
-        // I find this loop easier to think about, but maybe pure recursion is 
-        // more efficient?
-        // (Also by using pure recursion it is easier to parallelize this func)
 
-        // Iterate over all reads (i) of 'rel'
-        for (itr_r = rel; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+    MDD itr_r  = lddmc_false;   lddmc_refs_pushptr(&itr_r);
+    MDD itr_w  = lddmc_false;   lddmc_refs_pushptr(&itr_w);
+    MDD rel_ij = lddmc_false;   lddmc_refs_pushptr(&rel_ij);
+    MDD set_i  = lddmc_false;   lddmc_refs_pushptr(&set_i);
+    lddmc_refs_pushptr(&res);
 
-            uint32_t i = lddmc_getvalue(itr_r);
-            set_i = lddmc_follow(set, i); // NOTE: this is not efficient, since
-            // lddmc_follow needs to iterate 'set' from the beginning each time
-            // (need to iterate over set and reads of rel at the same time)
+    // NOTE: Sylvan's lddmc_relprod, instead of this loop over children, 
+    // simply delegates this "iterating to the right" by using recursion. 
+    // I find this loop easier to think about, but maybe pure recursion is 
+    // more efficient?
+    // (Also by using pure recursion it is easier to parallelize this func)
 
-            // Iterate over all writes (j) corresponding to this read
-            for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+    // Iterate over all reads (i) of 'rel'
+    for (itr_r = rel; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
 
-                uint32_t j = lddmc_getvalue(itr_w);
-                rel_ij = lddmc_getdown(itr_w); // equiv to following i then j
+        uint32_t i = lddmc_getvalue(itr_r);
+        set_i = lddmc_follow(set, i); // NOTE: this is not efficient, since
+        // lddmc_follow needs to iterate 'set' from the beginning each time
+        // (need to iterate over set and reads of rel at the same time)
 
-                // Compute successors T_j = S_i.R_ij
-                MDD succ_j = CALL(lddmc_image, set_i, rel_ij, next_meta);
-            
-                // Extend succ_j and add to successors
-                MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
-                res = lddmc_union(res, succ_j_ext);
-            }
+        // Iterate over all writes (j) corresponding to this read
+        for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+
+            uint32_t j = lddmc_getvalue(itr_w);
+            rel_ij = lddmc_getdown(itr_w); // equiv to following i then j
+
+            // Compute successors T_j = S_i.R_ij
+            MDD succ_j = CALL(lddmc_image, set_i, rel_ij, next_meta);
+        
+            // Extend succ_j and add to successors
+            MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+            res = lddmc_union(res, succ_j_ext);
         }
-
-        lddmc_refs_popptr(5);
     }
+
+    lddmc_refs_popptr(5);
 
     /* Put in cache */
     cache_put3(CACHE_LDD_IMAGE, set, rel, 0, res);
