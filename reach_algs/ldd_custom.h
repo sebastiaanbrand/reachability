@@ -13,3 +13,5 @@
 TASK_DECL_3(MDD, lddmc_image, MDD, MDD, MDD);
 #define lddmc_image(s, r, meta) RUN(lddmc_image, s, r, meta)
 
+TASK_DECL_3(MDD, lddmc_extend_rel, MDD, MDD, uint32_t);
+#define lddmc_extend_rel(rel, meta, nvars) RUN(lddmc_extend_rel,rel,meta,nvars)

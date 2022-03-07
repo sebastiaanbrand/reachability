@@ -3,6 +3,22 @@
 #include "sylvan_int.h"
 #include "ldd_custom.h"
 
+static MDD write_rel(MDD rel)
+{
+    FILE *fp;
+    fp = fopen("rel.dot", "w");
+    lddmc_fprintdot(fp, rel);
+    fclose(fp);
+}
+
+static MDD write_meta(MDD meta)
+{
+    FILE *fp;
+    fp = fopen("meta.dot", "w");
+    lddmc_fprintdot(fp, meta);
+    fclose(fp);
+}
+
 MDD stack_transition(int r, int w, MDD next)
 {
     MDD write = lddmc_makenode(w, next, lddmc_false);
@@ -70,7 +86,8 @@ int test_lddmc_image_copy_nodes1()
     return 0;
 }
 
-int test_lddmc_image_copy_nodes2() {
+int test_lddmc_image_copy_nodes2()
+{
     // Rel : ({* -> copy } v (5 -> 7))
     MDD r5_w7  = stack_transition(5, 7, lddmc_true);
     MDD w_copy = lddmc_make_copynode(lddmc_true, lddmc_false);
@@ -94,6 +111,52 @@ int test_lddmc_image_copy_nodes2() {
     test_assert(lddmc_satcount(t3) == 1); // {3}
     test_assert(lddmc_satcount(t5) == 2); // {5,7}
     test_assert(lddmc_satcount(t456) == 4); // {4,5,6,7}
+
+    return 0;
+}
+
+int test_lddmc_extend_rel1()
+{
+    // Meta = [1, 2, 1, 2], Rel = {<6,4> -> <7, 3>),(<6,6> -> <10,20>)}
+    MDD t1 = lddmc_true;
+    t1 = stack_transition(4, 3, t1);
+    t1 = stack_transition(6, 7, t1);
+    MDD t2 = lddmc_true;
+    t2 = stack_transition(6, 20, t2);
+    t2 = stack_transition(6, 10, t2);
+    MDD rel = lddmc_union(t1, t2);
+    MDD meta = make_read_write_meta(2);
+
+    test_assert(lddmc_satcount(t1) == 1);
+    test_assert(lddmc_satcount(t2) == 1);
+    test_assert(lddmc_satcount(rel) == 2);
+
+    // relation is already ['read', 'write'] for all variables,
+    // so nothing should change
+    MDD rel_ext = lddmc_extend_rel(rel, meta, 2);
+    test_assert(rel_ext == rel);
+
+    return 0;
+}
+
+int test_lddmc_extend_rel2()
+{
+    // Meta = [0, 1, 2], Rel = {forall i: (<i,4> -> <i,5>)}
+    MDD rel = stack_transition(4, 5, lddmc_true);
+    rel = lddmc_make_copynode(rel, lddmc_false);
+    MDD meta = make_read_write_meta(1);
+    meta = lddmc_makenode(0, meta, lddmc_false);
+
+    test_assert(lddmc_nodecount(rel) == 3);
+
+    // the skipped var (meta = 0) should be replaced with two levels:
+    // 'read','write' for 
+    MDD rel_ext = lddmc_extend_rel(rel, meta, 2);
+    test_assert(lddmc_nodecount(rel_ext) == 4);
+    test_assert(lddmc_iscopy(rel_ext));
+    test_assert(lddmc_iscopy(lddmc_getdown(rel_ext)));
+
+    return 0;
 }
 
 int runtests()
@@ -110,6 +173,12 @@ int runtests()
     fflush(stdout);
     if (test_lddmc_image_copy_nodes1()) return 1;
     if (test_lddmc_image_copy_nodes2()) return 1;
+    printf("OK\n");
+
+    printf("Testing extend LDD relations to full domain...  ");
+    fflush(stdout);
+    if (test_lddmc_extend_rel1()) return 1;
+    if (test_lddmc_extend_rel2()) return 1;
     printf("OK\n");
 
     return 0;

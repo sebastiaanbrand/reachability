@@ -13,5 +13,6 @@ static const uint64_t CACHE_BDD_REACH           = (300LL<<40);
 static const uint64_t CACHE_BDD_REACH_PARTIAL   = (301LL<<40);
 static const uint64_t CACHE_LDD_REACH           = (302LL<<40);
 static const uint64_t CACHE_LDD_IMAGE           = (303LL<<40);
+static const uint64_t CACHE_LDD_EXTEND_REL      = (304LL<<40);
 
 #endif

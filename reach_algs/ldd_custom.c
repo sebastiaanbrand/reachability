@@ -1,6 +1,7 @@
 #include "ldd_custom.h"
 #include "cache_op_ids.h"
 
+
 static MDD
 get_next_meta(MDD meta)
 {
@@ -17,6 +18,7 @@ get_next_meta(MDD meta)
 
     return meta;
 }
+
 
 static int
 match_ldds(MDD *one, MDD *two)
@@ -142,6 +144,69 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 
     /* Put in cache */
     cache_put3(CACHE_LDD_IMAGE, set, rel, 0, res);
+
+    return res;
+}
+
+
+TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
+{
+    if (nvars == 0) return rel;
+
+    /* Consult cache */
+    MDD res = lddmc_false;
+    if (cache_get3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, &res)) return res;
+
+    uint32_t meta_val = lddmc_getvalue(meta);
+
+    /* Get right and down */
+    MDD right, down;
+    uint32_t value;
+    if (rel == lddmc_false || rel == lddmc_true) {
+        right = rel;
+        down  = rel;
+    }
+    else {
+        mddnode_t node = LDD_GETNODE(rel);
+        right = mddnode_getright(node);
+        down  = mddnode_getdown(node);
+        value = mddnode_getvalue(node);
+    }
+
+    /* Get next meta (down unless we run into a -1 or 5) */
+    MDD next_meta;
+    if (meta_val == (uint32_t)-1 || meta_val == 5)
+        next_meta = meta;
+    else
+        next_meta = lddmc_getdown(meta);
+    
+    /* Call function on children */
+    assert(right != lddmc_true);
+    if (right != lddmc_false)
+        right = CALL(lddmc_extend_rel, right, meta, nvars);
+    down = CALL(lddmc_extend_rel, down, next_meta, nvars-1);
+
+    // meta == 'read' : change nothing
+    if (meta_val == 1) {
+        assert(lddmc_getvalue(next_meta) == 2);
+        res = lddmc_makenode(value, down, right);
+    }
+    // meta == 'write' : change nothing
+    else if (meta_val == 2) {
+        res = lddmc_makenode(value, down, right);
+    }
+    // meta == 'skipped variable' : change into two levels of *
+    else if (meta_val == 0) {
+        assert(lddmc_iscopy(rel));
+        assert(right == lddmc_false); // in rels, * nodes shouldn't have neighbors        
+        down = lddmc_make_copynode(down, lddmc_false);
+        res = lddmc_make_copynode(down, lddmc_false);
+    }
+    // TODO: handle meta_val == 3 and 4
+    // TODO: I think meta_val -1 and 5 can just be handled under meta_val == 0
+
+     /* Put in cache */
+    cache_put3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, res);
 
     return res;
 }
