@@ -43,7 +43,7 @@ int test_lddmc_image()
     return 0;
 }
 
-int test_lddmc_image_copy_nodes()
+int test_lddmc_image_copy_nodes1()
 {
     // Rel : ({forall i : (i -> i)})
     MDD rel = lddmc_true;
@@ -70,6 +70,32 @@ int test_lddmc_image_copy_nodes()
     return 0;
 }
 
+int test_lddmc_image_copy_nodes2() {
+    // Rel : ({* -> copy } v (5 -> 7))
+    MDD r5_w7  = stack_transition(5, 7, lddmc_true);
+    MDD w_copy = lddmc_make_copynode(lddmc_true, lddmc_false);
+    MDD rel = lddmc_make_copynode(w_copy, r5_w7);
+    MDD meta = make_read_write_meta(1);
+
+    // s3 = {3}, s5 = {5}, s456 = {4,5,6}
+    MDD s3 = lddmc_makenode(3, lddmc_true, lddmc_false);
+    MDD s5 = lddmc_makenode(5, lddmc_true, lddmc_false);
+    MDD s456 = lddmc_false;
+    s456 = lddmc_union(s456, lddmc_makenode(4, lddmc_true, lddmc_false));
+    s456 = lddmc_union(s456, lddmc_makenode(5, lddmc_true, lddmc_false));
+    s456 = lddmc_union(s456, lddmc_makenode(6, lddmc_true, lddmc_false));
+    test_assert(lddmc_satcount(s3) == 1);
+    test_assert(lddmc_satcount(s5) == 1);
+    test_assert(lddmc_satcount(s456) == 3);
+
+    MDD t3 = lddmc_image(s3, rel, meta);
+    MDD t5 = lddmc_image(s5, rel, meta);
+    MDD t456 = lddmc_image(s456, rel, meta);
+    test_assert(lddmc_satcount(t3) == 1); // {3}
+    test_assert(lddmc_satcount(t5) == 2); // {5,7}
+    test_assert(lddmc_satcount(t456) == 4); // {4,5,6,7}
+}
+
 int runtests()
 {
     // we are not testing garbage collection
@@ -82,7 +108,8 @@ int runtests()
 
     printf("Testing custom lddmc_image with copy nodes...   ");
     fflush(stdout);
-    if (test_lddmc_image_copy_nodes()) return 1;
+    if (test_lddmc_image_copy_nodes1()) return 1;
+    if (test_lddmc_image_copy_nodes2()) return 1;
     printf("OK\n");
 
     return 0;
