@@ -1,6 +1,7 @@
 
 #include "sylvan_int.h"
 
+MDD lddmc_make_readwrite_meta(uint32_t nvars);
 
 /**
  * Custom implementation of image computation for LDDs, which assumes the

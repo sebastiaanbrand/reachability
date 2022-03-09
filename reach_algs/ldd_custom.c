@@ -46,6 +46,17 @@ match_ldds(MDD *one, MDD *two)
 }
 
 
+MDD lddmc_make_readwrite_meta(uint32_t nvars)
+{
+    MDD meta = lddmc_true;
+    for (uint32_t i = 0; i < nvars; i++) {
+        meta = lddmc_makenode(2, meta, lddmc_false);
+        meta = lddmc_makenode(1, meta, lddmc_false);
+    }
+    return meta;
+}
+
+
 TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 {
     if (set == lddmc_false) return lddmc_false; // empty.R = empty
@@ -149,6 +160,23 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 }
 
 
+TASK_3(MDD, only_read_helper, MDD, right, MDD, next_meta, MDD, next_nvars)
+{
+    // not sure how to solve this more elegantly w/o this helper function
+    if (right == lddmc_false) return lddmc_false;
+    assert(right != lddmc_true);
+
+    mddnode_t node = LDD_GETNODE(right);
+    MDD next_right = mddnode_getright(node);
+    MDD down       = mddnode_getdown(node);
+    MDD value      = mddnode_getvalue(node);
+    
+    next_right = CALL(only_read_helper, next_right, next_meta, next_nvars);
+    down       = CALL(lddmc_extend_rel, down, next_meta, next_nvars);
+    return lddmc_makenode(value, down, next_right);
+}
+
+
 TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
 {
     if (nvars == 0) return rel;
@@ -158,7 +186,6 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     if (cache_get3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, &res)) return res;
 
     uint32_t meta_val = lddmc_getvalue(meta);
-    assert(meta_val != 5); // shouldn't run into a 5
 
     /* Get right and down */
     MDD right, down;
@@ -184,12 +211,18 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     /* Call function on children */
     assert(right != lddmc_true);
     uint32_t next_nvars = (meta_val == 1) ? nvars : nvars-1;
-    if (right != lddmc_false)
+    if (right != lddmc_false && meta_val != 4)
         right = CALL(lddmc_extend_rel, right, meta, nvars);
     down = CALL(lddmc_extend_rel, down, next_meta, next_nvars);
 
+    
+    // meta == 'skipped variable' : change into two levels of *
+    if (meta_val == 0) {
+        down = lddmc_make_copynode(down, lddmc_false);
+        res = lddmc_make_copynode(down, lddmc_false);
+    }
     // meta == 'read' : change nothing
-    if (meta_val == 1) {
+    else if (meta_val == 1) {
         assert(lddmc_getvalue(next_meta) == 2);
         res = lddmc_makenode(value, down, right);
     }
@@ -197,14 +230,34 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     else if (meta_val == 2) {
         res = lddmc_makenode(value, down, right);
     }
-    // meta == 'skipped variable' : change into two levels of *
-    else if (meta_val == 0 || meta_val == (uint32_t)-1) {
-        assert(lddmc_iscopy(rel) || rel == lddmc_true || rel == lddmc_false);
-        assert(right == lddmc_false); // in rels, * nodes shouldn't have neighbors        
-        down = lddmc_make_copynode(down, lddmc_false);
+    // replace [only-read 'a'] with [read 'a', write 'a']
+    else if (meta_val == 3) {
+        assert(!lddmc_iscopy(rel));
+        down = lddmc_makenode(value, down, lddmc_false); // write 'value'
+        down = lddmc_makenode(value, down, right);       // read 'value' on top
+    }
+    else if (meta_val == 4) {
+        // if meta = 4, use this helper to avoid recursive calls to extend on
+        // right-children
+        assert(!lddmc_iscopy(rel));
+        right = CALL(only_read_helper, right, next_meta, next_nvars);
+        down = lddmc_makenode(value, down, right);
         res = lddmc_make_copynode(down, lddmc_false);
     }
-    // TODO: handle meta_val == 3 and 4
+    // 5 indicates action labels, we'll consider all the remaining vars as skipped
+    // as skipped two levels of * for them.
+    // (also we currently don't re-insert the action label)
+    else if (meta_val == 5 || meta_val == (uint32_t)-1) {
+        res = lddmc_true;
+        for (uint32_t i = 0; i < nvars; i++) {
+            res = lddmc_make_copynode(res, lddmc_false);
+            res = lddmc_make_copynode(res, lddmc_false);
+        }
+    }
+    else {
+        printf("Meta val = %d\n", meta_val);
+        exit(1);
+    }
 
      /* Put in cache */
     cache_put3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, res);
