@@ -133,10 +133,9 @@ int test_lddmc_extend_rel2()
 {
     // Meta = [0, 1, 2], Rel = {forall i: (<i,4> -> <i,5>)}
     MDD rel = stack_transition(4, 5, lddmc_true);
-    rel = lddmc_make_copynode(rel, lddmc_false);
     MDD meta = lddmc_make_readwrite_meta(1);
     meta = lddmc_makenode(0, meta, lddmc_false);
-    test_assert(lddmc_nodecount(rel) == 3);
+    test_assert(lddmc_nodecount(rel) == 2);
 
     // the skipped var (meta = 0) should be replaced with 'read','write'
     MDD rel_ext = lddmc_extend_rel(rel, meta, 2);
@@ -150,15 +149,14 @@ int test_lddmc_extend_rel2()
 int test_lddmc_extend_rel3()
 {
     // Meta = [1, 2, 0], Rel = {forall i: (<4,i> -> <5,i>)} (nvar = 2)
-    MDD rel = lddmc_make_copynode(lddmc_true, lddmc_false);
-    rel = stack_transition(4, 5, rel);
+    MDD rel = stack_transition(4, 5, lddmc_true);
     MDD meta = lddmc_true;
     meta = lddmc_makenode(0, meta, lddmc_false);
     meta = lddmc_makenode(2, meta, lddmc_false);
     meta = lddmc_makenode(1, meta, lddmc_false);
-    test_assert(lddmc_nodecount(rel) == 3);
+    test_assert(lddmc_nodecount(rel) == 2);
 
-    // the skipped var (meta = 0) should be replaced with 'read','write'
+    // for the skipped var, a r-w with copy nodes should be added
     MDD rel_ext = lddmc_extend_rel(rel, meta, 2);
     test_assert(lddmc_nodecount(rel_ext) == 4);
     test_assert(lddmc_getvalue(rel_ext) == 4); rel_ext = lddmc_getdown(rel_ext);
@@ -173,13 +171,12 @@ int test_lddmc_extend_rel3()
 int test_lddmc_extend_rel4()
 {
     // Meta = [1, 2, -1], same as previous test but now with nvar = 3
-    MDD rel = lddmc_make_copynode(lddmc_true, lddmc_false);
-    rel = stack_transition(4, 5, rel);
+    MDD rel = stack_transition(4, 5, lddmc_true);
     MDD meta = lddmc_true;
     meta = lddmc_makenode(-1, meta, lddmc_false);
     meta = lddmc_makenode(2, meta, lddmc_false);
     meta = lddmc_makenode(1, meta, lddmc_false);
-    test_assert(lddmc_nodecount(rel) == 3);
+    test_assert(lddmc_nodecount(rel) == 2);
 
     // for nvar=3, we expect 'read','write' levels to be added twice at the end
     MDD rel_ext = lddmc_extend_rel(rel, meta, 3);
@@ -190,6 +187,56 @@ int test_lddmc_extend_rel4()
     test_assert(lddmc_iscopy(rel_ext));        rel_ext = lddmc_getdown(rel_ext);
     test_assert(lddmc_iscopy(rel_ext));        rel_ext = lddmc_getdown(rel_ext);
     test_assert(lddmc_iscopy(rel_ext));        rel_ext = lddmc_getdown(rel_ext);
+    test_assert(rel_ext == lddmc_true);
+
+    return 0;
+}
+
+int test_lddmc_extend_rel5()
+{
+    // Meta = [1, 2, 5, -1], same as previous but with action label
+    MDD rel = lddmc_makenode(123, lddmc_true, lddmc_false);
+    rel = stack_transition(4, 5, rel);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(-1, meta, lddmc_false);
+    meta = lddmc_makenode(5, meta, lddmc_false);
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 3);
+
+    // we expect two added 'read-write' levels, and the action label removed
+    MDD rel_ext = lddmc_extend_rel(rel, meta, 3);
+    test_assert(lddmc_nodecount(rel_ext) == 6);
+    test_assert(lddmc_getvalue(rel_ext) == 4); rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_getvalue(rel_ext) == 5); rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_iscopy(rel_ext));        rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_iscopy(rel_ext));        rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_iscopy(rel_ext));        rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_iscopy(rel_ext));        rel_ext = lddmc_getdown(rel_ext);
+    test_assert(rel_ext == lddmc_true);
+
+    return 0;
+}
+
+int test_lddmc_extend_rel6()
+{
+    // Test extending only-read (3)
+    // Meta = [3, 1, 2], rel = <5,10> -> <5,20>
+    MDD rel = stack_transition(10, 20, lddmc_true);
+    rel = lddmc_makenode(5, rel, lddmc_false);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    meta = lddmc_makenode(3, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 3);
+
+    // we expect the first read-only to be replaced by read-write
+    MDD rel_ext = lddmc_extend_rel(rel, meta, 2);
+    test_assert(lddmc_nodecount(rel_ext) == 4);
+    test_assert(lddmc_getvalue(rel_ext) == 5);  rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_getvalue(rel_ext) == 5);  rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_getvalue(rel_ext) == 10); rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_getvalue(rel_ext) == 20); rel_ext = lddmc_getdown(rel_ext);
     test_assert(rel_ext == lddmc_true);
 
     return 0;
@@ -217,6 +264,8 @@ int runtests()
     if (test_lddmc_extend_rel2()) return 1;
     if (test_lddmc_extend_rel3()) return 1;
     if (test_lddmc_extend_rel4()) return 1;
+    if (test_lddmc_extend_rel5()) return 1;
+    if (test_lddmc_extend_rel6()) return 1;
     printf("OK\n");
 
     return 0;

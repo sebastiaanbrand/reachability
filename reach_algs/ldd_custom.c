@@ -234,7 +234,7 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     else if (meta_val == 3) {
         assert(!lddmc_iscopy(rel));
         down = lddmc_makenode(value, down, lddmc_false); // write 'value'
-        down = lddmc_makenode(value, down, right);       // read 'value' on top
+        res  = lddmc_makenode(value, down, right);       // read 'value' on top
     }
     else if (meta_val == 4) {
         // if meta = 4, use this helper to avoid recursive calls to extend on
