@@ -221,7 +221,7 @@ int test_lddmc_extend_rel5()
 int test_lddmc_extend_rel6()
 {
     // Test extending only-read (3)
-    // Meta = [3, 1, 2], rel = <5,10> -> <5,20>
+    // Meta = [3, 1, 2], rel = {(<5,10> -> <5,20>)}
     MDD rel = stack_transition(10, 20, lddmc_true);
     rel = lddmc_makenode(5, rel, lddmc_false);
     MDD meta = lddmc_true;
@@ -241,6 +241,48 @@ int test_lddmc_extend_rel6()
 
     return 0;
 }
+
+int test_lddmc_extend_rel7()
+{
+    // Test extending only-write (4)
+    // Meta = [4, 1, 2], rel = {(<*,10> -> <6, 20>)}
+    MDD rel = stack_transition(10, 20, lddmc_true);
+    rel = lddmc_makenode(6, rel, lddmc_false);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    meta = lddmc_makenode(4, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 3);
+
+    // we expect the first write-only to be replaced by 'read anything'-write
+    MDD rel_ext = lddmc_extend_rel(rel, meta, 2);
+    test_assert(lddmc_nodecount(rel_ext) == 4);
+    test_assert(lddmc_iscopy(rel_ext));         rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_getvalue(rel_ext) == 6);  rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_getvalue(rel_ext) == 10); rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_getvalue(rel_ext) == 20); rel_ext = lddmc_getdown(rel_ext);
+    test_assert(rel_ext == lddmc_true);
+
+    // Meta = [1, 2, 4], rel = {(<15,*> -> <25, 7>)}
+    MDD rel2 = lddmc_makenode(7, lddmc_true, lddmc_false);
+    rel2 = stack_transition(15, 25, rel2);
+    MDD meta2 = lddmc_true;
+    meta2 = lddmc_makenode(4, meta2, lddmc_false);
+    meta2 = lddmc_makenode(2, meta2, lddmc_false);
+    meta2 = lddmc_makenode(1, meta2, lddmc_false);
+    test_assert(lddmc_nodecount(rel2) == 3);
+
+    // last write-only should be replaced by 'read anything'-write
+    MDD rel2_ext = lddmc_extend_rel(rel2, meta2, 2);
+    test_assert(lddmc_nodecount(rel2_ext) == 4);
+    test_assert(lddmc_getvalue(rel2_ext) == 15); rel2_ext = lddmc_getdown(rel2_ext);
+    test_assert(lddmc_getvalue(rel2_ext) == 25); rel2_ext = lddmc_getdown(rel2_ext);
+    test_assert(lddmc_iscopy(rel2_ext));         rel2_ext = lddmc_getdown(rel2_ext);
+    test_assert(lddmc_getvalue(rel2_ext) == 7);  rel2_ext = lddmc_getdown(rel2_ext);
+
+    return 0;
+}
+
 
 int runtests()
 {
@@ -266,6 +308,7 @@ int runtests()
     if (test_lddmc_extend_rel4()) return 1;
     if (test_lddmc_extend_rel5()) return 1;
     if (test_lddmc_extend_rel6()) return 1;
+    if (test_lddmc_extend_rel7()) return 1;
     printf("OK\n");
 
     return 0;
