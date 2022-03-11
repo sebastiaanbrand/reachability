@@ -19,6 +19,14 @@ static MDD write_meta(MDD meta)
     fclose(fp);
 }
 
+static MDD write_states(MDD states)
+{
+    FILE *fp;
+    fp = fopen("states.dot", "w");
+    lddmc_fprintdot(fp, states);
+    fclose(fp);
+}
+
 MDD stack_transition(int r, int w, MDD next)
 {
     MDD write = lddmc_makenode(w, next, lddmc_false);
@@ -95,12 +103,53 @@ int test_lddmc_image_copy_nodes2()
     test_assert(lddmc_satcount(s5) == 1);
     test_assert(lddmc_satcount(s456) == 3);
 
-    MDD t3 = lddmc_image(s3, rel, meta);
-    MDD t5 = lddmc_image(s5, rel, meta);
-    MDD t456 = lddmc_image(s456, rel, meta);
-    test_assert(lddmc_satcount(t3) == 1); // {3}
-    test_assert(lddmc_satcount(t5) == 2); // {5,7}
-    test_assert(lddmc_satcount(t456) == 4); // {4,5,6,7}
+    MDD t3 = lddmc_image(s3, rel, meta); // {3}
+    MDD t5 = lddmc_image(s5, rel, meta); // {5,7}
+    MDD t456 = lddmc_image(s456, rel, meta); // {4,5,6,7}
+    test_assert(lddmc_satcount(t3) == 1);
+    test_assert(lddmc_satcount(t5) == 2);
+    test_assert(lddmc_satcount(t456) == 4);
+    test_assert(lddmc_follow(t3, 3) == lddmc_true);
+    test_assert(lddmc_follow(t5, 5) == lddmc_true);
+    test_assert(lddmc_follow(t5, 7) == lddmc_true);
+    test_assert(lddmc_follow(t456, 4) == lddmc_true);
+    test_assert(lddmc_follow(t456, 5) == lddmc_true);
+    test_assert(lddmc_follow(t456, 6) == lddmc_true);
+    test_assert(lddmc_follow(t456, 7) == lddmc_true);
+
+    return 0;
+}
+
+int test_lddmc_image_copy_nodes3()
+{
+    // Rel : ({* -> 3} v (5 -> 7))
+    MDD r5_w7 = stack_transition(5, 7, lddmc_true);
+    MDD w3 = lddmc_makenode(3, lddmc_true, lddmc_false);
+    MDD rel = lddmc_make_copynode(w3, r5_w7);
+    MDD meta = lddmc_make_readwrite_meta(1);
+
+    // s4 = {4}, s5 = {5}, s456 = {456}
+    MDD s4 = lddmc_makenode(4, lddmc_true, lddmc_false);
+    MDD s5 = lddmc_makenode(5, lddmc_true, lddmc_false);
+    MDD s456 = lddmc_false;
+    s456 = lddmc_union(s456, lddmc_makenode(4, lddmc_true, lddmc_false));
+    s456 = lddmc_union(s456, lddmc_makenode(5, lddmc_true, lddmc_false));
+    s456 = lddmc_union(s456, lddmc_makenode(6, lddmc_true, lddmc_false));
+    test_assert(lddmc_satcount(s4) == 1);
+    test_assert(lddmc_satcount(s5) == 1);
+    test_assert(lddmc_satcount(s456) == 3);
+
+    MDD t4 = lddmc_image(s4, rel, meta); // {3}
+    MDD t5 = lddmc_image(s5, rel, meta); // {3, 7}
+    MDD t456 = lddmc_image(s456, rel, meta); // {3, 7}
+    test_assert(lddmc_satcount(t4) == 1);
+    test_assert(lddmc_satcount(t5) == 2);
+    test_assert(lddmc_satcount(t456) == 2);
+    test_assert(lddmc_follow(t4, 3) == lddmc_true);
+    test_assert(lddmc_follow(t5, 3) == lddmc_true);
+    test_assert(lddmc_follow(t5, 7) == lddmc_true);
+    test_assert(lddmc_follow(t456, 3) == lddmc_true);
+    test_assert(lddmc_follow(t456, 7) == lddmc_true);
 
     return 0;
 }
@@ -298,6 +347,7 @@ int runtests()
     fflush(stdout);
     if (test_lddmc_image_copy_nodes1()) return 1;
     if (test_lddmc_image_copy_nodes2()) return 1;
+    if (test_lddmc_image_copy_nodes3()) return 1;
     printf("OK\n");
 
     printf("Testing extend LDD relations to full domain...  ");
