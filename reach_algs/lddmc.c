@@ -22,6 +22,7 @@ static int report_levels = 0; // report states at start of every level
 static int report_table = 0; // report table size at end of every level
 static int report_nodes = 0; // report number of nodes of LDDs
 static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING, 4 = REC
+static int custom_img = 0; // use custom image func (only for rec or bfs-plain)
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly
 static int merge_relations = 0; // merge relations to 1 relation
 static int print_transition_matrix = 0; // print transition relation matrix
@@ -40,7 +41,7 @@ typedef enum strats {
     strat_sat,
     strat_chaining,
     strat_rec,
-    strat_rec_custom_img,
+    strat_bfs_plain,
     num_strats
 } strategy_t;
 
@@ -48,7 +49,7 @@ typedef enum strats {
 static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=0: autodetect)", 0},
-    {"strategy", 's', "<bfs|par|sat|chaining|rec>", 0, "Strategy for reachability (default=bfs)", 0},
+    {"strategy", 's', "<bfs|par|sat|chaining|rec|bfs-plain>", 0, "Strategy for reachability (default=bfs)", 0},
 #ifdef HAVE_PROFILER
     {"profiler", 'p', "<filename>", 0, "Filename for profiling", 0},
 #endif
@@ -77,6 +78,7 @@ parse_opt(int key, char *arg, struct argp_state *state)
         else if (strcmp(arg, "sat")==0) strategy = strat_sat;
         else if (strcmp(arg, "chaining")==0) strategy = strat_chaining;
         else if (strcmp(arg, "rec")==0) strategy = strat_rec;
+        else if (strcmp(arg, "bfs-plain")==0) strategy = strat_bfs_plain; 
         else argp_usage(state);
         break;
     case 4:
@@ -98,8 +100,12 @@ parse_opt(int key, char *arg, struct argp_state *state)
         merge_relations = 1;
         break;
     case 9:
-        if (strategy == strat_rec) strategy = strat_rec_custom_img;
-        else argp_usage(state);
+        if (strategy == strat_rec || strategy == strat_bfs_plain)
+            custom_img = 1;
+        else {
+            printf("--custom-image can currently only be used with -s [rec|bfs-plain]\n");
+            exit(1);
+        }
         break;
     case 7:
         stats_filename = arg;
@@ -341,13 +347,14 @@ write_stats()
     fseek (fp, 0, SEEK_END);
         long size = ftell(fp);
         if (size == 0)
-            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, merge_time, total_time, final_states, final_nodecount, peaknodes");
+            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, custom_img, workers, reach_time, merge_time, total_time, final_states, final_nodecount, peaknodes");
     // append stats of this run
     char* benchname = basename((char*)model_filename);
-    fprintf(fp, "%s, %d, %d, %d, %f, %f, %f, %0.0f, %ld, %ld\n",
+    fprintf(fp, "%s, %d, %d, %d, %d, %f, %f, %f, %0.0f, %ld, %ld\n",
             benchname,
             strategy,
             merge_relations,
+            custom_img,
             lace_workers(),
             stats.reach_time,
             stats.merge_rel_time,
@@ -747,6 +754,38 @@ VOID_TASK_1(chaining, set_t, set)
     lddmc_refs_popptr(3);
 }
 
+
+/**
+ * Pain bfs implementation for some sanity checks
+ */
+VOID_TASK_1(bfs_plain, set_t, set)
+{
+    if (next_count != 1) Abort("Strategy bfs-plain requires merge-relations");
+    MDD visited = set->dd;
+    MDD prev = lddmc_false;
+    MDD succ = lddmc_false;
+
+    lddmc_protect(&visited);
+    lddmc_protect(&prev);
+    lddmc_protect(&succ);
+
+    while (prev != visited) {
+        prev = visited;
+        if (custom_img)
+            succ = lddmc_image(visited, next[0]->dd, next[0]->meta);
+        else
+            succ = lddmc_relprod(visited, next[0]->dd, next[0]->meta);
+        visited = lddmc_union(visited, succ);
+    }
+
+    lddmc_unprotect(&visited);
+    lddmc_unprotect(&prev);
+    lddmc_unprotect(&succ);
+
+    set->dd = visited;
+}
+
+
 static MDD
 get_next_meta(MDD meta)
 {
@@ -822,7 +861,7 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                 else {
                     // TODO: USE CALL instead of RUN?
                     MDD succ_j;
-                    if (strategy == strat_rec_custom_img)
+                    if (custom_img)
                         succ_j = lddmc_image(set_i, rel_ij, next_meta);
                     else
                         succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
@@ -850,7 +889,7 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
 
 VOID_TASK_1(rec, set_t, set)
 {
-    if (next_count != 1) Abort("Strategy rec requires merge-relations");
+    if (next_count != 1) Abort("Strategy rec requires merge-relations\n");
     set->dd = CALL(go_rec, set->dd, next[0]->dd, next[0]->meta);
 }
 
@@ -1114,12 +1153,18 @@ main(int argc, char **argv)
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("CHAINING Time: %f\n", stats.reach_time);
-    } else if (strategy == strat_rec || strategy == strat_rec_custom_img) {
+    } else if (strategy == strat_rec) {
         double t1 = wctime();
         RUN(rec, states);
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("REC Time: %f\n", stats.reach_time);
+    } else if (strategy == strat_bfs_plain ){
+        double t1 = wctime();
+        RUN(bfs_plain, states);
+        double t2 = wctime();
+        stats.reach_time = t2-t1;
+        INFO("BFS-PLAIN Time: %f\n", stats.reach_time);
     } else {
         Abort("Invalid strategy set?!\n");
     }
