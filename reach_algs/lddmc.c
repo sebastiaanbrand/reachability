@@ -867,6 +867,13 @@ print_meta(MDD meta)
     printf("\n");
 }
 
+int
+get_depth(MDD a)
+{
+    if (a == lddmc_true || a == lddmc_false) return 0;
+    else return (1 + get_depth(lddmc_getdown(a)));
+}
+
 // TODO: log failed asserts to some file
 void
 assert_meta_full_domain(MDD meta)
@@ -1046,6 +1053,15 @@ main(int argc, char **argv)
 
     if (merge_relations) {
         double t1 = wctime();
+
+        // extend relations (only works with custom image function)
+        //if (strategy == strat_rec_custom_img) {
+        INFO("Extending relation to full domain.\n");
+        for (int i = 0; i < next_count; i++) {
+            next[i]->dd = lddmc_extend_rel(next[i]->dd, next[i]->meta, vector_size);
+            next[i]->meta = lddmc_make_readwrite_meta(vector_size, true);
+        }
+        //}
 
         INFO("Asserting transition relations to cover full domain.\n");
         for (int i = 0; i < next_count; i++) {

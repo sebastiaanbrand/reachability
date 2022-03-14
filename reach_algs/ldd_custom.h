@@ -1,7 +1,8 @@
+#include <stdbool.h>
 
 #include "sylvan_int.h"
 
-MDD lddmc_make_readwrite_meta(uint32_t nvars);
+MDD lddmc_make_readwrite_meta(uint32_t nvars, bool action_label);
 
 /**
  * Custom implementation of image computation for LDDs, which assumes the

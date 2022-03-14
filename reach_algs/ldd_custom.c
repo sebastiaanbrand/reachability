@@ -46,9 +46,11 @@ match_ldds(MDD *one, MDD *two)
 }
 
 
-MDD lddmc_make_readwrite_meta(uint32_t nvars)
+MDD lddmc_make_readwrite_meta(uint32_t nvars, bool action_label)
 {
     MDD meta = lddmc_true;
+    if (action_label)
+        meta = lddmc_makenode(5, meta, lddmc_false);
     for (uint32_t i = 0; i < nvars; i++) {
         meta = lddmc_makenode(2, meta, lddmc_false);
         meta = lddmc_makenode(1, meta, lddmc_false);
@@ -73,7 +75,9 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
     if (m_val == 5) {
         return CALL(lddmc_relprod, set, rel, meta);
     }
-    assert(lddmc_getvalue(meta) == 1);
+    if (!m_val == 1) {
+        printf("m_val = %d\n", m_val);
+    }
 
     /* Skip nodes if possible */
     if (!lddmc_iscopy(rel)) {
@@ -88,6 +92,7 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 
     /* Handle copy nodes */
     if (lddmc_iscopy(rel)) {
+        assert(0);
         // current read is a copy node (i.e. interpret as R_ii for all i)
         MDD rel_i = lddmc_getdown(rel);
 
@@ -203,7 +208,16 @@ TASK_3(MDD, only_read_helper, MDD, right, MDD, next_meta, MDD, next_nvars)
 
 TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
 {
-    if (nvars == 0) return rel;
+    if (nvars == 0) {
+        if (rel == lddmc_true || rel == lddmc_false) return rel;
+        if (lddmc_getvalue(meta) == 5) return rel;
+        // I don't understand why, but removing the action label with the code
+        // below gives issues
+        //if (lddmc_getvalue(meta) == 5) {
+        //    assert(lddmc_getdown(rel) == lddmc_true || lddmc_getdown(rel) == lddmc_false);
+        //    return lddmc_getdown(rel);
+        //}
+    }
 
     /* Consult cache */
     MDD res = lddmc_false;
@@ -268,9 +282,8 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
         down = lddmc_makenode(value, down, right);
         res = lddmc_make_copynode(down, lddmc_false);
     }
-    // 5 indicates action labels, we'll consider all the remaining vars as skipped
-    // as skipped two levels of * for them.
-    // (also we currently don't re-insert the action label)
+    // 5 indicates action labels, we'll consider all the remaining vars as
+    // skipped and insert two levels of * for them.
     else if (meta_val == 5 || meta_val == (uint32_t)-1) {
         res = lddmc_true;
         for (uint32_t i = 0; i < nvars; i++) {

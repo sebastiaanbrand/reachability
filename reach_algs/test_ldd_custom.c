@@ -41,7 +41,7 @@ int test_lddmc_image()
     rel = lddmc_union(rel, stack_transition(0, 1, lddmc_true));
     rel = lddmc_union(rel, stack_transition(0, 2, lddmc_true));
     rel = lddmc_union(rel, stack_transition(0, 5, lddmc_true));
-    MDD meta = lddmc_make_readwrite_meta(1);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
 
     // s0 = {0}, s5 = {5}
     MDD s0 = lddmc_makenode(0, lddmc_true, lddmc_false);
@@ -63,7 +63,7 @@ int test_lddmc_image_copy_nodes1()
     MDD rel = lddmc_true;
     rel = lddmc_make_copynode(rel, lddmc_false);
     rel = lddmc_make_copynode(rel, lddmc_false);
-    MDD meta = lddmc_make_readwrite_meta(1);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
 
     // s0 = {0}, s134 = {1,3,4}
     MDD s0 = lddmc_makenode(0, lddmc_true, lddmc_false);
@@ -90,7 +90,7 @@ int test_lddmc_image_copy_nodes2()
     MDD r5_w7  = stack_transition(5, 7, lddmc_true);
     MDD w_copy = lddmc_make_copynode(lddmc_true, lddmc_false);
     MDD rel = lddmc_make_copynode(w_copy, r5_w7);
-    MDD meta = lddmc_make_readwrite_meta(1);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
 
     // s3 = {3}, s5 = {5}, s456 = {4,5,6}
     MDD s3 = lddmc_makenode(3, lddmc_true, lddmc_false);
@@ -126,7 +126,7 @@ int test_lddmc_image_copy_nodes3()
     MDD r5_w7 = stack_transition(5, 7, lddmc_true);
     MDD w3 = lddmc_makenode(3, lddmc_true, lddmc_false);
     MDD rel = lddmc_make_copynode(w3, r5_w7);
-    MDD meta = lddmc_make_readwrite_meta(1);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
 
     // s4 = {4}, s5 = {5}, s456 = {456}
     MDD s4 = lddmc_makenode(4, lddmc_true, lddmc_false);
@@ -164,7 +164,7 @@ int test_lddmc_extend_rel1()
     t2 = stack_transition(6, 20, t2);
     t2 = stack_transition(6, 10, t2);
     MDD rel = lddmc_union(t1, t2);
-    MDD meta = lddmc_make_readwrite_meta(2);
+    MDD meta = lddmc_make_readwrite_meta(2, false);
 
     test_assert(lddmc_satcount(t1) == 1);
     test_assert(lddmc_satcount(t2) == 1);
@@ -182,7 +182,7 @@ int test_lddmc_extend_rel2()
 {
     // Meta = [0, 1, 2], Rel = {forall i: (<i,4> -> <i,5>)}
     MDD rel = stack_transition(4, 5, lddmc_true);
-    MDD meta = lddmc_make_readwrite_meta(1);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
     meta = lddmc_makenode(0, meta, lddmc_false);
     test_assert(lddmc_nodecount(rel) == 2);
 
