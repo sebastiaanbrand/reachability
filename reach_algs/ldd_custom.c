@@ -92,7 +92,6 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 
     /* Handle copy nodes */
     if (lddmc_iscopy(rel)) {
-        assert(0);
         // current read is a copy node (i.e. interpret as R_ii for all i)
         MDD rel_i = lddmc_getdown(rel);
 

@@ -34,7 +34,7 @@ MDD stack_transition(int r, int w, MDD next)
     return read;
 }
 
-int test_lddmc_image()
+int test_lddmc_image_read_write()
 {
     // Rel : {(0 -> 1), (0 -> 2), (0 -> 5)}
     MDD rel = lddmc_false;
@@ -57,7 +57,7 @@ int test_lddmc_image()
     return 0;
 }
 
-int test_lddmc_image_copy_nodes1()
+int test_lddmc_image_copy1()
 {
     // Rel : ({forall i : (i -> i)})
     MDD rel = lddmc_true;
@@ -84,7 +84,7 @@ int test_lddmc_image_copy_nodes1()
     return 0;
 }
 
-int test_lddmc_image_copy_nodes2()
+int test_lddmc_image_copy2()
 {
     // Rel : ({* -> copy } v (5 -> 7))
     MDD r5_w7  = stack_transition(5, 7, lddmc_true);
@@ -120,7 +120,7 @@ int test_lddmc_image_copy_nodes2()
     return 0;
 }
 
-int test_lddmc_image_copy_nodes3()
+int test_lddmc_image_only_write1()
 {
     // Rel : ({* -> 3} v (5 -> 7))
     MDD r5_w7 = stack_transition(5, 7, lddmc_true);
@@ -150,6 +150,74 @@ int test_lddmc_image_copy_nodes3()
     test_assert(lddmc_follow(t5, 7) == lddmc_true);
     test_assert(lddmc_follow(t456, 3) == lddmc_true);
     test_assert(lddmc_follow(t456, 7) == lddmc_true);
+
+    return 0;
+}
+
+int test_lddmc_image_only_write2()
+{
+    // Rel : ({<10,*> -> <20,3>} v (<11,5> -> <12,7>))
+    //   | 
+    // [10]->[11]
+    //   |     |
+    // [20]  [12]
+    //   |     |
+    //  [*]   [5]
+    //   |     |
+    //  [3]   [7]
+    MDD r115_w127 = lddmc_true;
+    r115_w127 = stack_transition(5, 7, r115_w127);
+    r115_w127 = stack_transition(11, 12, r115_w127);
+    MDD w3 = lddmc_makenode(3, lddmc_true, lddmc_false);
+    w3 = lddmc_make_copynode(w3, lddmc_false);
+    MDD rel = lddmc_makenode(20, w3, lddmc_false);
+    rel = lddmc_makenode(10, rel, r115_w127);
+    MDD meta = lddmc_make_readwrite_meta(2, false);
+    test_assert(lddmc_nodecount(rel) == 8);
+
+    write_rel(rel);
+
+    // s1 = {<10,4>}, s2 = {<10,5>}, s3 = s1 U s2 U {<10,6>}, s4 = s1 U {<11,5>}
+    MDD s1 = lddmc_true;
+    s1 = lddmc_makenode(4, s1, lddmc_false);
+    s1 = lddmc_makenode(10,s1, lddmc_false);
+    MDD s2 = lddmc_true;
+    s2 = lddmc_makenode(5, s2, lddmc_false);
+    s2 = lddmc_makenode(10,s2, lddmc_false);
+    MDD s3 = lddmc_true;
+    s3 = lddmc_makenode(6, s3, lddmc_false);
+    s3 = lddmc_makenode(10,s3, lddmc_false);
+    s3 = lddmc_union(s1, lddmc_union(s2, s3));
+    MDD s4 = lddmc_true;
+    s4 = lddmc_makenode(5, s4, lddmc_false);
+    s4 = lddmc_makenode(11,s4, lddmc_false);
+    s4 = lddmc_union(s1, s4);
+    test_assert(lddmc_satcount(s1) == 1);
+    test_assert(lddmc_satcount(s2) == 1);
+    test_assert(lddmc_satcount(s3) == 3);
+    test_assert(lddmc_satcount(s4) == 2);
+
+    MDD t1 = lddmc_image(s1, rel, meta); // {<20,3>}
+    MDD t2 = lddmc_image(s2, rel, meta); // {<20,3>}
+    MDD t3 = lddmc_image(s3, rel, meta); // {<20,3>}
+    //sylvan_clear_cache(); // TODO: fix caching issue w/ lddmc_image
+    MDD t4 = lddmc_image(s4, rel, meta); // {<20,3>, <12,7>}
+
+    MDD temp;
+    test_assert(t1 == t2);
+    test_assert(t1 == t3);
+    test_assert(lddmc_satcount(t1) == 1);
+    test_assert(lddmc_getvalue(t1) == 20);  temp = lddmc_getdown(t1);
+    test_assert(lddmc_getvalue(temp) == 3); temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+
+    write_states(t4);
+    test_assert(lddmc_satcount(t4) == 2);       temp = lddmc_getdown(t4);
+    test_assert(lddmc_getvalue(temp) == 7);     temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);            temp = lddmc_getright(t4);
+    test_assert(lddmc_getvalue(temp) == 20);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 3);     temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
 
     return 0;
 }
@@ -338,20 +406,20 @@ int runtests()
     // we are not testing garbage collection
     sylvan_gc_disable();
 
-    printf("Testing custom lddmc_image w/o copy nodes...    ");
-    fflush(stdout);
-    if (test_lddmc_image()) return 1;
+    printf("Testing custom lddmc_image...\n");
+    printf("    * read-write...                             "); fflush(stdout);
+    if (test_lddmc_image_read_write()) return 1;
+    printf("OK\n");
+    printf("    * copy...                                   "); fflush(stdout);
+    if (test_lddmc_image_copy1()) return 1;
+    if (test_lddmc_image_copy2()) return 1;
+    printf("OK\n");
+    printf("    * only-write...                             "); fflush(stdout);
+    if (test_lddmc_image_only_write1()) return 1;
+    if (test_lddmc_image_only_write2()) return 1;
     printf("OK\n");
 
-    printf("Testing custom lddmc_image with copy nodes...   ");
-    fflush(stdout);
-    if (test_lddmc_image_copy_nodes1()) return 1;
-    if (test_lddmc_image_copy_nodes2()) return 1;
-    if (test_lddmc_image_copy_nodes3()) return 1;
-    printf("OK\n");
-
-    printf("Testing extend LDD relations to full domain...  ");
-    fflush(stdout);
+    printf("Testing extend LDD relations to full domain...  "); fflush(stdout);
     if (test_lddmc_extend_rel1()) return 1;
     if (test_lddmc_extend_rel2()) return 1;
     if (test_lddmc_extend_rel3()) return 1;
