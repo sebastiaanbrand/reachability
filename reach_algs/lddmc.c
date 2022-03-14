@@ -1094,13 +1094,13 @@ main(int argc, char **argv)
         double t1 = wctime();
 
         // extend relations (only works with custom image function)
-        //if (strategy == strat_rec_custom_img) {
-        INFO("Extending relation to full domain.\n");
-        for (int i = 0; i < next_count; i++) {
-            next[i]->dd = lddmc_extend_rel(next[i]->dd, next[i]->meta, vector_size);
-            next[i]->meta = lddmc_make_readwrite_meta(vector_size, true);
+        if (custom_img) {
+            INFO("Extending relation to full domain.\n");
+            for (int i = 0; i < next_count; i++) {
+                next[i]->dd = lddmc_extend_rel(next[i]->dd, next[i]->meta, vector_size);
+                next[i]->meta = lddmc_make_readwrite_meta(vector_size, true);
+            }
         }
-        //}
 
         INFO("Asserting transition relations to cover full domain.\n");
         for (int i = 0; i < next_count; i++) {
