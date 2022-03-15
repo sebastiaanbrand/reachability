@@ -200,7 +200,6 @@ int test_lddmc_image_only_write2()
     MDD t1 = lddmc_image(s1, rel, meta); // {<20,3>}
     MDD t2 = lddmc_image(s2, rel, meta); // {<20,3>}
     MDD t3 = lddmc_image(s3, rel, meta); // {<20,3>}
-    //sylvan_clear_cache(); // TODO: fix caching issue w/ lddmc_image
     MDD t4 = lddmc_image(s4, rel, meta); // {<20,3>, <12,7>}
 
     MDD temp;
