@@ -1,3 +1,5 @@
+# TODO: code needs cleanup + better modularity to remain maintainable
+
 import os
 import sys
 import numpy as np
@@ -183,9 +185,9 @@ def assert_states_nodes():
                           n_nodes[row['benchmark']],
                           row['final_nodecount']
                     ))
-        print("wrong statecount for {} = {}/{}".format(df_key, 
-                                                       total_wrong_states,
-                                                       len(df.index)))
+        print("{}/{} \twrong statecount for {}".format(total_wrong_states,
+                                                       len(df.index),
+                                                       df_key))
 
 def round_sig(x, sig):
     if(np.isnan(x) or np.isinf(x) or np.isneginf(x)):
@@ -302,7 +304,7 @@ def get_matrix_metrics(bench_names, data_label, metric):
     return metrics
 
 
-def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
+def plot_comparison(x_strat, x_data_label, y_strat, y_data_label, add_merge_time):
     info("plotting {} ({}) vs {} ({})".format(x_strat, x_data_label, 
                                               y_strat, y_data_label))
 
@@ -326,13 +328,28 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
 
         # inner join x and y
         group_y = group_y.set_index('benchmark')
-        joined = group_x.join(group_y, on='benchmark', how='inner', 
+        joined = group_x.join(group_y, on='benchmark', how='outer', 
                                     lsuffix='_x', rsuffix='_y')
 
         # plot reachability time of x vs y
         xs = joined['reach_time_x'].to_numpy()
         ys = joined['reach_time_y'].to_numpy()
-        ax.scatter(xs, ys, s=point_size, label=legend_names[ds_name])
+        if (add_merge_time):
+            xs += joined['merge_time_x'].to_numpy()
+            ys += joined['merge_time_y'].to_numpy()
+        
+        # some styling
+        s = marker_size[ds_name]
+        m = markers[ds_name]
+        l = legend_names[ds_name]
+        ec = marker_colors[ds_name]
+        fc = np.array([marker_colors[ds_name]]*len(xs))
+        fc[np.isnan(xs)] = 'none'
+        fc[np.isnan(ys)] = 'none'
+        factor = 1 # factor for vizualization
+        xs[np.isnan(xs)] = maxtime*factor
+        ys[np.isnan(ys)] = maxtime*factor
+        ax.scatter(xs, ys, s=s, marker=m, facecolors=fc, edgecolors=ec, label=l)
 
         # track for annotations
         all_xs.extend(xs)
@@ -345,6 +362,10 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
 
     # diagonal line
     ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+
+    # * 10 and / 10 lines
+    ax.plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
+    ax.plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
 
     # labels and formatting
     ax.set_xlabel('{} time (s)'.format(axis_label[(x_strat,x_data_label[-3:],)]))
@@ -359,9 +380,10 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label):
     # plots without data-point lables
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
-        fig_name = '{}reachtime_{}_{}_vs_{}_{}.{}'.format(subfolder,
+        fig_name = '{}reachtime_{}_{}_vs_{}_{}_incMergeTime{}.{}'.format(subfolder,
                                                           x_strat, x_data_label,
                                                           y_strat, y_data_label,
+                                                          add_merge_time,
                                                           fig_format)
         fig.savefig(fig_name, dpi=300)
 
@@ -619,7 +641,7 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
         group_y1['benchmark'] = group_y1['benchmark'].str.replace('.ldd', '', regex=False)
         group_x2['benchmark'] = group_x2['benchmark'].str.replace('.ldd', '', regex=False)
         group_y2['benchmark'] = group_y2['benchmark'].str.replace('.ldd', '', regex=False)
-        
+
 
         # inner join x and y
         group_y1 = group_y1.set_index('benchmark')
@@ -628,9 +650,7 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
                                     lsuffix='_x', rsuffix='_y')
         joined2 = group_x2.join(group_y2, on='benchmark', how='outer', 
                                     lsuffix='_x', rsuffix='_y')
-        
-        pd.set_option('display.max_rows', 500)
-        print(joined2)
+
         # get X's and Y's to plot
         x1s = joined1['reach_time_x'].to_numpy()
         y1s = joined1['reach_time_y'].to_numpy()
@@ -1203,24 +1223,26 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
 
     # this removes all entries from the ('ptri','sl-ldd-static') df which 
     # disagree with  the state counts from its-reach
-    compare_counts_its_reach('ptri', 'sl-ldd-static')
+    #compare_counts_its_reach('ptri', 'sl-ldd-static')
 
-    """
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
                         add_merge_time=add_merge_time)
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', add_merge_time)
+    """
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd-static', 
                         'sat', 'sl-ldd', 'rec', 'sl-ldd-static', 
                         'Saturation (on pnml2lts-sym DDs) time (s)', 
                         'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
                         add_merge_time=False)
-    """
+    
     plot_comparison_sbs('rec', 'sl-bdd', 'rec', 'sl-bdd-static', 
                         'rec', 'sl-ldd', 'rec', 'sl-ldd-static', 
                         'ReachBDD/MDD (on pnml2lts-sym DDs) time (s)', 
                         'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
                         add_merge_time=False)
+    """
 
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
@@ -1258,6 +1280,7 @@ def plot_paper_plots(subfolder, add_merge_time):
     if(load_data(data_folder, expected=6)):
         pre_process()
         assert_states_nodes()
+    
         # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
         plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
@@ -1295,7 +1318,8 @@ def plot_paper_plots(subfolder, add_merge_time):
 
 
 if __name__ == '__main__':
-    #subfolder, add_merge_time = parse_args()
-    #plot_paper_plots(subfolder, add_merge_time)
-    plot_image_test_comparison()
+    subfolder, add_merge_time = parse_args()
+    plot_paper_plots(subfolder, add_merge_time)
+    #plot_image_test_comparison()
+    
 
