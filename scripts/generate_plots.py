@@ -1,5 +1,3 @@
-# TODO: code needs cleanup + better modularity to remain maintainable
-
 import os
 import sys
 import numpy as np
@@ -34,7 +32,7 @@ matrix_folders = {  ('beem','vn-bdd') : 'models/beem/matrices/bdds/vanilla/',
 
 datasetnames = ['beem', 'ptri', 'prom']  # ['beem, 'ptri', 'prom']
 legend_names = {'beem' : 'dve', 'ptri' : 'petrinets', 'prom' : 'promela'}
-markers = {'beem': 's', 'ptri' : '^', 'prom' : 'x'}
+markers = {'beem': 's', 'ptri' : '^', 'prom' : 'P'}
 marker_size = {'beem': 8, 'ptri': 10, 'prom': 15}
 marker_colors = {'beem' : 'tab:blue', 'ptri' : 'tab:orange', 'prom' : 'tab:green'}
 stratIDs     = {'bfs' : 0,
@@ -117,6 +115,7 @@ def load_data(data_folder, expected=0):
 
     return ( len(datamap.keys()) >= expected )
 
+
 def pre_process():
     print("pre-processing data")
 
@@ -138,6 +137,7 @@ def pre_process():
     for df in datamap.values():
         _workers = np.unique(df['workers'])
         n_workers.update(_workers)
+
 
 def load_its_data(its_type):
     # load csv
@@ -193,6 +193,7 @@ def round_sig(x, sig):
     if(np.isnan(x) or np.isinf(x) or np.isneginf(x)):
         return x
     return np.round(x, sig-int(np.floor(np.log10(np.abs(x))))-1)
+
 
 def compare_counts_its_reach(data_label, dd_type):
     # this removes all entries from the (data_label, dd_type) df which 
@@ -304,32 +305,31 @@ def get_matrix_metrics(bench_names, data_label, metric):
     return metrics
 
 
-def plot_comparison(x_strat, x_data_label, y_strat, y_data_label, add_merge_time):
-    info("plotting {} ({}) vs {} ({})".format(x_strat, x_data_label, 
-                                              y_strat, y_data_label))
-
-    scaling = 5.0 # default = ~6.0
-    fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
-    point_size = 8.0
+def _plot_time_comp(ax, x_strat, x_dd, y_strat, y_dd, add_merge_time):
+    """
+    The actual plotting of the runtime comparisons happens here.
+    """
 
     max_val = 0
     min_val = 1e9
-    all_xs = []
-    all_ys = []
-    all_names = [] # track for annotations
+    meta = {'xs' : [], 'ys' : [], 'names' : []}
     for ds_name in datasetnames:
         # get the relevant data
-        x_data = datamap[(ds_name, x_data_label)]
-        y_data = datamap[(ds_name, y_data_label)]
+        try:
+            x_data = datamap[(ds_name, x_dd)]
+            y_data = datamap[(ds_name, y_dd)]
+        except:
+            print("Could not find data for '{}', skipping...".format(ds_name))
+            continue
 
         # select subsets of x and y data
         group_x = x_data.loc[x_data['strategy'] == stratIDs[x_strat]]
         group_y = y_data.loc[y_data['strategy'] == stratIDs[y_strat]]
 
-        # inner join x and y
+        # outer join of x and y
         group_y = group_y.set_index('benchmark')
-        joined = group_x.join(group_y, on='benchmark', how='outer', 
-                                    lsuffix='_x', rsuffix='_y')
+        joined  = group_x.join(group_y, on='benchmark', how='outer',
+                               lsuffix='_x', rsuffix='_y')
 
         # plot reachability time of x vs y
         xs = joined['reach_time_x'].to_numpy()
@@ -349,31 +349,56 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label, add_merge_time
         factor = 1 # factor for vizualization
         xs[np.isnan(xs)] = maxtime*factor
         ys[np.isnan(ys)] = maxtime*factor
+
+        # actually plot the data points
         ax.scatter(xs, ys, s=s, marker=m, facecolors=fc, edgecolors=ec, label=l)
 
-        # track for annotations
-        all_xs.extend(xs)
-        all_ys.extend(ys)
-        all_names.extend(joined['benchmark'])
-
-        # max and min for diagonal line
+        # track for diagonal lines
         max_val = max(max_val, np.max(xs), np.max(ys))
         min_val = min(min_val, np.min(xs), np.min(ys))
 
-    # diagonal line
-    ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
+        # track names for annotations
+        meta['xs'].extend(xs)
+        meta['ys'].extend(ys)
+        meta['names'].extend(joined['benchmark'])
 
-    # * 10 and / 10 lines
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+
+    meta['max_val'] = max_val
+    meta['min_val'] = min_val
+    return ax, meta
+
+
+def _plot_diagonal_lines(ax, max_val, min_val):
+    """
+    Add diagonal lines to ax
+    """
+    
+    # bit of margin for vizualization
+    ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
+    ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
+
+    # diagonal lines
+    ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
     ax.plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
     ax.plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
 
-    # labels and formatting
-    ax.set_xlabel('{} time (s)'.format(axis_label[(x_strat,x_data_label[-3:],)]))
-    ax.set_ylabel('{} time (s)'.format(axis_label[(y_strat,y_data_label[-3:],)]))
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
+    return ax
+
+def plot_comparison(x_strat, x_dd, y_strat, y_dd, add_merge_time):
+    info("plotting {} ({}) vs {} ({})".format(x_strat, x_dd, y_strat, y_dd))
+
+    scaling = 5.0 # default = ~6.0
+    fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
+
+    # actually fills in the subplot
+    ax, meta = _plot_time_comp(ax, x_strat, x_dd, y_strat, y_dd, add_merge_time)
+    ax = _plot_diagonal_lines(ax, meta['max_val'], meta['min_val'])
+    
+    # set axis labels + legend
+    ax.set_xlabel('{} time (s)'.format(axis_label[(x_strat,x_dd[-3:],)]))
+    ax.set_ylabel('{} time (s)'.format(axis_label[(y_strat,y_dd[-3:],)]))
     ax.legend(framealpha=1.0)
     plt.tight_layout()
 
@@ -381,338 +406,49 @@ def plot_comparison(x_strat, x_data_label, y_strat, y_data_label, add_merge_time
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}reachtime_{}_{}_vs_{}_{}_incMergeTime{}.{}'.format(subfolder,
-                                                          x_strat, x_data_label,
-                                                          y_strat, y_data_label,
+                                                          x_strat, x_dd,
+                                                          y_strat, y_dd,
                                                           add_merge_time,
                                                           fig_format)
         fig.savefig(fig_name, dpi=300)
 
     # add data-point labes and plot as pdf
-    for i, bench_name in enumerate(all_names):
-        ax.annotate(bench_name, (all_xs[i], all_ys[i]), fontsize=1.0)
+    for i, bench_name in enumerate(meta['names']):
+        ax.annotate(bench_name, (meta['xs'][i], meta['ys'][i]), fontsize=1.0)
     fig_name = '{}reachtime_{}_{}_vs_{}_{}.{}'.format(label_folder,
-                                                      x_strat, x_data_label,
-                                                      y_strat, y_data_label,
+                                                      x_strat, x_dd,
+                                                      y_strat, y_dd,
                                                       'pdf')
     fig.savefig(fig_name, dpi=300)
     plt.close(fig)
 
 
-def plot_comparison_shared_y(x1_strat, x1_data_label, 
-                             x2_strat, x2_data_label, 
-                             y_strat,  y_data_label):
-    info("plotting x1 = {} ({}), x2 = {} ({}) vs y = {} ({})".format(
-          x1_strat, x1_data_label,
-          x2_strat, x2_data_label,
-          y_strat,  y_data_label))
-    
-    scaling = 4.8 # default = ~6.0
-    w = 1.55 # relative width
-    fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
-    point_size = 8.0
-
-    max_val = 0
-    min_val = 1e9
-    for ds_name in datasetnames:
-        # get the relevant data
-        x1_data = datamap[(ds_name, x1_data_label)]
-        x2_data = datamap[(ds_name, x2_data_label)]
-        y_data  = datamap[(ds_name, y_data_label)]
-
-        # select subsets of x and y data
-        group_x1 = x1_data.loc[x1_data['strategy'] == stratIDs[x1_strat]]
-        group_x2 = x2_data.loc[x2_data['strategy'] == stratIDs[x2_strat]]
-        group_y  = y_data.loc[y_data['strategy'] == stratIDs[y_strat]]
-
-        # inner join x and y
-        group_y = group_y.set_index('benchmark')
-        joined1 = group_x1.join(group_y, on='benchmark', how='inner', 
-                                    lsuffix='_x', rsuffix='_y')
-        joined2 = group_x2.join(group_y, on='benchmark', how='inner', 
-                                    lsuffix='_x', rsuffix='_y')
-        
-        # plot reachability time of x1 vs y and x2 vs y
-        x1s = joined1['reach_time_x'].to_numpy()
-        y1s = joined1['reach_time_y'].to_numpy()
-        axs[0].scatter(x1s, y1s, s=point_size, label=legend_names[ds_name])
-        x2s = joined2['reach_time_x'].to_numpy()
-        y2s = joined2['reach_time_y'].to_numpy()
-        axs[1].scatter(x2s, y2s, s=point_size, label=legend_names[ds_name])
-
-        
-        # max and min for diagonal lines
-        max_val = max(max_val, np.max(x1s), np.max(y1s), np.max(x2s), np.max(y2s))
-        min_val = min(min_val, np.min(x1s), np.min(y1s), np.min(x2s), np.min(y2s))
-
-    # diagonal line
-    axs[0].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
-    axs[1].plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
-
-    # labels and formatting
-    axs[0].set_xlabel('{} time (s)'.format(axis_label[(x1_strat,x1_data_label[-3:])]))
-    axs[1].set_xlabel('{} time (s)'.format(axis_label[(x2_strat,x2_data_label[-3:])]))
-    axs[0].set_ylabel('{} time (s)'.format(axis_label[(y_strat, y_data_label[-3:])]))
-    axs[0].set_xscale('log')
-    axs[1].set_xscale('log')
-    axs[0].set_yscale('log')
-    axs[0].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[1].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[0].set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[1].axes.yaxis.set_visible(False)
-    axs[0].legend(framealpha=1.0)
-    plt.tight_layout()
-
-    # plot for all formats
-    for fig_format in fig_formats:
-        subfolder = plots_folder.format(fig_format)
-        fig_name = '{}reachtime_{}_{}_and_{}_{}_vs_{}_{}.{}'.format(subfolder,
-                                                        x1_strat, x1_data_label,
-                                                        x2_strat, x2_data_label,
-                                                        y_strat, y_data_label,
-                                                        fig_format)
-        fig.savefig(fig_name, dpi=300)
-    plt.close(fig)
-
-
-def plot_comparison_shared_x_y(x11_strat, x11_data_label, 
-                               x12_strat, x12_data_label,
-                               y1_strat,  y1_data_label,
-                               x21_strat, x21_data_label,
-                               x22_strat, x22_data_label,
-                               y2_strat,  y2_data_label):
-    info("plotting x11 = {} ({}), x12 = {} ({}) vs y1 = {} ({}) \n"
-         "     and x21 = {} ({}), x22 = {} ({}) vs y2 = {} ({})".format(
-          x11_strat, x11_data_label,
-          x12_strat, x12_data_label,
-          y1_strat,  y1_data_label,
-          x21_strat, x21_data_label,
-          x22_strat, x22_data_label,
-          y2_strat,  y2_data_label))
-
-    scaling = 7.5 # default = ~6.0
-    w = 0.95 # relative width
-    fig, axs = plt.subplots(2, 2, sharey='all', sharex='all', figsize=(w*scaling, scaling*0.75))
-
-    max_val = 0
-    min_val = 1e9
-    for ds_name in datasetnames:
-        # get the relevant data
-        x11_data = datamap[(ds_name, x11_data_label)]
-        x12_data = datamap[(ds_name, x12_data_label)]
-        y1_data  = datamap[(ds_name, y1_data_label)]
-        x21_data = datamap[(ds_name, x21_data_label)]
-        x22_data = datamap[(ds_name, x22_data_label)]
-        y2_data  = datamap[(ds_name, y2_data_label)]
-
-        # select subsets of x and y data
-        group_x11 = x11_data.loc[x11_data['strategy'] == stratIDs[x11_strat]]
-        group_x12 = x12_data.loc[x12_data['strategy'] == stratIDs[x12_strat]]
-        group_y1  = y1_data.loc[y1_data['strategy'] == stratIDs[y1_strat]]
-        group_x21 = x21_data.loc[x21_data['strategy'] == stratIDs[x21_strat]]
-        group_x22 = x22_data.loc[x22_data['strategy'] == stratIDs[x22_strat]]
-        group_y2  = y2_data.loc[y2_data['strategy'] == stratIDs[y2_strat]]
-
-        # inner join x and y
-        group_y1 = group_y1.set_index('benchmark')
-        joined11 = group_x11.join(group_y1, on='benchmark', how='inner', 
-                                    lsuffix='_x', rsuffix='_y')
-        joined12 = group_x12.join(group_y1, on='benchmark', how='inner', 
-                                    lsuffix='_x', rsuffix='_y')
-        group_y2 = group_y2.set_index('benchmark')
-        joined21 = group_x21.join(group_y2, on='benchmark', how='inner', 
-                                    lsuffix='_x', rsuffix='_y')
-        joined22 = group_x22.join(group_y2, on='benchmark', how='inner', 
-                                    lsuffix='_x', rsuffix='_y')
-
-        # some styling
-        s = marker_size[ds_name]
-        m = markers[ds_name]
-        l = legend_names[ds_name]
-        
-        # plot reachability times
-        x11s = joined11['reach_time_x'].to_numpy()
-        y11s = joined11['reach_time_y'].to_numpy()
-        axs[0,0].scatter(x11s, y11s, s=s, marker=m, label=l)
-        x12s = joined12['reach_time_x'].to_numpy()
-        y12s = joined12['reach_time_y'].to_numpy()
-        axs[0,1].scatter(x12s, y12s, s=s, marker=m, label=l)
-        x21s = joined21['reach_time_x'].to_numpy()
-        y21s = joined21['reach_time_y'].to_numpy()
-        axs[1,0].scatter(x21s, y21s, s=s, marker=m, label=l)
-        x22s = joined22['reach_time_x'].to_numpy()
-        y22s = joined22['reach_time_y'].to_numpy()
-        axs[1,1].scatter(x22s, y22s, s=s, marker=m, label=l)
-
-        # max and min for diagonal lines
-        max_val = max(max_val, np.max(x11s), np.max(y11s), np.max(x12s), np.max(y12s))
-        min_val = min(min_val, np.min(x11s), np.min(y11s), np.min(x12s), np.min(y12s))
-        max_val = max(max_val, np.max(x21s), np.max(y21s), np.max(x22s), np.max(y22s))
-        min_val = min(min_val, np.min(x21s), np.min(y21s), np.min(x22s), np.min(y22s))
-
-    # diagonal lines
-    axs[0,0].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
-    axs[0,1].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
-    axs[1,0].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
-    axs[1,1].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
-
-    # * 10 line
-    axs[0,0].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
-    axs[0,1].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
-    axs[1,0].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
-    axs[1,1].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
-
-    # / 10 line
-    axs[0,0].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
-    axs[0,1].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
-    axs[1,0].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
-    axs[1,1].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
-
-    # labels and formatting
-    axs[1,0].set_xlabel('{} time (s)'.format(axis_label[(x11_strat,x11_data_label[-3:])]))
-    axs[1,1].set_xlabel('{} time (s)'.format(axis_label[(x12_strat,x12_data_label[-3:])]))
-    axs[0,0].set_ylabel('{} time (s)'.format(axis_label[(y1_strat, y1_data_label[-3:])]))
-    axs[1,0].set_ylabel('{} time (s)'.format(axis_label[(y2_strat, y2_data_label[-3:])]))
-    axs[0,0].set_xscale('log')
-    axs[0,1].set_xscale('log')
-    axs[0,0].set_yscale('log')
-    axs[1,0].set_xscale('log')
-    axs[1,1].set_xscale('log')
-    axs[1,0].set_yscale('log')
-    axs[0,0].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[0,1].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[0,0].set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[1,0].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[1,1].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[1,0].set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[0,1].axes.yaxis.set_visible(False)
-    axs[0,0].legend(framealpha=1.0)
-    plt.tight_layout()
-
-    # plot for all formats
-    for fig_format in fig_formats:
-        subfolder = plots_folder.format(fig_format)
-        fig_name = '{}reachtime_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.{}'.format(subfolder,
-                    x11_strat, x11_data_label, x12_strat, x12_data_label, y1_strat, y1_data_label,
-                    x21_strat, x21_data_label, x22_strat, x22_data_label, y2_strat, y2_data_label,
-                    fig_format)
-        fig.savefig(fig_name, dpi=300)
-    plt.close(fig)
-
-
-def plot_comparison_sbs(x1_strat, x1_data_label, 
-                        y1_strat, y1_data_label,
-                        x2_strat, x2_data_label, 
-                        y2_strat, y2_data_label,
-                        x_label,  y_label,
-                        add_merge_time=False):
+def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
+                        x2_strat, x2_dd, y2_strat, y2_dd,
+                        x_label, y_label, add_merge_time):
     info("plotting")
-    info(" left:  {} ({}) vs {} ({})".format(x1_strat, x1_data_label, 
-                                            y1_strat, y1_data_label))
-    info(" right: {} ({}) vs {} ({})".format(x2_strat, x2_data_label, 
-                                            y2_strat, y2_data_label))
+    info(" left:  {} ({}) vs {} ({})".format(x1_strat, x1_dd, y1_strat, y1_dd))
+    info(" right: {} ({}) vs {} ({})".format(x2_strat, x2_dd, y2_strat, y2_dd))
 
     scaling = 4.9 # default = ~6.0
     w = 1.6 # relative width
     fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
-    point_size = 8.0
 
-    max_val = 0
-    min_val = 1e9
-    colors = ['tab:blue', 'tab:orange', 'tab:green']
-    for ds_name in datasetnames:
-        # get the relevant data
-        try:
-            x1_data = datamap[(ds_name, x1_data_label)]
-            y1_data = datamap[(ds_name, y1_data_label)]
-            x2_data = datamap[(ds_name, x2_data_label)]
-            y2_data = datamap[(ds_name, y2_data_label)]
-        except:
-            print("Could not find complete data for dataset '{}', skipping...".format(ds_name))
-            continue
+    # actually fill in the subplots
+    axs[0], meta0 = _plot_time_comp(axs[0], x1_strat, x1_dd, y1_strat, y1_dd, add_merge_time)
+    axs[1], meta1 = _plot_time_comp(axs[1], x2_strat, x2_dd, y2_strat, y2_dd, add_merge_time)
 
-        # select subsets of x and y data
-        group_x1 = x1_data.loc[x1_data['strategy'] == stratIDs[x1_strat]]
-        group_y1 = y1_data.loc[y1_data['strategy'] == stratIDs[y1_strat]]
-        group_x2 = x2_data.loc[x2_data['strategy'] == stratIDs[x2_strat]]
-        group_y2 = y2_data.loc[y2_data['strategy'] == stratIDs[y2_strat]]
+    # diagonal lines
+    max_val = max(meta0['max_val'], meta1['max_val'])
+    min_val = min(meta0['min_val'], meta1['min_val'])
+    axs[0] = _plot_diagonal_lines(axs[0], max_val, min_val)
+    axs[1] = _plot_diagonal_lines(axs[1], max_val, min_val)
 
-        # remove '.ldd' / '.bdd' (TODO: do this in pre-processing)
-        group_x1['benchmark'] = group_x1['benchmark'].str.replace('.ldd', '', regex=False)
-        group_y1['benchmark'] = group_y1['benchmark'].str.replace('.ldd', '', regex=False)
-        group_x2['benchmark'] = group_x2['benchmark'].str.replace('.ldd', '', regex=False)
-        group_y2['benchmark'] = group_y2['benchmark'].str.replace('.ldd', '', regex=False)
-
-
-        # inner join x and y
-        group_y1 = group_y1.set_index('benchmark')
-        group_y2 = group_y2.set_index('benchmark')
-        joined1 = group_x1.join(group_y1, on='benchmark', how='outer', 
-                                    lsuffix='_x', rsuffix='_y')
-        joined2 = group_x2.join(group_y2, on='benchmark', how='outer', 
-                                    lsuffix='_x', rsuffix='_y')
-
-        # get X's and Y's to plot
-        x1s = joined1['reach_time_x'].to_numpy()
-        y1s = joined1['reach_time_y'].to_numpy()
-        x2s = joined2['reach_time_x'].to_numpy()
-        y2s = joined2['reach_time_y'].to_numpy()
-        if (add_merge_time):
-            x1s += joined1['merge_time_x'].to_numpy()
-            y1s += joined1['merge_time_y'].to_numpy()
-            x2s += joined2['merge_time_x'].to_numpy()
-            y2s += joined2['merge_time_y'].to_numpy()
-        
-        # some styling
-        s = marker_size[ds_name]
-        m = markers[ds_name]
-        l = legend_names[ds_name]
-        ec = marker_colors[ds_name]
-        fc1 = np.array([marker_colors[ds_name]]*len(x1s))
-        fc2 = np.array([marker_colors[ds_name]]*len(x2s))
-        fc1[np.isnan(x1s)] = 'none'
-        fc1[np.isnan(y1s)] = 'none'
-        fc2[np.isnan(x2s)] = 'none'
-        fc2[np.isnan(y2s)] = 'none'
-
-        factor = 1 # factor for vizualization
-        x1s[np.isnan(x1s)] = maxtime*factor
-        y1s[np.isnan(y1s)] = maxtime*factor
-        x2s[np.isnan(x2s)] = maxtime*factor
-        y2s[np.isnan(y2s)] = maxtime*factor
-        
-        # plot reachability time of x1 vs y and x2 vs y
-        axs[0].scatter(x1s, y1s, s=s, marker=m, facecolors=fc1, edgecolors=ec, label=l)
-        axs[1].scatter(x2s, y2s, s=s, marker=m, facecolors=fc2, edgecolors=ec, label=l)
-        
-        # max and min for diagonal lines
-        max_val = max(max_val, np.max(x1s), np.max(y1s), np.max(x2s), np.max(y2s))
-        min_val = min(min_val, np.min(x1s), np.min(y1s), np.min(x2s), np.min(y2s))
-
-    # diagonal line
-    axs[0].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
-    axs[1].plot([min_val, max_val], [min_val, max_val], ls="--", c="#5d5d5d")
-
-    # * 10 line
-    axs[0].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
-    axs[1].plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
-
-    # / 10 line
-    axs[0].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
-    axs[1].plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
-
-    # labels and formatting
-    #axs[0].set_xlabel('{}'.format(x1_data_label[-3:].upper()))
-    #axs[1].set_xlabel('{}'.format(x2_data_label[-3:].upper()))
-    axs[0].set_title('BDDs')
-    axs[1].set_title('LDDs')
-    fig.text(0.54, 0.01, x_label, ha='center')
+    # axis labels + legend
     axs[0].set_ylabel(y_label)
-    axs[0].set_xscale('log')
-    axs[1].set_xscale('log')
-    axs[0].set_yscale('log')
-    axs[0].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[1].set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
-    axs[0].set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
+    axs[0].set_title('{}s'.format(x1_dd[-3:].upper()))
+    axs[1].set_title('{}s'.format(x2_dd[-3:].upper()))
+    fig.text(0.54, 0.01, x_label, ha='center')
     axs[1].axes.yaxis.set_visible(False)
     axs[0].legend(framealpha=1.0)
     plt.tight_layout()
@@ -724,10 +460,10 @@ def plot_comparison_sbs(x1_strat, x1_data_label,
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}reachtime_{}_{}_vs_{}_{}_and_{}_{}vs_{}_{}_incmergetime{}.{}'.format(
                                                         subfolder,
-                                                        x1_strat, x1_data_label,
-                                                        y1_strat, y1_data_label,
-                                                        x2_strat, x2_data_label,
-                                                        y2_strat, y2_data_label,
+                                                        x1_strat, x1_dd,
+                                                        y1_strat, y1_dd,
+                                                        x2_strat, x2_dd,
+                                                        y2_strat, y2_dd,
                                                         add_merge_time,
                                                         fig_format)
         fig.savefig(fig_name, dpi=300)
