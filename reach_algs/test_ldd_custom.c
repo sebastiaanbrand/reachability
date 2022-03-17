@@ -517,13 +517,298 @@ int test_image_vs_relprod2()
     return 0;
 }
 
-int test_image_vs_relprod0()
+int test_image_vs_relprod3()
 {
     // 1. Create a rel + set of states
+    // Meta = [1, 2, 0], Rel = {forall i: (<4,i> -> <5,i>)} (nvar = 2)
+    MDD rel = stack_transition(4, 5, lddmc_true);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(0, meta, lddmc_false);
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 2);
+
+    // s0 = {<4,10>}, s1 = {<4,10>,<4,11>}, s2 = {<5,3>}
+    MDD s0 = lddmc_true;
+    s0 = lddmc_makenode(10,s0, lddmc_false);
+    s0 = lddmc_makenode(4, s0, lddmc_false);
+    MDD s1 = lddmc_true;
+    s1 = lddmc_makenode(11,s1, lddmc_false);
+    s1 = lddmc_makenode(4, s1, lddmc_false);
+    s1 = lddmc_union(s0, s1);
+    MDD s2 = lddmc_true;
+    s2 = lddmc_makenode(5, s2, lddmc_false);
+    s2 = lddmc_makenode(3, s2, lddmc_false);
+    test_assert(lddmc_satcount(s0) == 1);
+    test_assert(lddmc_satcount(s1) == 2);
+    test_assert(lddmc_satcount(s2) == 1);
 
     // 2. Test R.S with relprod
+    MDD r0 = lddmc_relprod(s0, rel, meta); // {<5,10>}
+    MDD r1 = lddmc_relprod(s1, rel, meta); // {<5,10>, <5,11>}
+    MDD r2 = lddmc_relprod(s2, rel, meta); // {}
+    test_assert(lddmc_satcount(r0) == 1);
+    test_assert(lddmc_satcount(r1) == 2);
+    test_assert(lddmc_satcount(r2) == 0);
+    MDD temp = r0;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+    temp = r1;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
 
     // 3. Extend R, test R.S with image
+    MDD rel_ext  = lddmc_extend_rel(rel, meta, 4);
+    MDD meta_ext = lddmc_make_readwrite_meta(2, false);
+    MDD t0 = lddmc_image(s0, rel_ext, meta_ext);
+    MDD t1 = lddmc_image(s1, rel_ext, meta_ext);
+    MDD t2 = lddmc_image(s2, rel_ext, meta_ext);
+    test_assert(t0 == r0);
+    test_assert(t1 == r1);
+    test_assert(t2 == r2);
+
+    return 0;
+}
+
+int test_image_vs_relprod4()
+{
+    // 1. Create a rel + set of states
+    // Meta = [1, 2, -1], same as previous test but now with nvar = 3
+    MDD rel = stack_transition(4, 5, lddmc_true);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(-1, meta, lddmc_false);
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 2);
+
+    // s0 = {<4,10,10>}, s1 = {<4,10,10>,<4,11,3>}, s2 = {<5,3,8>}
+    MDD s0 = lddmc_true;
+    s0 = lddmc_makenode(10,s0, lddmc_false);
+    s0 = lddmc_makenode(10,s0, lddmc_false);
+    s0 = lddmc_makenode(4, s0, lddmc_false);
+    MDD s1 = lddmc_true;
+    s1 = lddmc_makenode(3, s1, lddmc_false);
+    s1 = lddmc_makenode(11,s1, lddmc_false);
+    s1 = lddmc_makenode(4, s1, lddmc_false);
+    s1 = lddmc_union(s0, s1);
+    MDD s2 = lddmc_true;
+    s2 = lddmc_makenode(8, s2, lddmc_false);
+    s2 = lddmc_makenode(5, s2, lddmc_false);
+    s2 = lddmc_makenode(3, s2, lddmc_false);
+    test_assert(lddmc_satcount(s0) == 1);
+    test_assert(lddmc_satcount(s1) == 2);
+    test_assert(lddmc_satcount(s2) == 1);
+
+    // 2. Test R.S with relprod
+    MDD r0 = lddmc_relprod(s0, rel, meta); // {<5,10,10>}
+    MDD r1 = lddmc_relprod(s1, rel, meta); // {<5,10,10>, <5,11,3>}
+    MDD r2 = lddmc_relprod(s2, rel, meta); // {}
+    test_assert(lddmc_satcount(r0) == 1);
+    test_assert(lddmc_satcount(r1) == 2);
+    test_assert(lddmc_satcount(r2) == 0);
+    MDD temp = r0;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+    temp = r1;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+    temp = r1;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 3);     temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+
+    // 3. Extend R, test R.S with image
+    MDD rel_ext  = lddmc_extend_rel(rel, meta, 6);
+    MDD meta_ext = lddmc_make_readwrite_meta(3, false);
+    MDD t0 = lddmc_image(s0, rel_ext, meta_ext);
+    MDD t1 = lddmc_image(s1, rel_ext, meta_ext);
+    MDD t2 = lddmc_image(s2, rel_ext, meta_ext);
+    test_assert(t0 == r0);
+    test_assert(t1 == r1);
+    test_assert(t2 == r2);
+
+    return 0;
+}
+
+int test_image_vs_relprod5()
+{
+    // 1. Create a rel + set of states
+    // Meta = [1, 2, 5, -1], same as previous but with action label
+    MDD rel = lddmc_makenode(123, lddmc_true, lddmc_false); // action label
+    rel = stack_transition(4, 5, rel);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(-1, meta, lddmc_false);
+    meta = lddmc_makenode(5, meta, lddmc_false);
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 3);
+
+    // s0 = {<4,10,10>}, s1 = {<4,10,10>,<4,11,3>}, s2 = {<5,3,8>}
+    MDD s0 = lddmc_true;
+    s0 = lddmc_makenode(10,s0, lddmc_false);
+    s0 = lddmc_makenode(10,s0, lddmc_false);
+    s0 = lddmc_makenode(4, s0, lddmc_false);
+    MDD s1 = lddmc_true;
+    s1 = lddmc_makenode(3, s1, lddmc_false);
+    s1 = lddmc_makenode(11,s1, lddmc_false);
+    s1 = lddmc_makenode(4, s1, lddmc_false);
+    s1 = lddmc_union(s0, s1);
+    MDD s2 = lddmc_true;
+    s2 = lddmc_makenode(8, s2, lddmc_false);
+    s2 = lddmc_makenode(5, s2, lddmc_false);
+    s2 = lddmc_makenode(3, s2, lddmc_false);
+    test_assert(lddmc_satcount(s0) == 1);
+    test_assert(lddmc_satcount(s1) == 2);
+    test_assert(lddmc_satcount(s2) == 1);
+
+    // 2. Test R.S with relprod
+    MDD r0 = lddmc_relprod(s0, rel, meta); // {<5,10,10>}
+    MDD r1 = lddmc_relprod(s1, rel, meta); // {<5,10,10>, <5,11,3>}
+    MDD r2 = lddmc_relprod(s2, rel, meta); // {}
+    test_assert(lddmc_satcount(r0) == 1);
+    test_assert(lddmc_satcount(r1) == 2);
+    test_assert(lddmc_satcount(r2) == 0);
+    MDD temp = r0;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+    temp = r1;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+    temp = r1;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 3);     temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+
+    // 3. Extend R, test R.S with image
+    MDD rel_ext  = lddmc_extend_rel(rel, meta, 6);
+    MDD meta_ext = lddmc_make_readwrite_meta(3, false);
+    MDD t0 = lddmc_image(s0, rel_ext, meta_ext);
+    MDD t1 = lddmc_image(s1, rel_ext, meta_ext);
+    MDD t2 = lddmc_image(s2, rel_ext, meta_ext);
+    test_assert(t0 == r0);
+    test_assert(t1 == r1);
+    test_assert(t2 == r2);
+
+    return 0;
+}
+
+int test_image_vs_relprod6()
+{
+    // 1. Create a rel + set of states
+    // Meta = [3, 1, 2], rel = {(<5,10> -> <5,20>)}
+    MDD rel = stack_transition(10, 20, lddmc_true);
+    rel = lddmc_makenode(5, rel, lddmc_false);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    meta = lddmc_makenode(3, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 3);
+
+    // s0 = {<5,10>}, s1 = {<5,10>,<5,12>}, s2 = {<6,10>}
+    MDD s0 = lddmc_true;
+    s0 = lddmc_makenode(10,s0, lddmc_false);
+    s0 = lddmc_makenode(5, s0, lddmc_false);
+    MDD s1 = lddmc_true;
+    s1 = lddmc_makenode(12,s1, lddmc_false);
+    s1 = lddmc_makenode(5, s1, lddmc_false);
+    s1 = lddmc_union(s0, s1);
+    MDD s2 = lddmc_true;
+    s2 = lddmc_makenode(10,s2, lddmc_false);
+    s2 = lddmc_makenode(6, s2, lddmc_false);
+    test_assert(lddmc_satcount(s0) == 1);
+    test_assert(lddmc_satcount(s1) == 2);
+    test_assert(lddmc_satcount(s2) == 1);
+
+    // 2. Test R.S with relprod
+    MDD r0 = lddmc_relprod(s0, rel, meta); // {<5,20>}
+    MDD r1 = lddmc_relprod(s1, rel, meta); // {<5,20>}
+    MDD r2 = lddmc_relprod(s2, rel, meta); // {}
+    test_assert(lddmc_satcount(r0) == 1);
+    test_assert(lddmc_satcount(r1) == 1);
+    test_assert(lddmc_satcount(r2) == 0);
+    MDD temp = r0;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 20);    temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+    test_assert(r0 == r1);
+
+    // 3. Extend R, test R.S with image
+    MDD rel_ext  = lddmc_extend_rel(rel, meta, 4);
+    MDD meta_ext = lddmc_make_readwrite_meta(2, false);
+    MDD t0 = lddmc_image(s0, rel_ext, meta_ext);
+    MDD t1 = lddmc_image(s1, rel_ext, meta_ext);
+    MDD t2 = lddmc_image(s2, rel_ext, meta_ext);
+    test_assert(t0 == r0);
+    test_assert(t1 == r1);
+    test_assert(t2 == r2);
+
+    return 0;
+}
+
+int test_image_vs_relprod7()
+{
+    // 1. Create a rel + set of states
+    // Meta = [4, 1, 2], rel = {(<*,10> -> <6, 20>)}
+    MDD rel = stack_transition(10, 20, lddmc_true);
+    rel = lddmc_makenode(6, rel, lddmc_false);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    meta = lddmc_makenode(4, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 3);
+
+    // s0 = {<3,10>}, s1 = {<3,10>,<7,10>}, s2 = {<3,11>}
+    MDD s0 = lddmc_true;
+    s0 = lddmc_makenode(10,s0, lddmc_false);
+    s0 = lddmc_makenode(3, s0, lddmc_false);
+    MDD s1 = lddmc_true;
+    s1 = lddmc_makenode(10,s1, lddmc_false);
+    s1 = lddmc_makenode(7, s1, lddmc_false);
+    s1 = lddmc_union(s0, s1);
+    MDD s2 = lddmc_true;
+    s2 = lddmc_makenode(11,s2, lddmc_false);
+    s2 = lddmc_makenode(3, s2, lddmc_false);
+    test_assert(lddmc_satcount(s0) == 1);
+    test_assert(lddmc_satcount(s1) == 2);
+    test_assert(lddmc_satcount(s2) == 1);
+
+    // 2. Test R.S with relprod
+    MDD r0 = lddmc_relprod(s0, rel, meta); // {<6,20>}
+    MDD r1 = lddmc_relprod(s1, rel, meta); // {<6,20>}
+    MDD r2 = lddmc_relprod(s2, rel, meta); // {}
+    test_assert(lddmc_satcount(r0) == 1);
+    test_assert(lddmc_satcount(r1) == 1);
+    test_assert(lddmc_satcount(r2) == 0);
+    MDD temp = r0;
+    test_assert(lddmc_getvalue(temp) == 6);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 20);    temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+    test_assert(r0 == r1);
+
+    // 3. Extend R, test R.S with image
+    MDD rel_ext  = lddmc_extend_rel(rel, meta, 4);
+    MDD meta_ext = lddmc_make_readwrite_meta(2, false);
+    MDD t0 = lddmc_image(s0, rel_ext, meta_ext);
+    MDD t1 = lddmc_image(s1, rel_ext, meta_ext);
+    MDD t2 = lddmc_image(s2, rel_ext, meta_ext);
+    test_assert(t0 == r0);
+    test_assert(t1 == r1);
+    test_assert(t2 == r2);
 
     return 0;
 }
@@ -559,6 +844,11 @@ int runtests()
     printf("Testing lddmc_image against lddmc_relprod...    "); fflush(stdout);
     if (test_image_vs_relprod1()) return 1;
     if (test_image_vs_relprod2()) return 1;
+    if (test_image_vs_relprod3()) return 1;
+    if (test_image_vs_relprod4()) return 1;
+    if (test_image_vs_relprod5()) return 1;
+    if (test_image_vs_relprod6()) return 1;
+    if (test_image_vs_relprod7()) return 1;
     printf("OK\n");
 
     return 0;
