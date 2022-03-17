@@ -220,10 +220,30 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
 
     uint32_t meta_val = lddmc_getvalue(meta);
 
+    // In case of 5 or -1, we'll consider all the remaining vars as skipped and
+    // insert two levels of * for them.
+    if (meta_val == 5 || meta_val == (uint32_t)-1) {
+        res = lddmc_true;
+        assert (nvars % 2 == 0);
+        for (uint32_t i = 0; i < (nvars/2); i++) {
+            res = lddmc_make_copynode(res, lddmc_false);
+            res = lddmc_make_copynode(res, lddmc_false);
+        }
+        /* Put in cache */
+        cache_put3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, res);
+
+        return res;
+    }
+
     /* Get right and down */
     MDD right, down;
     uint32_t value;
     if (rel == lddmc_false || rel == lddmc_true) {
+        right = lddmc_false;
+        down  = rel;
+    }
+    else if (meta_val == 0) {
+        // for meta_val = 0, the node in the rel is skipped
         right = lddmc_false;
         down  = rel;
     }
@@ -234,16 +254,16 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
         value = mddnode_getvalue(node);
     }
 
-    /* Get next meta (down unless we run into a -1 or 5) */
-    MDD next_meta;
-    if (meta_val == (uint32_t)-1 || meta_val == 5)
-        next_meta = meta;
+    /* Get next meta */
+    MDD next_meta = next_meta = lddmc_getdown(meta);
+    uint32_t next_nvars;
+    if (meta_val == 1 || meta_val == 2)
+        next_nvars = nvars - 1; // for a read/write we step 1 var
     else
-        next_meta = lddmc_getdown(meta);
+        next_nvars = nvars - 2; // for meta_val=0, 3, or 4 we step 2 vars
 
     /* Call function on children */
     assert(right != lddmc_true);
-    uint32_t next_nvars = (meta_val == 1) ? nvars : nvars-1;
     if (right != lddmc_false && meta_val != 4)
         right = CALL(lddmc_extend_rel, right, meta, nvars);
     down = CALL(lddmc_extend_rel, down, next_meta, next_nvars);
@@ -277,17 +297,8 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
         down = lddmc_makenode(value, down, right);
         res = lddmc_make_copynode(down, lddmc_false);
     }
-    // 5 indicates action labels, we'll consider all the remaining vars as
-    // skipped and insert two levels of * for them.
-    else if (meta_val == 5 || meta_val == (uint32_t)-1) {
-        res = lddmc_true;
-        for (uint32_t i = 0; i < nvars; i++) {
-            res = lddmc_make_copynode(res, lddmc_false);
-            res = lddmc_make_copynode(res, lddmc_false);
-        }
-    }
     else {
-        printf("Meta val = %d\n", meta_val);
+        printf("Unexpected meta val = %d\n", meta_val);
         exit(1);
     }
 

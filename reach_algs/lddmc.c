@@ -1097,7 +1097,7 @@ main(int argc, char **argv)
         if (custom_img) {
             INFO("Extending relation to full domain.\n");
             for (int i = 0; i < next_count; i++) {
-                next[i]->dd = lddmc_extend_rel(next[i]->dd, next[i]->meta, vector_size);
+                next[i]->dd = lddmc_extend_rel(next[i]->dd, next[i]->meta, 2*vector_size);
                 next[i]->meta = lddmc_make_readwrite_meta(vector_size, true);
             }
         }
