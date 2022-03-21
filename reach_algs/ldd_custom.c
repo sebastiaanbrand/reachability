@@ -102,6 +102,7 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
         // current read is a copy node (i.e. interpret as R_ii for all i)
         MDD rel_i = lddmc_getdown(rel);
 
+        // if there is a copy node among the writes, it comes first
         if (lddmc_iscopy(rel_i)) {
             // rel = (* -> *), i.e. read anything, write what was read
 
@@ -122,25 +123,25 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 MDD succ_i_ext = lddmc_makenode(i, succ_i, lddmc_false);
                 res = lddmc_union(res, succ_i_ext);
             }
+
+            // After (* -> *), there might still be (* -> j)'s
+            rel_i = lddmc_getright(rel_i);
         }
-        else {
-            // rel = (* -> j), i.e. read anything, write j
+        // rel = (* -> j), i.e. read anything, write j
+        set_i = lddmc_getdown(set);
 
-            set_i = lddmc_getdown(set);
+        // Iterate over all writes (j) of rel
+        for (itr_w = rel_i; itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
 
-            // Iterate over all writes (j) of rel
-            for (itr_w = rel_i; itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+            uint32_t j = lddmc_getvalue(itr_w);
+            rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
 
-                uint32_t j = lddmc_getvalue(itr_w);
-                rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
+            // Compute successors T_j = S_*.R_*j
+            MDD succ_j = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
-                // Compute successors T_j = S_*.R_*j
-                MDD succ_j = CALL(lddmc_image, set_i, rel_ij, next_meta);
-
-                // Extend succ_j and add to successors
-                MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
-                res = lddmc_union(res, succ_j_ext);
-            }
+            // Extend succ_j and add to successors
+            MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+            res = lddmc_union(res, succ_j_ext);
         }
         _rel = lddmc_getright(_rel);
     }
