@@ -214,6 +214,10 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
         //}
     }
 
+    // TODO: this function should handle potential copy nodes in the input rel
+    // for now we'll test without
+    assert(!lddmc_iscopy(rel));
+
     /* Consult cache */
     MDD res = lddmc_false;
     if (cache_get3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, &res)) return res;
@@ -277,6 +281,8 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     // meta == 'read' : change nothing
     else if (meta_val == 1) {
         assert(lddmc_getvalue(next_meta) == 2);
+        // TODO: REL COULD BE A COPY NODE FOR META = 1
+        assert(!lddmc_iscopy(rel));
         res = lddmc_makenode(value, down, right);
     }
     // meta == 'write' : change nothing
@@ -285,6 +291,7 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     }
     // replace [only-read 'a'] with [read 'a', write 'a']
     else if (meta_val == 3) {
+        // TODO: REL COULD BE A COPY NODE FOR META = 3
         assert(!lddmc_iscopy(rel));
         down = lddmc_makenode(value, down, lddmc_false); // write 'value'
         res  = lddmc_makenode(value, down, right);       // read 'value' on top
