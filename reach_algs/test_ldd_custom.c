@@ -1018,6 +1018,43 @@ int test_rel_union4()
     return 0;
 }
 
+int test_rel_union5()
+{
+    // union rels with meta [4] ; [4]
+    // r0 = {<*> -> <5>}, r1 = {<*> -> <8>}
+    //  |                  |
+    // [*]                [*]
+    //  |                  |
+    // [5]                [8]
+    uint32_t nvars = 1;
+    MDD r0 = lddmc_makenode(5, lddmc_true, lddmc_false); 
+    MDD r1 = lddmc_makenode(8, lddmc_true, lddmc_false);
+    MDD m0 = lddmc_makenode(4, lddmc_true, lddmc_false);
+    MDD m1 = lddmc_makenode(4, lddmc_true, lddmc_false);
+
+    // s0 = {<7>}, s1 = {<8>}, s2 = {<7>, <8>}
+    MDD s0 = lddmc_makenode(7, lddmc_true, lddmc_false);
+    MDD s1 = lddmc_makenode(8, lddmc_true, lddmc_false);
+    MDD s2 = lddmc_union(s0, s1);
+    test_assert(lddmc_satcount(s0) == 1);
+    test_assert(lddmc_satcount(s1) == 1);
+    test_assert(lddmc_satcount(s2) == 2);
+
+    // {<*> -> <4>, <*> -> <5>}
+    MDD t0 = test_rel_union(r0, m0, r1, m1, s0, nvars); // {<>,<8>}
+    MDD t1 = test_rel_union(r0, m0, r1, m1, s1, nvars); // {<5>,<8>}
+    MDD t2 = test_rel_union(r0, m0, r1, m1, s2, nvars); // {<5>,<8>}
+    test_assert(t0 == t1);
+    test_assert(t1 == t2);
+    test_assert(lddmc_satcount(t0) == 2);
+    MDD temp = t0;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 8);     temp = lddmc_getdown(temp);
+    test_assert(temp == lddmc_true);
+
+    return 0;
+}
+
 int test_rel_union6()
 {
     // union rels with meta [4] ; [0]
@@ -1100,6 +1137,7 @@ int runtests()
     if (test_rel_union2()) return 1;
     if (test_rel_union3()) return 1;
     if (test_rel_union4()) return 1;
+    if (test_rel_union5()) return 1;
     if (test_rel_union6()) return 1;
     printf("OK\n");
 
