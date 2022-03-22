@@ -3,27 +3,13 @@
 #include "sylvan_int.h"
 #include "ldd_custom.h"
 
-static MDD write_rel(MDD rel)
+static MDD write_mdd(MDD rel, char *name, int i)
 {
     FILE *fp;
-    fp = fopen("rel.dot", "w");
+    char *fname = (char*)malloc(200 * sizeof(char));
+    sprintf(fname, "%s_%d.dot", name, i);
+    fp = fopen(fname, "w");
     lddmc_fprintdot(fp, rel);
-    fclose(fp);
-}
-
-static MDD write_meta(MDD meta)
-{
-    FILE *fp;
-    fp = fopen("meta.dot", "w");
-    lddmc_fprintdot(fp, meta);
-    fclose(fp);
-}
-
-static MDD write_states(MDD states)
-{
-    FILE *fp;
-    fp = fopen("states.dot", "w");
-    lddmc_fprintdot(fp, states);
     fclose(fp);
 }
 
@@ -1094,6 +1080,164 @@ int test_rel_union6()
     return 0;
 }
 
+MDD generate_random_meta(uint32_t nvars)
+{
+    MDD meta = lddmc_true;
+
+    MDD n_skips = 0;
+
+    for (uint32_t i = 0; i < nvars; i++) {
+        int r = rand() % 5;
+        switch (r) {
+        case 0: // skip var
+            meta = lddmc_makenode(0, meta, lddmc_false);
+            n_skips++;
+            break;
+        case 1: // read-write twice as likely as other options)
+            meta = lddmc_makenode(2, meta, lddmc_false);
+            meta = lddmc_makenode(1, meta, lddmc_false);
+            break;
+        case 2: // read-write
+            meta = lddmc_makenode(2, meta, lddmc_false);
+            meta = lddmc_makenode(1, meta, lddmc_false);
+            break;
+        case 3: // only-read
+            meta = lddmc_makenode(3, meta, lddmc_false);
+            break;
+        case 4: // only-write
+            meta = lddmc_makenode(4, meta, lddmc_false);
+            break;
+        default:
+            assert(false && "r shouldn't be outside this range");
+            break;
+        }
+    }
+
+    if (n_skips == nvars) {
+        // retry (we don't want to skipp all variables)
+        meta = generate_random_meta(nvars);
+    }
+
+    return meta;
+}
+
+// Generates a random rel compatible with Sylvan's lddmc_relprod
+MDD generate_random_rel(MDD meta, uint32_t max_val, MDD *s_init)
+{
+    if (meta == lddmc_true) {
+        *s_init = lddmc_true;
+        return lddmc_true;
+    }
+
+    uint32_t m_val = lddmc_getvalue(meta);
+    MDD next_meta  = lddmc_getdown(meta);
+    if (m_val == 1) {
+        assert(lddmc_getvalue(next_meta) == 2);
+    }
+    
+    MDD res;
+    if (m_val == 0) {
+         // skipped variable: no entry in rel, random entry in s_init
+        res = generate_random_rel(next_meta, max_val, s_init);
+        uint32_t r = rand() % max_val;
+        *s_init = lddmc_makenode(r, *s_init, lddmc_false);
+    }
+    else if (m_val == 1 || m_val == 2 || m_val == 3 || m_val == 4) {
+        // node in rel (1 for now)
+        uint32_t r = rand() % max_val;
+        MDD child = generate_random_rel(next_meta, max_val, s_init);
+        res = lddmc_makenode(r, child, lddmc_false);
+        if (m_val == 1 || m_val == 3) {
+            // relation reads (or only-reads) 'r'; add 'r' to s_init
+            *s_init = lddmc_makenode(r, *s_init, lddmc_false);
+        }
+        else if (m_val == 4) {
+            // relation only-writes 'r'; add random read to s_init
+            uint32_t rr = rand() % max_val;
+            *s_init = lddmc_makenode(rr, *s_init, lddmc_false);
+        }
+    }
+    else {
+        assert(false && "meta value not recognized");
+    }
+
+    return res;
+}
+
+int test_random_relations(uint32_t num_tests, uint32_t nvars, uint32_t n_rels)
+{
+    MDD *meta, *rel, *rel_ext, *s, states, merged_rels;
+    MDD succ0, succ1, succ2, succ_temp;
+    MDD r_w_meta = lddmc_make_readwrite_meta(nvars, false);
+    
+    meta    = malloc(n_rels * sizeof(MDD));
+    rel     = malloc(n_rels * sizeof(MDD));
+    rel_ext = malloc(n_rels * sizeof(MDD));
+    s       = malloc(n_rels * sizeof(MDD));
+
+    for (uint32_t i = 0; i < num_tests; i++) {
+        // renerate random relation
+        for (uint32_t j = 0; j < n_rels; j++) {
+            meta[j] = generate_random_meta(nvars);
+            rel[j] = generate_random_rel(meta[j], 128, &s[j]);
+            assert(lddmc_satcount(s[j]) == 1);
+        }
+
+        // states := UNION_j (s[j])
+        states = lddmc_false;
+        for (uint32_t j = 0; j < n_rels; j++) {
+            states = lddmc_union(states, s[j]);
+        }
+
+        // compute successors with relprod (one rel at a time)
+        succ0 = lddmc_false;
+        for (uint32_t j = 0; j < n_rels; j++) {
+            succ_temp = lddmc_relprod(states, rel[j], meta[j]);
+            succ0     = lddmc_union(succ0, succ_temp);
+        }
+
+        // compute successors with lddmc_image (one rel at a time)
+        succ1 = lddmc_false;
+        for (uint32_t j = 0; j < n_rels; j++) {
+            rel_ext[j] = lddmc_extend_rel(rel[j], meta[j], 2*nvars);
+            succ_temp  = lddmc_image(states, rel_ext[j], r_w_meta);
+            succ1      = lddmc_union(succ1, succ_temp);
+        }
+
+        // compute successors with lddmc_image after merging rels
+        merged_rels = lddmc_false;
+        for (uint32_t j = 0; j < n_rels; j++) {
+            merged_rels = lddmc_union(merged_rels, rel_ext[j]);
+        }
+        succ2 = lddmc_image(states, merged_rels, r_w_meta);
+
+        assert(lddmc_satcount(succ0) >= 1);
+        if (succ0 != succ1 || succ1 != succ2) {
+            printf("Issue found, writing issue rels\n");
+            for (uint32_t j = 0; j < n_rels; j++) {
+                write_mdd(meta[j], "meta", j);
+                write_mdd(rel[j], "rel", j);
+                write_mdd(rel_ext[j], "rel_ext", j);
+                write_mdd(s[j], "states", j);
+            }
+            write_mdd(states, "state_union", 0);
+                write_mdd(merged_rels, "rel_ext_union", 0);
+                write_mdd(succ0, "succ", 0);
+                write_mdd(succ1, "succ", 1);
+                write_mdd(succ2, "succ", 2);
+            assert(succ0 == succ1);
+            assert(succ1 == succ2);
+        }
+    }
+
+    free(meta);
+    free(rel);
+    free(rel_ext);
+    free(s);
+
+    return 0;
+}
+
 int runtests()
 {
     // we are not testing garbage collection
@@ -1140,6 +1284,20 @@ int runtests()
     if (test_rel_union5()) return 1;
     if (test_rel_union6()) return 1;
     printf("OK\n");
+
+    srand(42);
+    uint32_t n = 100;
+    uint32_t max_vars = 5;
+    uint32_t max_rels = 2;
+    printf("Testing on randomly generated relations... \n");
+    for (uint32_t nvars = 1; nvars <= max_vars; nvars++) {
+        for (uint32_t n_rels = 1; n_rels <= max_rels; n_rels++) {
+            printf("    *%dx union of %d random rels with %d vars... ", n, n_rels, nvars);
+            fflush(stdout);
+            test_random_relations(n, nvars, n_rels);
+            printf("OK\n");
+        }
+    }
 
     return 0;
 }
