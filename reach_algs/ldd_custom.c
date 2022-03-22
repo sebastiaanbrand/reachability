@@ -112,9 +112,7 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
             for (itr_r = set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
                 
                 uint32_t i = lddmc_getvalue(itr_r);
-                set_i = lddmc_follow(set, i); // NOTE: this is not efficient, since
-                // lddmc_follow needs to iterate 'set' from the beginning each time
-                // (here we should be able to replace this with getdown(itr_s))
+                set_i = lddmc_getdown(itr_r);
 
                 // Compute successors T_i = S_i.R_ii
                 MDD succ_i = CALL(lddmc_image, set_i, rel_ij, next_meta);
@@ -128,20 +126,25 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
             rel_i = lddmc_getright(rel_i);
         }
         // rel = (* -> j), i.e. read anything, write j
-        set_i = lddmc_getdown(set);
 
-        // Iterate over all writes (j) of rel
-        for (itr_w = rel_i; itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+        // Iterate over all reads of 'set'
+        for (itr_r = set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+            
+            set_i = lddmc_getdown(itr_r);
 
-            uint32_t j = lddmc_getvalue(itr_w);
-            rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
+            // Iterate over all writes (j) of rel
+            for (itr_w = rel_i; itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
 
-            // Compute successors T_j = S_*.R_*j
-            MDD succ_j = CALL(lddmc_image, set_i, rel_ij, next_meta);
+                uint32_t j = lddmc_getvalue(itr_w);
+                rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
 
-            // Extend succ_j and add to successors
-            MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
-            res = lddmc_union(res, succ_j_ext);
+                // Compute successors T_j = S_*.R_*j
+                MDD succ_j = CALL(lddmc_image, set_i, rel_ij, next_meta);
+
+                // Extend succ_j and add to successors
+                MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                res = lddmc_union(res, succ_j_ext);
+            }
         }
         _rel = lddmc_getright(_rel);
     }

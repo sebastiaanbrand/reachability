@@ -1288,7 +1288,7 @@ int runtests()
     srand(42);
     uint32_t n = 100;
     uint32_t max_vars = 5;
-    uint32_t max_rels = 2;
+    uint32_t max_rels = 3;
     printf("Testing on randomly generated relations... \n");
     for (uint32_t nvars = 1; nvars <= max_vars; nvars++) {
         for (uint32_t n_rels = 1; n_rels <= max_rels; n_rels++) {
