@@ -432,6 +432,30 @@ int test_lddmc_extend_rel9()
     return 0;
 }
 
+int test_lddmc_extend_rel10()
+{
+    // Test extending read-write with a copy node on the write (2) level
+    // Meta = [1,2,4], rel = {(<10,*> -> <11,*>)}
+    MDD rel = lddmc_make_copynode(lddmc_true, lddmc_false);
+    rel = stack_transition(10, 11, rel);
+    MDD meta = lddmc_true;
+    meta = lddmc_makenode(4, meta, lddmc_false);
+    meta = lddmc_makenode(2, meta, lddmc_false);
+    meta = lddmc_makenode(1, meta, lddmc_false);
+    test_assert(lddmc_nodecount(rel) == 3);
+
+    // we expect the copy node for only-read to be repaced by two copy nodes
+    MDD rel_ext = lddmc_extend_rel(rel, meta, 4);
+    test_assert(lddmc_nodecount(rel_ext) == 4);
+    test_assert(lddmc_getvalue(rel_ext) == 10); rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_getvalue(rel_ext) == 11); rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_iscopy(rel_ext));         rel_ext = lddmc_getdown(rel_ext);
+    test_assert(lddmc_iscopy(rel_ext));         rel_ext = lddmc_getdown(rel_ext);
+    test_assert(rel_ext == lddmc_true);
+
+    return 0;
+}
+
 
 int test_image_vs_relprod1()
 {
@@ -1252,7 +1276,8 @@ MDD generate_random_rel(MDD meta, uint32_t max_val, MDD *s_init)
         MDD child = generate_random_rel(next_meta, max_val, s_init);
 
         uint32_t r = rand() % max_val;
-        if ((m_val == 1 || m_val == 3) && r % 10 == 0) { // 1/10 chance of * node
+        if ((m_val == 1 || m_val == 3 || m_val == 4) && r % 10 == 0) {
+             // 1/10 chance of * node
             res = lddmc_make_copynode(child, lddmc_false);
         }
         else {
@@ -1379,6 +1404,7 @@ int runtests()
     if (test_lddmc_extend_rel7()) return 1;
     if (test_lddmc_extend_rel8()) return 1;
     if (test_lddmc_extend_rel9()) return 1;
+    if (test_lddmc_extend_rel10()) return 1;
     printf("OK\n");
 
     printf("Testing lddmc_image against lddmc_relprod...    "); fflush(stdout);

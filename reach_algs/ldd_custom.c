@@ -198,6 +198,7 @@ TASK_3(MDD, only_read_helper, MDD, right, MDD, next_meta, MDD, next_nvars)
     MDD next_right = mddnode_getright(node);
     MDD down       = mddnode_getdown(node);
     MDD value      = mddnode_getvalue(node);
+    assert(!mddnode_getcopy(node) && "there should be no copy-nodes to the right");
     
     next_right = CALL(only_read_helper, next_right, next_meta, next_nvars);
     down       = CALL(lddmc_extend_rel, down, next_meta, next_nvars);
@@ -288,7 +289,7 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     }
     // meta == 'write' : change nothing
     else if (meta_val == 2) {
-        assert(!lddmc_iscopy(rel));
+        assert(!lddmc_iscopy(rel) && "meta_val == 2");
         res = lddmc_makenode(value, down, right);
     }
     // replace [only-read 'a'] with [read 'a', write 'a']
@@ -305,10 +306,16 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     else if (meta_val == 4) {
         // if meta = 4, use this helper to avoid recursive calls to extend on
         // right-children
-        assert(!lddmc_iscopy(rel));
+        //assert(!lddmc_iscopy(rel) && "meta_val == 4");
         right = CALL(only_read_helper, right, next_meta, next_nvars);
-        down = lddmc_makenode(value, down, right);
-        res = lddmc_make_copynode(down, lddmc_false);
+        if (lddmc_iscopy(rel)) {
+            down = lddmc_make_copynode(down, right);
+            res = lddmc_make_copynode(down, lddmc_false);
+        }
+        else {
+            down = lddmc_makenode(value, down, right);
+            res = lddmc_make_copynode(down, lddmc_false);
+        }
     }
     else {
         printf("Unexpected meta val = %d\n", meta_val);
