@@ -284,13 +284,26 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
         assert(lddmc_getvalue(next_meta) == 2);
         if (lddmc_iscopy(rel))
             res = lddmc_make_copynode(down, right);
-        else
+        else {
+            if (lddmc_iscopy(down)) {
+                // replace [read 'a' -> copy] with [read 'a' -> write 'a']
+                mddnode_t n_down = LDD_GETNODE(down);
+                down = lddmc_makenode(value, mddnode_getdown(n_down), mddnode_getright(n_down));
+            }
             res = lddmc_makenode(value, down, right);
+        }
     }
     // meta == 'write' : change nothing
     else if (meta_val == 2) {
-        assert(!lddmc_iscopy(rel) && "meta_val == 2");
-        res = lddmc_makenode(value, down, right);
+        //assert(!lddmc_iscopy(rel) && "meta_val == 2");
+        if (lddmc_iscopy(rel)) {
+            // this returns a copy node, then at the read level (1)
+            // it is converted to an explicit write
+            res = lddmc_make_copynode(down, right);
+        }
+        else {
+            res = lddmc_makenode(value, down, right);
+        }
     }
     // replace [only-read 'a'] with [read 'a', write 'a']
     else if (meta_val == 3) {
