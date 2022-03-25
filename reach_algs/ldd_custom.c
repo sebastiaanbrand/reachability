@@ -95,12 +95,13 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
     MDD itr_w  = lddmc_false;   lddmc_refs_pushptr(&itr_w);
     MDD rel_ij = lddmc_false;   lddmc_refs_pushptr(&rel_ij);
     MDD set_i  = lddmc_false;   lddmc_refs_pushptr(&set_i);
+    MDD rel_i  = lddmc_false;   lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
     lddmc_refs_pushptr(&res);
 
     /* Handle copy nodes */
     if (lddmc_iscopy(rel)) {
         // current read is a copy node (i.e. interpret as R_ii for all i)
-        MDD rel_i = lddmc_getdown(rel);
+        rel_i = lddmc_getdown(rel);
 
         // if there is a copy node among the writes, it comes first
         if (lddmc_iscopy(rel_i)) {
@@ -179,7 +180,7 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
         }
     }
 
-    lddmc_refs_popptr(6);
+    lddmc_refs_popptr(7);
 
     /* Put in cache */
     cache_put3(CACHE_LDD_IMAGE, set, rel, 0, res);

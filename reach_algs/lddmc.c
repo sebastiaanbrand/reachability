@@ -818,7 +818,6 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
 
     /* Assert assumptions about rel */
     assert(lddmc_getvalue(meta) == 1);
-    assert(!lddmc_iscopy(rel));
 
     /* We can skip nodes if Rel requires a "read" which is not in S */
     //if (!match_ldds(&set, &rel)) return lddmc_false;
@@ -837,14 +836,79 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
     MDD itr_w     = lddmc_false;    lddmc_refs_pushptr(&itr_w);
     MDD rel_ij    = lddmc_false;    lddmc_refs_pushptr(&rel_ij);
     MDD set_i     = lddmc_false;    lddmc_refs_pushptr(&set_i);
+    MDD rel_i     = lddmc_false;    lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
     MDD _set      = set;            lddmc_refs_pushptr(&_set);
+    MDD _rel      = rel;            lddmc_refs_pushptr(&_rel);
 
     /* Loop until reachable set has converged */
     while (_set != prev) {
         prev = _set;
+        _rel = rel;
 
-        // Iterate over all reads (i) of 'rel'
-        for (itr_r = rel;  itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+        // 1. Iterate over all reads (i) of 'rel'
+        // 1a. (possibly a copy node first)
+        if (lddmc_iscopy(_rel)) {
+            // Current read is a copy node (i.e. interpret as R_ii for all i)
+            rel_i = lddmc_getdown(_rel);
+
+            // 2. Iterate over all corresponding writes (j) 
+            // 2a. rel = (* -> *), i.e. read anything, write what was read
+            if (lddmc_iscopy(rel_i)) {
+
+                rel_ij = lddmc_getdown(rel_i); // j = i
+
+                // Iterate over all reads of 'set'
+                for (itr_r = _set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+                    uint32_t i = lddmc_getvalue(itr_r);
+                    set_i = lddmc_getdown(itr_r);
+
+                    // Compute REACH for S_i.R_ii*
+                    set_i = CALL(go_rec, set_i, rel_ij, next_meta);
+
+                    // Extend set_i and add to 'set'
+                    MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                    _set = lddmc_union(_set, set_i_ext);
+                }
+
+                // After (* -> *), there might still be (* -> j)'s
+                rel_i = lddmc_getright(rel_i);
+            }
+            // 2b. rel = (* -> j), i.e. read anything, write j
+            // Iterate over all reads (i) of 'set'
+            for (itr_r = _set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+
+                uint32_t i = lddmc_getvalue(itr_r);
+                set_i = lddmc_getdown(itr_r);
+
+                // Iterate over over all writes (j) of rel
+                for (itr_w = rel_i; itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+                    
+                    uint32_t j = lddmc_getvalue(itr_w);
+                    rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
+
+                    if (i == j) {
+                        set_i = CALL(go_rec, set_i, rel_ij, next_meta);
+                    }
+                    else {
+                        MDD succ_j;
+                        if (custom_img)
+                            succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                        else
+                            Abort("Must use custom image w/ copy nodes in rel\n");
+                        
+                        // Extend succ_j and add to 'set'
+                        MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                        _set = lddmc_union(_set, set_j_ext);
+                    }
+                }
+
+                // Extend set_i and add to 'set'
+                MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                _set = lddmc_union(_set, set_i_ext);
+            }
+        }
+        
+        for (itr_r = _rel;  itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
 
             uint32_t i = lddmc_getvalue(itr_r);
             set_i = lddmc_follow(_set, i);
@@ -878,7 +942,7 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
         }
     }
 
-    lddmc_refs_popptr(6);
+    lddmc_refs_popptr(8);
 
     /* Put in cache */
     if (cachenow)
