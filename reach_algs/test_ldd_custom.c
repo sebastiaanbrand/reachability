@@ -980,6 +980,47 @@ MDD test_rel_union(MDD rel0, MDD m0, MDD rel1, MDD m1, MDD s, MDD nvars)
     return succ0;
 }
 
+int test_union_copy1()
+{
+    // {*,3,5} v {4,8} = {*,3,4,5,8}
+    MDD a = lddmc_makenode(5, lddmc_true, lddmc_false);
+    a = lddmc_makenode(3, lddmc_true, a);
+    a = lddmc_make_copynode(lddmc_true, a);
+    MDD b = lddmc_makenode(8, lddmc_true, lddmc_false);
+    b = lddmc_makenode(4, lddmc_true, b);
+
+    MDD u = lddmc_union(a, b);
+    test_assert(lddmc_nodecount(u) == 5);
+    test_assert(lddmc_iscopy(u));           u = lddmc_getright(u);
+    test_assert(lddmc_getvalue(u) == 3);    u = lddmc_getright(u);
+    test_assert(lddmc_getvalue(u) == 4);    u = lddmc_getright(u);
+    test_assert(lddmc_getvalue(u) == 5);    u = lddmc_getright(u);
+    test_assert(lddmc_getvalue(u) == 8);    u = lddmc_getright(u);
+
+    return 0;
+}
+
+int test_union_copy2()
+{
+    // {*,3,5} v {*,4,8} = {*,3,4,5,8}
+    MDD a = lddmc_makenode(5, lddmc_true, lddmc_false);
+    a = lddmc_makenode(3, lddmc_true, a);
+    a = lddmc_make_copynode(lddmc_true, a);
+    MDD b = lddmc_makenode(8, lddmc_true, lddmc_false);
+    b = lddmc_makenode(4, lddmc_true, b);
+    b = lddmc_make_copynode(lddmc_true, b);
+
+    MDD u = lddmc_union(a, b);
+    test_assert(lddmc_nodecount(u) == 5);
+    test_assert(lddmc_iscopy(u));           u = lddmc_getright(u);
+    test_assert(lddmc_getvalue(u) == 3);    u = lddmc_getright(u);
+    test_assert(lddmc_getvalue(u) == 4);    u = lddmc_getright(u);
+    test_assert(lddmc_getvalue(u) == 5);    u = lddmc_getright(u);
+    test_assert(lddmc_getvalue(u) == 8);    u = lddmc_getright(u);
+
+    return 0;
+}
+
 int test_rel_union1()
 {
     // union rels with meta [1,2,1,2] ; [1,2,1,2]
@@ -1438,6 +1479,11 @@ int runtests()
     if (test_image_vs_relprod6()) return 1;
     if (test_image_vs_relprod7()) return 1;
     if (test_image_vs_relprod8()) return 1;
+    printf("OK\n");
+
+    printf("Testing union w/ copy nodes...                  "); fflush(stdout);
+    if (test_union_copy1()) return 1;
+    if (test_union_copy2()) return 1;
     printf("OK\n");
 
     printf("Testing lddmc_rel_union...                      "); fflush(stdout);
