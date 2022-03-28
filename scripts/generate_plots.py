@@ -38,7 +38,7 @@ marker_colors = {'beem' : 'tab:blue', 'ptri' : 'tab:orange', 'prom' : 'tab:green
 stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4,
-                'rec-custom-img' : 5,
+                'bfs-plain' : 5,
                 'rec-par' : 14}
 axis_label = {('bfs','bdd') : 'BFS',
               ('sat','bdd') : 'Saturation',
@@ -46,7 +46,7 @@ axis_label = {('bfs','bdd') : 'BFS',
               ('bfs','ldd') : 'BFS',
               ('sat','ldd') : 'Saturation',
               ('rec','ldd') : 'Algorithm 3',
-              ('rec-custom-img', 'ldd') : 'Alg. 3 w/ custom img'}
+              ('bfs-plain', 'ldd') : 'Plain BFS w/ custom img'}
 
 metric_labels={'var-avg-bw':'average relative bandwidth', 
                'var-max-bw':'maximum relative bandwidth',
@@ -950,8 +950,9 @@ def plot_image_test_comparison():
     pre_process()
     assert_states_nodes()
 
-    set_subfolder_name('all/Custom image test')
-    plot_comparison('rec', 'sl-ldd', 'rec-custom-img', 'sl-ldd')
+    set_subfolder_name('all/Custom image test REACH')
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', add_merge_time=False)
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', add_merge_time=True)
 
 
 def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
@@ -1055,7 +1056,7 @@ def plot_paper_plots(subfolder, add_merge_time):
 
 if __name__ == '__main__':
     subfolder, add_merge_time = parse_args()
-    plot_paper_plots(subfolder, add_merge_time)
-    #plot_image_test_comparison()
+    #plot_paper_plots(subfolder, add_merge_time)
+    plot_image_test_comparison()
     
 
