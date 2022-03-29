@@ -368,9 +368,11 @@ fi
 
 # Petri nets, Sloan static LDDs
 if [[ $bench_ptri_sl && $bench_ldd_static ]]; then
-    for filename in models/petrinets/static_ldds/sloan/maxval_$maxval/overapprox/*.ldd; do
+    for filename in models/petrinets/static_ldds/sloan/maxval_$maxval/*.ldd; do
         for nw in $num_workers; do
-            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd_static
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd_static
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static
         done
     done
 fi
