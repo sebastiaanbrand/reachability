@@ -1171,10 +1171,8 @@ main(int argc, char **argv)
             assert_meta_full_domain(next[i]->meta);
         }
 
-        // Q: can we just leave the 5's and -1's when taking these unions?
         INFO("Taking union of all transition relations.\n");
         next[0]->dd = big_union(0, next_count);
-        assert(next[0]->firstvar == 0);
         INFO("Rel nodes after union: %'zu\n", lddmc_nodecount(next[0]->dd));
 
         for (int i=1; i<next_count; i++) {

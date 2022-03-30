@@ -242,7 +242,10 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     }
 
     /* Get right and down */
-    MDD right, down;
+    MDD right = lddmc_false;
+    MDD down  = lddmc_false;
+    lddmc_refs_pushptr(&right);
+    lddmc_refs_pushptr(&down);
     uint32_t value;
     if (rel == lddmc_false || rel == lddmc_true) {
         right = lddmc_false;
@@ -335,6 +338,8 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
         printf("Unexpected meta val = %d\n", meta_val);
         exit(1);
     }
+
+    lddmc_refs_popptr(2);
 
      /* Put in cache */
     cache_put3(CACHE_LDD_EXTEND_REL, rel, meta, nvars, res);
