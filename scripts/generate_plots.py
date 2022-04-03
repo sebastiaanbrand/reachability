@@ -107,8 +107,8 @@ def load_data(data_folder, expected=0):
     try_load_data(('prom','sl-ldd'), data_folder + 'promela_sloan_stats_ldd.csv')
 
     # Static BDDs / LDDs
-    try_load_data(('ptri', 'sl-bdd-static'), data_folder + 'petrinets_sloan_stats_bdd_static_9.csv')
-    try_load_data(('ptri', 'sl-ldd-static'), data_folder + 'petrinets_sloan_stats_ldd_static_6.csv')
+    try_load_data(('ptri', 'sl-static-9-bdd'), data_folder + 'petrinets_sloan_stats_bdd_static_9.csv')
+    try_load_data(('ptri', 'sl-static-9-ldd'), data_folder + 'petrinets_sloan_stats_ldd_static_9.csv')
 
     # Deadlocks
     try_load_data(('ptri-dl', 'sl-bdd'), data_folder + 'petrinets_sloan_stats_bdd_deadlocks.csv')
@@ -386,7 +386,7 @@ def _plot_diagonal_lines(ax, max_val, min_val):
 
     return ax
 
-def plot_comparison(x_strat, x_dd, y_strat, y_dd, add_merge_time):
+def plot_comparison(x_strat, x_dd, y_strat, y_dd, add_merge_time, xlabel='', ylabel=''):
     info("plotting {} ({}) vs {} ({})".format(x_strat, x_dd, y_strat, y_dd))
 
     scaling = 5.0 # default = ~6.0
@@ -397,8 +397,12 @@ def plot_comparison(x_strat, x_dd, y_strat, y_dd, add_merge_time):
     ax = _plot_diagonal_lines(ax, meta['max_val'], meta['min_val'])
     
     # set axis labels + legend
-    ax.set_xlabel('{} time (s)'.format(axis_label[(x_strat,x_dd[-3:],)]))
-    ax.set_ylabel('{} time (s)'.format(axis_label[(y_strat,y_dd[-3:],)]))
+    if (xlabel == ''):
+        xlabel = '{} time (s)'.format(axis_label[(x_strat,x_dd[-3:],)])
+    if (ylabel == ''):
+        ylabel = '{} time (s)'.format(axis_label[(y_strat,y_dd[-3:],)])
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     ax.legend(framealpha=1.0)
     plt.tight_layout()
 
@@ -967,20 +971,46 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
                         add_merge_time=add_merge_time)
     plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', add_merge_time)
-    """
-    plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd-static', 
-                        'sat', 'sl-ldd', 'rec', 'sl-ldd-static', 
-                        'Saturation (on pnml2lts-sym DDs) time (s)', 
-                        'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
-                        add_merge_time=False)
-    
-    plot_comparison_sbs('rec', 'sl-bdd', 'rec', 'sl-bdd-static', 
-                        'rec', 'sl-ldd', 'rec', 'sl-ldd-static', 
-                        'ReachBDD/MDD (on pnml2lts-sym DDs) time (s)', 
-                        'ReachBDD/MDD (on pnml-encode DDs) time (s)', 
-                        add_merge_time=False)
-    """
 
+def plot_pnml_encode_tests(subfolder):
+    set_subfolder_name(subfolder + '/pnml-encode test copy nodes')
+
+    # Saturation pnml2lts-sym vs pnml-encode
+    plot_comparison('sat', 'sl-ldd', 'sat', 'sl-static-9-ldd', False, 
+                    xlabel='saturation on pnml2lts-sym LDDs',
+                    ylabel='saturation on pnml-encode LDDs')
+    
+    # REACH pnml2lts-sym vs pnml-encode
+    plot_comparison('rec', 'sl-ldd', 'rec', 'sl-static-9-ldd', False, 
+                    xlabel='REACH on pnml2lts-sym LDDs',
+                    ylabel='REACH on pnml-encode LDDs')
+    plot_comparison('rec', 'sl-ldd', 'rec', 'sl-static-9-ldd', True, 
+                    xlabel='REACH on pnml2lts-sym LDDs',
+                    ylabel='REACH on pnml-encode LDDs')
+    
+    # Saturation pnml-encode vs REACH pnml-encode
+    plot_comparison('sat', 'sl-static-9-ldd', 'rec', 'sl-static-9-ldd', False, 
+                    xlabel='saturation on pnml-encode LDDs',
+                    ylabel='REACH on pnml-encode LDDs')
+    plot_comparison('sat', 'sl-static-9-ldd', 'rec', 'sl-static-9-ldd', True, 
+                    xlabel='saturation on pnml-encode LDDs',
+                    ylabel='REACH on pnml-encode LDDs')
+    
+    # Saturation pnml2lts-sym vs REACH pnml-encode
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-static-9-ldd', False, 
+                    xlabel='saturation on pnml2lts-sym LDDs',
+                    ylabel='REACH on pnml-encode LDDs')
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-static-9-ldd', True, 
+                    xlabel='saturation on pnml2lts-sym LDDs',
+                    ylabel='REACH on pnml-encode LDDs')
+    
+    # Saturation pnml2lts-sym vs REACH pnml2lts-sym
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', False, 
+                    xlabel='saturation on pnml2lts-sym LDDs',
+                    ylabel='REACH on pnml2lts-sym LDDs')
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', True, 
+                    xlabel='saturation on pnml2lts-sym LDDs',
+                    ylabel='REACH on pnml2lts-sym LDDs')
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
     set_subfolder_name(subfolder + '/Locality metric comparison (Figure 10)')
@@ -1013,13 +1043,15 @@ def plot_paper_plot_its_tools_vs_dds(subfolder):
 
 def plot_paper_plots(subfolder, add_merge_time):   
     # Plot Fig 9, Fig 10, New Fig
-    data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/'
+    data_folder = 'bench_data/'+ subfolder + '/single_worker/2m/'
     if(load_data(data_folder, expected=6)):
         pre_process()
         assert_states_nodes()
     
         # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-        plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
+        #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
+
+        plot_pnml_encode_tests(subfolder)
 
         # Plot locality metric correlation (Figure 10) (on same data)
         #plot_paper_plot_locality(subfolder, add_merge_time=False)
@@ -1056,7 +1088,7 @@ def plot_paper_plots(subfolder, add_merge_time):
 
 if __name__ == '__main__':
     subfolder, add_merge_time = parse_args()
-    #plot_paper_plots(subfolder, add_merge_time)
-    plot_image_test_comparison()
+    plot_paper_plots(subfolder, add_merge_time)
+    #plot_image_test_comparison()
     
 
