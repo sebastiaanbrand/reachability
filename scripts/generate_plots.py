@@ -39,7 +39,8 @@ stratIDs     = {'bfs' : 0,
                 'sat' : 2,
                 'rec' : 4,
                 'bfs-plain' : 5,
-                'rec-par' : 14}
+                'rec-par' : 14,
+                'rec-copy' : 104}
 axis_label = {('bfs','bdd') : 'BFS',
               ('sat','bdd') : 'Saturation',
               ('rec','bdd') : 'Algorithm 1',

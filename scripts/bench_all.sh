@@ -45,6 +45,7 @@ for var in "$@"; do
     if [[ $var == 'ldd-static' ]]; then bench_ldd_static=true; fi
     if [[ $var == 'test-par' ]]; then test_par=true; fi
     if [[ $var == 'bfs' ]]; then test_bfs=true; fi
+    if [[ $var == 'overapprox' ]]; then bench_overapprox=true; fi
     if [[ $var == 'deadlocks' ]]; then deadlocks="--deadlocks"; fi
     if [[ $var == 'all' ]]; then
         bench_beem_vn=true; bench_ptri_vn=true; bench_prom_vn=true
@@ -65,7 +66,9 @@ elif [[ $num_workers == "16 32 64 96" ]]; then
 else
   outputfolder=bench_data/all/par/$maxtime
 fi
-mkdir -p $outputfolder
+
+dt=$(date '+%Y%m%d_%H%M%S');
+outputfolder=$outputfolder/$dt
 
 if [[ $deadlocks ]]; then
     filename_app="_deadlocks"
@@ -126,11 +129,17 @@ if [[ $bench_awari && $bench_bdd ]]; then echo "  - Awari BDDs"; fi
 
 if [[ $test_par && $bench_bdd ]]; then echo "  * Testing parallelism for BDD rec-reach"; fi
 if [[ $deadlocks && $bench_bdd ]]; then echo "  * Computing deadlocks with BDD algs"; fi
+if [[ $bench_ldd ]]; then echo "  * LDDs will be benchmarked on LTSmin's non-overapproximated partial rels"; fi
+if [[ $bench_overapprox && $bench_ldd ]]; then echo "  * Also benchmarking on LTSmin's overapproximated (-2r,r2+,w2+) LDDs"; fi
+if [[ $bench_beem_vn || $bench_beem_f || $bench_ptri_vn || $bench_ptri_f || $bench_prom_vn || $bench_prom_f ]]; then
+    echo "  * WARNING: this script hasn't been updated to handle vanilla or force DDs with all other params of this script"
+fi
 
 
 echo "timeout per run is $maxtime"
 echo "writing .csv output files to folder $outputfolder"
 read -p "Press enter to start"
+mkdir -p $outputfolder
 
 
 # BEEM, vanilla BDDs
@@ -301,7 +310,7 @@ if [[ $bench_awari && $bench_bdd ]]; then
     done
 fi
 
-# BEEM, vanilla LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# BEEM, vanilla LDDs (merging relation requires either overapproximated LDDs or --custom-image)
 if [[ $bench_beem_vn && $bench_ldd ]]; then
     for filename in models/beem/ldds/vanilla/overapprox/*.ldd; do
         for nw in $num_workers; do
@@ -314,20 +323,23 @@ if [[ $bench_beem_vn && $bench_ldd ]]; then
     done
 fi
 
-# BEEM, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# BEEM, Sloan LDDs (merging relation requires either overapproximated LDDs or --custom-image)
 if [[ $bench_beem_sl && $bench_ldd ]]; then
     for filename in models/beem/ldds/sloan/*.ldd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --custom-image --count-nodes --statsfile=$beem_sl_stats_ldd
             fi
             timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
-            timeout $maxtime ./$lddmc models/beem/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --custom-image --count-nodes --statsfile=$beem_sl_stats_ldd
+            if [[ $bench_overapprox ]]; then
+                timeout $maxtime ./$lddmc models/beem/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+            fi
         done
     done
 fi
 
-# BEEM, Force LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# BEEM, Force LDDs (merging relation requires either overapproximated LDDs or --custom-image)
 if [[ $bench_beem_f && $bench_ldd ]]; then
     for filename in models/beem/ldds/force/overapprox/*.ldd; do
         for nw in $num_workers; do
@@ -340,7 +352,7 @@ if [[ $bench_beem_f && $bench_ldd ]]; then
     done
 fi
 
-# Petri nets, vanilla LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# Petri nets, vanilla LDDs (merging relation requires either overapproximated LDDs or --custom-image)
 if [[ $bench_ptri_vn && $bench_ldd ]]; then
     for filename in models/petrinets/ldds/vanilla/overapprox/*.ldd; do
         for nw in $num_workers; do
@@ -353,15 +365,18 @@ if [[ $bench_ptri_vn && $bench_ldd ]]; then
     done
 fi
 
-# Petri nets, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# Petri nets, Sloan LDDs (merging relation requires either overapproximated LDDs or --custom-image)
 if [[ $bench_ptri_sl && $bench_ldd ]]; then
     for filename in models/petrinets/ldds/sloan/*.ldd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd
             fi
             timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
-            timeout $maxtime ./$lddmc models/petrinets/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd
+            if [[ $bench_overapprox ]]; then
+                timeout $maxtime ./$lddmc models/petrinets/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+            fi
         done
     done
 fi
@@ -377,7 +392,7 @@ if [[ $bench_ptri_sl && $bench_ldd_static ]]; then
     done
 fi
 
-# Petri nets, Force LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# Petri nets, Force LDDs (merging relation requires either overapproximated LDDs or --custom-image)
 if [[ $bench_ptri_f && $bench_ldd ]]; then
     for filename in models/petrinets/ldds/force/overapprox/*.ldd; do
         for nw in $num_workers; do
@@ -390,7 +405,7 @@ if [[ $bench_ptri_f && $bench_ldd ]]; then
     done
 fi
 
-# Promela, vanilla LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# Promela, vanilla LDDs (merging relation requires either overapproximated LDDs or --custom-image)
 if [[ $bench_prom_vn && $bench_ldd ]]; then
     for filename in models/promela/ldds/vanilla/overapprox/*.ldd; do
         for nw in $num_workers; do
@@ -403,16 +418,19 @@ if [[ $bench_prom_vn && $bench_ldd ]]; then
     done
 fi
 
-# Promela, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# Promela, Sloan LDDs (merging relation requires either overapproximated LDDs or --custom-image)
 if [[ $bench_prom_sl && $bench_ldd ]]; then
     #for filename in models/promela/ldds/sloan/overapprox/*.ldd; do
     for filename in models/promela/ldds/sloan/*.ldd; do
         for nw in $num_workers; do
             if [[ $test_bfs ]]; then
-                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs --merge-relations --custom-image --count-nodes --statsfile=$promela_sl_stats_ldd
             fi
             timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
-            timeout $maxtime ./$lddmc models/promela/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --custom-image --count-nodes --statsfile=$promela_sl_stats_ldd
+            if [[ $bench_overapprox ]]; then
+                timeout $maxtime ./$lddmc models/promela/ldds/sloan/overapprox/$(basename $filename) --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+            fi
         done
     done
 fi

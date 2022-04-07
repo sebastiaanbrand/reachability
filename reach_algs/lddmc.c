@@ -350,9 +350,10 @@ write_stats()
             fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, custom_img, workers, reach_time, merge_time, total_time, final_states, final_nodecount, peaknodes");
     // append stats of this run
     char* benchname = basename((char*)model_filename);
+    int strat = strategy + (custom_img * 100);
     fprintf(fp, "%s, %d, %d, %d, %d, %f, %f, %f, %0.0f, %ld, %ld\n",
             benchname,
-            strategy,
+            strat,
             merge_relations,
             custom_img,
             lace_workers(),
