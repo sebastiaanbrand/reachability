@@ -973,6 +973,35 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
                         add_merge_time=add_merge_time)
     plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', add_merge_time)
 
+def plot_copy_nodes_test(subfolder):
+    set_subfolder_name(subfolder + '/Copy Nodes Test')
+
+    # all on '2lts-sym' LDDs
+    # Saturation 'normal' vs REACH 'overapprox' (old setup)
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', True,
+                    xlabel='Saturation on "normal" LDDs',
+                    ylabel='REACH on "-2r,r2+,w2+" LDDs')
+    plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', False,
+                    xlabel='Saturation on "normal" LDDs',
+                    ylabel='REACH on "-2r,r2+,w2+" LDDs')
+    
+    # Saturation 'normal' vs REACH 'normal' (extend w/ copy nodes in lddmc)
+    plot_comparison('sat', 'sl-ldd', 'rec-copy', 'sl-ldd', True,
+                    xlabel='Saturation on "normal" LDDs',
+                    ylabel='REACH on "normal" LDDs (extended w/ copy nodes)')
+    plot_comparison('sat', 'sl-ldd', 'rec-copy', 'sl-ldd', False,
+                    xlabel='Saturation on "normal" LDDs',
+                    ylabel='REACH on "normal" LDDs (extended w/ copy nodes)')
+    
+    # REACH 'overapprox' vs REACH 'normal' (extend w/ copy nodes in lddmc)
+    plot_comparison('rec', 'sl-ldd', 'rec-copy', 'sl-ldd', True,
+                    xlabel='REACH on "-2r,r2+,w2+" LDDs',
+                    ylabel='REACH on "normal" LDDs (extended w/ copy nodes)')
+    plot_comparison('rec', 'sl-ldd', 'rec-copy', 'sl-ldd', False,
+                    xlabel='REACH on "-2r,r2+,w2+" LDDs',
+                    ylabel='REACH on "normal" LDDs (extended w/ copy nodes)')
+
+
 def plot_pnml_encode_tests(subfolder):
     set_subfolder_name(subfolder + '/pnml-encode test copy nodes')
 
@@ -1044,26 +1073,24 @@ def plot_paper_plot_its_tools_vs_dds(subfolder):
 
 def plot_paper_plots(subfolder, add_merge_time):   
     # Plot Fig 9, Fig 10, New Fig
-    data_folder = 'bench_data/'+ subfolder + '/single_worker/2m/'
-    if(load_data(data_folder, expected=6)):
-        pre_process()
-        assert_states_nodes()
-    
-        # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-        #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
+    data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/20220407_191756/'
+    load_data(data_folder)
+    pre_process()
+    assert_states_nodes()
 
-        plot_pnml_encode_tests(subfolder)
+    # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
+    #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
-        # Plot locality metric correlation (Figure 10) (on same data)
-        #plot_paper_plot_locality(subfolder, add_merge_time=False)
+    #plot_pnml_encode_tests(subfolder)
+    plot_copy_nodes_test(subfolder)
+    # Plot locality metric correlation (Figure 10) (on same data)
+    #plot_paper_plot_locality(subfolder, add_merge_time=False)
 
-        # Plot relative merge time overhead (New Figure)
-        #plot_paper_plot_merge_overhead(subfolder)
+    # Plot relative merge time overhead (New Figure)
+    #plot_paper_plot_merge_overhead(subfolder)
 
-        # Plot ITStools vs DDs
-        #plot_paper_plot_its_tools_vs_dds(subfolder)
-    else:
-        print('no complete data found in ' + data_folder)
+    # Plot ITStools vs DDs
+    #plot_paper_plot_its_tools_vs_dds(subfolder)
 
     
     # Plot parallel (Figure 11)
