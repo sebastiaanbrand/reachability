@@ -23,6 +23,7 @@ static int report_table = 0; // report table size at end of every level
 static int report_nodes = 0; // report number of nodes of LDDs
 static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING, 4 = REC
 static int custom_img = 0; // use custom image func (only for rec or bfs-plain)
+static int extend_rels = 0; // extends rels to full domain
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly
 static int merge_relations = 0; // merge relations to 1 relation
 static int print_transition_matrix = 0; // print transition relation matrix
@@ -59,6 +60,8 @@ static struct argp_option options[] =
     {"count-table", 2, 0, 0, "Report table usage at each level", 1},
     {"merge-relations", 6, 0, 0, "Merge transition relations into one transition relation", 1},
     {"custom-image", 9, 0, 0, "Use a custom image function for strategy 'rec'", 1},
+    {"custom-image2", 10, 0, 0, "Use a custom image function for strategy 'rec'",1 },
+    {"extend-rels", 11, 0, 0, "Extend rels to full domain",1 },
     {"print-matrix", 4, 0, 0, "Print transition matrix", 1},
     {"write-matrix", 8, "FILENAME", 0, "Write transition matrix to given file", 0},
     {"statsfile", 7, "FILENAME", 0, "Write stats to given filename (or append if exists)", 0},
@@ -106,6 +109,17 @@ parse_opt(int key, char *arg, struct argp_state *state)
             printf("--custom-image can currently only be used with -s [rec|bfs-plain]\n");
             exit(1);
         }
+        break;
+    case 10:
+        if (strategy == strat_rec || strategy == strat_bfs_plain)
+            custom_img = 2;
+        else {
+            printf("--custom-image can currently only be used with -s [rec|bfs-plain]\n");
+            exit(1);
+        }
+        break;
+    case 11:
+        extend_rels = 1;
         break;
     case 7:
         stats_filename = arg;
@@ -772,8 +786,10 @@ VOID_TASK_1(bfs_plain, set_t, set)
 
     while (prev != visited) {
         prev = visited;
-        if (custom_img)
+        if (custom_img == 1)
             succ = lddmc_image(visited, next[0]->dd, next[0]->meta);
+        else if (custom_img == 2)
+            succ = lddmc_image2(visited, next[0]->dd, next[0]->meta);
         else
             succ = lddmc_relprod(visited, next[0]->dd, next[0]->meta);
         visited = lddmc_union(visited, succ);
@@ -892,8 +908,10 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                     }
                     else {
                         MDD succ_j;
-                        if (custom_img)
+                        if (custom_img == 1)
                             succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                        else if (custom_img == 2)
+                            succ_j = lddmc_image2(set_i, rel_ij, next_meta);
                         else
                             Abort("Must use custom image w/ copy nodes in rel\n");
                         
@@ -926,8 +944,10 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                 else {
                     // TODO: USE CALL instead of RUN?
                     MDD succ_j;
-                    if (custom_img)
+                    if (custom_img == 1)
                         succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                    else if (custom_img == 2)
+                        succ_j = lddmc_image2(set_i, rel_ij, next_meta);
                     else
                         succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
 
@@ -1159,7 +1179,7 @@ main(int argc, char **argv)
         double t1 = wctime();
 
         // extend relations (only works with custom image function)
-        if (custom_img) {
+        if (extend_rels || custom_img != 0) {
             INFO("Extending relation to full domain.\n");
             for (int i = 0; i < next_count; i++) {
                 next[i]->dd = lddmc_extend_rel(next[i]->dd, next[i]->meta, 2*vector_size);

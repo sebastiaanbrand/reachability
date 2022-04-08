@@ -16,6 +16,12 @@ TASK_DECL_3(MDD, lddmc_image, MDD, MDD, MDD);
 #define lddmc_image(s, r, meta) RUN(lddmc_image, s, r, meta)
 
 /**
+ * Version of image which also use right recursion.
+ */
+TASK_DECL_3(MDD, lddmc_image2, MDD, MDD, MDD);
+#define lddmc_image2(s, r, meta) RUN(lddmc_image2, s, r, meta)
+
+/**
  * Extend relation to full domain:
  *  meta = 0: skipped vars are replaced with 2 copy nodes
  *  meta = 3: only-read 'a' is replaced with read 'a', write 'a'

@@ -188,6 +188,95 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
     return res;
 }
 
+TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
+{
+    if (set == lddmc_false) return lddmc_false; // empty.R = empty
+    if (rel == lddmc_false) return lddmc_false; // S.empty = empty
+    if (set == lddmc_true && rel == lddmc_true) return lddmc_true; // all.all = all
+
+    assert(meta != lddmc_true); // meta should not run out before set or rel
+
+     /* We assume the rel is over the entire domain, i.e. r,w for every var */
+    mddnode_t n_meta = LDD_GETNODE(meta);
+    uint32_t m_val = mddnode_getvalue(n_meta);
+
+    // dont want to deal with these action labels right now
+    if (m_val == 5) {
+        return CALL(lddmc_relprod, set, rel, meta);
+    }
+    if (!m_val == 1) {
+        printf("m_val = %d\n", m_val);
+    }
+
+    MDD next_meta = mddnode_getdown(n_meta);
+
+    /* Skip nodes if possible */
+    if (m_val == 1 && !lddmc_iscopy(rel)) {
+        if (!match_ldds(&set, &rel)) return lddmc_false;
+    }
+
+    /* Consult cache */
+    MDD res;
+    MDD _set = set, _rel = rel;
+    if (cache_get3(CACHE_LDD_IMAGE, set, rel, meta, &res)) return res;
+    lddmc_refs_pushptr(&res);
+
+    mddnode_t n_set = LDD_GETNODE(set);
+    mddnode_t n_rel = LDD_GETNODE(rel);
+
+    /* Recursive operations */
+    if (m_val == 1) { // read
+        res = lddmc_false;
+        MDD res_right = CALL(lddmc_image2, set, mddnode_getright(n_rel), meta);
+        res = lddmc_union(res, res_right);
+
+        // for this read, either it is copy ('for all') or it is normal match
+        if (mddnode_getcopy(n_rel)) {
+
+            // call for every read value of set
+            for (; set != lddmc_false; set = lddmc_getright(set)) {
+                // stay at same level of set (for write)
+                MDD res_down = CALL(lddmc_image2, set, mddnode_getdown(n_rel), next_meta);
+                res = CALL(lddmc_union, res, res_down);
+            }
+        }
+        else {
+            // if not copy, then set&rel are already matched
+            // stay at the same level of set (for write)
+            MDD res_down = CALL(lddmc_image2, set, mddnode_getdown(n_rel), next_meta);
+            res = CALL(lddmc_union, res, res_down);
+        }
+    }
+    else if (m_val == 2) { // write
+
+        // call for every value to write (rel)
+        for (;;) {
+            uint32_t value;
+            if (mddnode_getcopy(n_rel)) value = mddnode_getvalue(n_set);
+            else value = mddnode_getvalue(n_rel);
+
+            MDD res_down = CALL(lddmc_image2, mddnode_getdown(n_set), mddnode_getdown(n_rel), next_meta);
+            res_down = lddmc_makenode(value, res_down, lddmc_false);
+            res = CALL(lddmc_union, res, res_down);
+
+            rel = mddnode_getright(n_rel);
+            if (rel == lddmc_false) break;
+            n_rel = LDD_GETNODE(rel);
+        }
+    }
+    else {
+        printf("unexpected m_val = %d\n", m_val);
+        exit(1);
+    }
+
+    /* Put in cache */
+    cache_put3(CACHE_LDD_IMAGE, _set, _rel, meta, res);
+
+    lddmc_refs_popptr(1);
+
+    return res;
+}
+
 
 TASK_3(MDD, only_read_helper, MDD, right, MDD, next_meta, MDD, next_nvars)
 {
