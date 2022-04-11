@@ -52,7 +52,7 @@ if [[ $bench_beem_sl && $bench_ldd ]]; then
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image2 --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
-                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image2 --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec2 --custom-image2 --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
             done
         done
@@ -74,7 +74,7 @@ if [[ $bench_ptri_sl && $bench_ldd ]]; then
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image2 --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
-                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image2 --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec2 --custom-image2 --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
             done
         done
@@ -96,7 +96,7 @@ if [[ $bench_prom_sl && $bench_ldd ]]; then
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image2 --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
-                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image2 --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec2 --custom-image2 --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
             done
         done
