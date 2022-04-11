@@ -43,6 +43,7 @@ typedef enum strats {
     strat_chaining,
     strat_rec,
     strat_bfs_plain,
+    strat_rec2,
     num_strats
 } strategy_t;
 
@@ -50,7 +51,7 @@ typedef enum strats {
 static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=0: autodetect)", 0},
-    {"strategy", 's', "<bfs|par|sat|chaining|rec|bfs-plain>", 0, "Strategy for reachability (default=bfs)", 0},
+    {"strategy", 's', "<bfs|par|sat|chaining|rec|rec2|bfs-plain>", 0, "Strategy for reachability (default=bfs)", 0},
 #ifdef HAVE_PROFILER
     {"profiler", 'p', "<filename>", 0, "Filename for profiling", 0},
 #endif
@@ -81,6 +82,7 @@ parse_opt(int key, char *arg, struct argp_state *state)
         else if (strcmp(arg, "sat")==0) strategy = strat_sat;
         else if (strcmp(arg, "chaining")==0) strategy = strat_chaining;
         else if (strcmp(arg, "rec")==0) strategy = strat_rec;
+        else if (strcmp(arg, "rec2")==0) strategy = strat_rec2;
         else if (strcmp(arg, "bfs-plain")==0) strategy = strat_bfs_plain; 
         else argp_usage(state);
         break;
@@ -103,7 +105,7 @@ parse_opt(int key, char *arg, struct argp_state *state)
         merge_relations = 1;
         break;
     case 9:
-        if (strategy == strat_rec || strategy == strat_bfs_plain)
+        if (strategy == strat_rec || strategy == strat_rec2 || strategy == strat_bfs_plain)
             custom_img = 1;
         else {
             printf("--custom-image can currently only be used with -s [rec|bfs-plain]\n");
@@ -111,7 +113,7 @@ parse_opt(int key, char *arg, struct argp_state *state)
         }
         break;
     case 10:
-        if (strategy == strat_rec || strategy == strat_bfs_plain)
+        if (strategy == strat_rec || strategy == strat_rec2 || strategy == strat_bfs_plain)
             custom_img = 2;
         else {
             printf("--custom-image can currently only be used with -s [rec|bfs-plain]\n");
@@ -972,10 +974,165 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
     return _set;
 }
 
+/**
+ * REACH but now with right-recursion instead of loop over reads of rel
+ */
+TASK_3(MDD, go_rec2, MDD, set, MDD, rel, MDD, meta)
+{
+    /* Terminal cases */
+    if (set == lddmc_false) return lddmc_false; // empty.R* = empty
+    if (rel == lddmc_false) return set; // s.empty* = s.(empty union I)^+ = s
+    if (set == lddmc_true || rel == lddmc_true) return lddmc_true;
+    // all.r* = all, s.all* = all (if s is not empty)
+
+    // we'll still deal with the read and write levels in the same recursive call
+    assert(lddmc_getvalue(meta) == 1);
+
+    /* Consult cache */
+    int cachenow = 1;
+    if (cachenow) {
+        MDD res;
+        if (cache_get3(CACHE_LDD_REACH, set, rel, 0, &res)) return res;
+    }
+
+    /* Protect relevant MDDs */
+    MDD next_meta = get_next_meta(meta); // Q: protect this?
+    MDD prev      = lddmc_false;    lddmc_refs_pushptr(&prev);
+    MDD itr_r     = lddmc_false;    lddmc_refs_pushptr(&itr_r);
+    MDD itr_w     = lddmc_false;    lddmc_refs_pushptr(&itr_w);
+    MDD rel_ij    = lddmc_false;    lddmc_refs_pushptr(&rel_ij);
+    MDD set_i     = lddmc_false;    lddmc_refs_pushptr(&set_i);
+    MDD rel_i     = lddmc_false;    lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
+    MDD _set      = set;            lddmc_refs_pushptr(&_set);
+    MDD _rel      = rel;            lddmc_refs_pushptr(&_rel);
+
+
+    /* Loop until reachable set has converged */
+    while (_set != prev) {
+        prev = _set;
+
+        // 1. Iterate over all reads (i) of 'rel'
+        // 1a. (possibly a copy node first)
+        if (lddmc_iscopy(_rel)) {
+            // Current read is a copy node (i.e. interpret as R_ii for all i)
+            rel_i = lddmc_getdown(_rel);
+
+            // 2. Iterate over all corresponding writes (j) 
+            // 2a. rel = (* -> *), i.e. read anything, write what was read
+            if (lddmc_iscopy(rel_i)) {
+
+                rel_ij = lddmc_getdown(rel_i); // j = i
+
+                // Iterate over all reads of 'set'
+                for (itr_r = _set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+                    uint32_t i = lddmc_getvalue(itr_r);
+                    set_i = lddmc_getdown(itr_r);
+
+                    // Compute REACH for S_i.R_ii*
+                    set_i = CALL(go_rec, set_i, rel_ij, next_meta);
+
+                    // Extend set_i and add to 'set'
+                    MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                    _set = lddmc_union(_set, set_i_ext);
+                }
+
+                // After (* -> *), there might still be (* -> j)'s
+                rel_i = lddmc_getright(rel_i);
+            }
+            // 2b. rel = (* -> j), i.e. read anything, write j
+            // Iterate over all reads (i) of 'set'
+            for (itr_r = _set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+
+                uint32_t i = lddmc_getvalue(itr_r);
+                set_i = lddmc_getdown(itr_r);
+
+                // Iterate over over all writes (j) of rel
+                for (itr_w = rel_i; itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+                    
+                    uint32_t j = lddmc_getvalue(itr_w);
+                    rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
+
+                    if (i == j) {
+                        set_i = CALL(go_rec, set_i, rel_ij, next_meta);
+                    }
+                    else {
+                        MDD succ_j;
+                        if (custom_img == 1)
+                            succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                        else if (custom_img == 2)
+                            succ_j = lddmc_image2(set_i, rel_ij, next_meta);
+                        else
+                            Abort("Must use custom image w/ copy nodes in rel\n");
+                        
+                        // Extend succ_j and add to 'set'
+                        MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                        _set = lddmc_union(_set, set_j_ext);
+                    }
+                }
+
+                // Extend set_i and add to 'set'
+                MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                _set = lddmc_union(_set, set_i_ext);
+            }
+        }
+        else { // not copy, normal read
+            uint32_t i = lddmc_getvalue(_rel);
+            set_i = lddmc_follow(_set, i);
+
+            // Iterate over all writes (j) corresponding to reading 'i'
+            for (itr_w = lddmc_getdown(_rel); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+
+                uint32_t j = lddmc_getvalue(itr_w);
+                rel_ij = lddmc_getdown(itr_w); // equiv to following i then j from rel
+                
+                if (i == j) {
+                    set_i = CALL(go_rec, set_i, rel_ij, next_meta);
+                }
+                else {
+                    // TODO: USE CALL instead of RUN?
+                    MDD succ_j;
+                    if (custom_img == 1)
+                        succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                    else if (custom_img == 2)
+                        succ_j = lddmc_image2(set_i, rel_ij, next_meta);
+                    else
+                        succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
+
+                    // Extend succ_j and add to 'set'
+                    MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                    _set = lddmc_union(_set, set_j_ext);
+                } 
+            }
+
+            // Extend set_i and add to 'set'
+            MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+            _set = lddmc_union(_set, set_i_ext);
+        }
+
+        // NEW: instead of iterating over _rel to the right here, recursively call self
+        MDD res_right = CALL(go_rec2, _set, lddmc_getright(_rel), meta);
+        _set = lddmc_union(_set, res_right);
+    }
+
+    lddmc_refs_popptr(8);
+
+    /* Put in cache */
+    if (cachenow)
+        cache_put3(CACHE_LDD_REACH, set, rel, 0, _set);
+
+    return _set;
+}
+
 VOID_TASK_1(rec, set_t, set)
 {
     if (next_count != 1) Abort("Strategy rec requires merge-relations\n");
     set->dd = CALL(go_rec, set->dd, next[0]->dd, next[0]->meta);
+}
+
+VOID_TASK_1(rec2, set_t, set)
+{
+    if (next_count != 1) Abort("Strategy rec requires merge-relations\n");
+    set->dd = CALL(go_rec2, set->dd, next[0]->dd, next[0]->meta);
 }
 
 void
@@ -1242,6 +1399,12 @@ main(int argc, char **argv)
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("REC Time: %f\n", stats.reach_time);
+    } else if (strategy == strat_rec2) {
+        double t1 = wctime();
+        RUN(rec2, states);
+        double t2 = wctime();
+        stats.reach_time = t2-t1;
+        INFO("REC2 Time: %f\n", stats.reach_time);
     } else if (strategy == strat_bfs_plain ){
         double t1 = wctime();
         RUN(bfs_plain, states);
