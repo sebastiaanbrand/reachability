@@ -223,15 +223,16 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
 
     //mddnode_t n_set = LDD_GETNODE(set);
     //mddnode_t n_rel = LDD_GETNODE(rel);
-    MDD _set = set, _rel = rel;
+    MDD _set = set, _rel = rel, tmp = lddmc_false;
     lddmc_refs_pushptr(&_set);
     lddmc_refs_pushptr(&_rel);
+    lddmc_refs_pushptr(&tmp);
 
     /* Recursive operations */
     if (m_val == 1) { // read
 
-        MDD res_right = CALL(lddmc_image2, _set, lddmc_getright(_rel), meta);
-        res = lddmc_union(res, res_right);
+        tmp = CALL(lddmc_image2, _set, lddmc_getright(_rel), meta);
+        res = lddmc_union(res, tmp);
 
         // for this read, either it is copy ('for all') or it is normal match
         if (lddmc_iscopy(_rel)) {
@@ -239,15 +240,15 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
             // call for every read value of set
             for (; _set != lddmc_false; _set = lddmc_getright(_set)) {
                 // stay at same level of set (for write)
-                MDD res_down = CALL(lddmc_image2, _set, lddmc_getdown(_rel), next_meta);
-                res = CALL(lddmc_union, res, res_down);
+                tmp = CALL(lddmc_image2, _set, lddmc_getdown(_rel), next_meta);
+                res = CALL(lddmc_union, res, tmp);
             }
         }
         else {
             // if not copy, then set&rel are already matched
             // stay at the same level of set (for write)
-            MDD res_down = CALL(lddmc_image2, _set, lddmc_getdown(_rel), next_meta);
-            res = CALL(lddmc_union, res, res_down);
+            tmp = CALL(lddmc_image2, _set, lddmc_getdown(_rel), next_meta);
+            res = CALL(lddmc_union, res, tmp);
         }
     }
     else if (m_val == 2) { // write
@@ -258,9 +259,9 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
             if (lddmc_iscopy(_rel)) value = lddmc_getvalue(_set);
             else value = lddmc_getvalue(_rel);
 
-            MDD res_down = CALL(lddmc_image2, lddmc_getdown(_set), lddmc_getdown(_rel), next_meta);
-            res_down = lddmc_makenode(value, res_down, lddmc_false);
-            res = CALL(lddmc_union, res, res_down);
+            tmp = CALL(lddmc_image2, lddmc_getdown(_set), lddmc_getdown(_rel), next_meta);
+            tmp = lddmc_makenode(value, tmp, lddmc_false);
+            res = CALL(lddmc_union, res, tmp);
 
             _rel = lddmc_getright(_rel);
             if (_rel == lddmc_false) break;
@@ -275,7 +276,7 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
     /* Put in cache */
     cache_put3(CACHE_LDD_IMAGE, set, rel, meta, res);
 
-    lddmc_refs_popptr(3);
+    lddmc_refs_popptr(4);
 
     return res;
 }

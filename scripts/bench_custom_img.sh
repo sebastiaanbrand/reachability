@@ -6,7 +6,8 @@ num_workers=1 # can pass e.g. -w "1 2 4 8" to run with 1, 2, 4, and 8 workers
 lddmc=reach_algs/build/lddmc
 
 outputfolder=bench_data/all/custom_image_test
-mkdir -p $outputfolder
+dt=$(date '+%Y%m%d_%H%M%S');
+outputfolder=$outputfolder/$dt
 
 beem_sl_stats_ldd="$outputfolder/beem_sloan_stats_ldd.csv"
 petri_sl_stats_ldd="$outputfolder/petrinets_sloan_stats_ldd.csv"
@@ -41,6 +42,7 @@ if [[ $bench_prom_sl && $bench_ldd ]]; then echo "  - Promela LDDs Sloan"; fi
 echo "timeout per run is $maxtime"
 echo "writing .csv output files to folder $outputfolder"
 read -p "Press enter to start"
+mkdir -p $outputfolder
 
 # BEEM, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
 if [[ $bench_beem_sl && $bench_ldd ]]; then
@@ -48,7 +50,9 @@ if [[ $bench_beem_sl && $bench_ldd ]]; then
         for filename in models/beem/ldds/sloan/*.ldd; do
             for nw in $num_workers; do
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image2 --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image2 --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
             done
         done
@@ -68,7 +72,9 @@ if [[ $bench_ptri_sl && $bench_ldd ]]; then
         for filename in models/petrinets/ldds/sloan/*.ldd; do
             for nw in $num_workers; do
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image2 --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image2 --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
             done
         done
@@ -88,7 +94,9 @@ if [[ $bench_prom_sl && $bench_ldd ]]; then
         for filename in models/promela/ldds/sloan/*.ldd; do
             for nw in $num_workers; do
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --custom-image2 --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
+                timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --custom-image2 --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
                 timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
             done
         done
