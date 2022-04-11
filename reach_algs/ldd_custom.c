@@ -216,7 +216,7 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
     }
 
     /* Consult cache */
-    MDD res;
+    MDD res = lddmc_false;
     MDD _set = set, _rel = rel;
     if (cache_get3(CACHE_LDD_IMAGE, set, rel, meta, &res)) return res;
     lddmc_refs_pushptr(&res);
@@ -226,7 +226,7 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
 
     /* Recursive operations */
     if (m_val == 1) { // read
-        res = lddmc_false;
+
         MDD res_right = CALL(lddmc_image2, set, mddnode_getright(n_rel), meta);
         res = lddmc_union(res, res_right);
 
