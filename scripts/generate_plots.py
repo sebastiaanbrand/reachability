@@ -40,7 +40,10 @@ stratIDs     = {'bfs' : 0,
                 'rec' : 4,
                 'bfs-plain' : 5,
                 'rec-par' : 14,
-                'rec-copy' : 104}
+                'rec-copy' : 104,
+                'rec-copy-rr' : 206,
+                'bfs-plain-copy' : 105,
+                'bfs-plain-copy-rr' : 205}
 axis_label = {('bfs','bdd') : 'BFS',
               ('sat','bdd') : 'Saturation',
               ('rec','bdd') : 'Algorithm 1',
@@ -420,9 +423,10 @@ def plot_comparison(x_strat, x_dd, y_strat, y_dd, add_merge_time, xlabel='', yla
     # add data-point labes and plot as pdf
     for i, bench_name in enumerate(meta['names']):
         ax.annotate(bench_name, (meta['xs'][i], meta['ys'][i]), fontsize=1.0)
-    fig_name = '{}reachtime_{}_{}_vs_{}_{}.{}'.format(label_folder,
+    fig_name = '{}reachtime_{}_{}_vs_{}_{}_incMergeTime{}.{}'.format(label_folder,
                                                       x_strat, x_dd,
                                                       y_strat, y_dd,
+                                                      add_merge_time,
                                                       'pdf')
     fig.savefig(fig_name, dpi=300)
     plt.close(fig)
@@ -1001,6 +1005,27 @@ def plot_copy_nodes_test(subfolder):
                     xlabel='REACH on "-2r,r2+,w2+" LDDs',
                     ylabel='REACH on "normal" LDDs (extended w/ copy nodes)')
 
+def plot_right_recursion_test(subfolder):
+    set_subfolder_name(subfolder + '/Right Recursion Test')
+
+    # BFS (w/ copy nodes) loop vs recursive
+    plot_comparison('bfs-plain-copy', 'sl-ldd', 'bfs-plain-copy-rr', 'sl-ldd', True,
+                    xlabel='BFS w/ copy nodes + IMG LOOP',
+                    ylabel='BFS w/ copy nodes + IMG RECURSIVE')
+    plot_comparison('bfs-plain-copy', 'sl-ldd', 'bfs-plain-copy-rr', 'sl-ldd', False,
+                    xlabel='BFS w/ copy nodes + IMG LOOP',
+                    ylabel='BFS w/ copy nodes + IMG RECURSIVE')
+
+    # REACH (w/ copy nodes) loop vs recursive
+    plot_comparison('rec-copy', 'sl-ldd', 'rec-copy-rr', 'sl-ldd', True,
+                    xlabel='REACH w/ copy nodes, LOOP',
+                    ylabel='REACH w/ copy nodes, RECURSIVE')
+    plot_comparison('rec-copy', 'sl-ldd', 'rec-copy-rr', 'sl-ldd', False,
+                    xlabel='REACH w/ copy nodes, LOOP',
+                    ylabel='REACH w/ copy nodes, RECURSIVE')
+    
+    # Recursive version against saturation
+
 
 def plot_pnml_encode_tests(subfolder):
     set_subfolder_name(subfolder + '/pnml-encode test copy nodes')
@@ -1073,7 +1098,7 @@ def plot_paper_plot_its_tools_vs_dds(subfolder):
 
 def plot_paper_plots(subfolder, add_merge_time):   
     # Plot Fig 9, Fig 10, New Fig
-    data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/20220407_191756/'
+    data_folder = 'bench_data/'+ subfolder + '/custom_image_test/20220411_210135/'
     load_data(data_folder)
     pre_process()
     assert_states_nodes()
@@ -1081,8 +1106,9 @@ def plot_paper_plots(subfolder, add_merge_time):
     # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
     #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
 
-    #plot_pnml_encode_tests(subfolder)
-    plot_copy_nodes_test(subfolder)
+    #plot_pnml_encode_tests(subfolder) # '/single_worker/10m/pnml-encode/'
+    #plot_copy_nodes_test(subfolder) # '/single_worker/10m/20220407_191756/'
+    plot_right_recursion_test(subfolder) # '/custom_image_test/20220411_210135/'
     # Plot locality metric correlation (Figure 10) (on same data)
     #plot_paper_plot_locality(subfolder, add_merge_time=False)
 
