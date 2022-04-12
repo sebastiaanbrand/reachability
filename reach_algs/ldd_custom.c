@@ -96,6 +96,7 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
     MDD rel_ij = lddmc_false;   lddmc_refs_pushptr(&rel_ij);
     MDD set_i  = lddmc_false;   lddmc_refs_pushptr(&set_i);
     MDD rel_i  = lddmc_false;   lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
+    MDD tmp    = lddmc_false;   lddmc_refs_pushptr(&tmp);
     lddmc_refs_pushptr(&res);
 
     /* Handle copy nodes */
@@ -116,11 +117,11 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 set_i = lddmc_getdown(itr_r);
 
                 // Compute successors T_i = S_i.R_ii
-                MDD succ_i = CALL(lddmc_image, set_i, rel_ij, next_meta);
+                tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
                 // Extend succ_i and add to successors
-                MDD succ_i_ext = lddmc_makenode(i, succ_i, lddmc_false);
-                res = lddmc_union(res, succ_i_ext);
+                tmp = lddmc_makenode(i, tmp, lddmc_false);
+                res = lddmc_union(res, tmp);
             }
 
             // After (* -> *), there might still be (* -> j)'s
@@ -140,11 +141,11 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
 
                 // Compute successors T_j = S_*.R_*j
-                MDD succ_j = CALL(lddmc_image, set_i, rel_ij, next_meta);
+                tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
                 // Extend succ_j and add to successors
-                MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
-                res = lddmc_union(res, succ_j_ext);
+                tmp = lddmc_makenode(j, tmp, lddmc_false);
+                res = lddmc_union(res, tmp);
             }
         }
         _rel = lddmc_getright(_rel);
@@ -172,15 +173,15 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
             rel_ij = lddmc_getdown(itr_w); // equiv to following i then j
 
             // Compute successors T_j = S_i.R_ij
-            MDD succ_j = CALL(lddmc_image, set_i, rel_ij, next_meta);
+            tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
         
             // Extend succ_j and add to successors
-            MDD succ_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
-            res = lddmc_union(res, succ_j_ext);
+            tmp = lddmc_makenode(j, tmp, lddmc_false);
+            res = lddmc_union(res, tmp);
         }
     }
 
-    lddmc_refs_popptr(7);
+    lddmc_refs_popptr(8);
 
     /* Put in cache */
     cache_put3(CACHE_LDD_IMAGE, set, rel, 0, res);
