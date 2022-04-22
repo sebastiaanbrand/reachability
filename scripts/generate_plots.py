@@ -977,6 +977,14 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
                         add_merge_time=add_merge_time)
     plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', add_merge_time)
 
+def plot_paper_plot_sat_vs_rec_copy(subfolder):
+    set_subfolder_name(subfolder + '/Saturation vs REACH (copy nodes)')
+
+    plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
+                        'sat', 'sl-ldd', 'rec-copy', 'sl-ldd', 
+                        'Saturation time (s)', 'ReachBDD/MDD time (s)', 
+                        add_merge_time=add_merge_time)
+
 def plot_copy_nodes_test(subfolder):
     set_subfolder_name(subfolder + '/Copy Nodes Test')
 
@@ -1098,17 +1106,18 @@ def plot_paper_plot_its_tools_vs_dds(subfolder):
 
 def plot_paper_plots(subfolder, add_merge_time):   
     # Plot Fig 9, Fig 10, New Fig
-    data_folder = 'bench_data/'+ subfolder + '/custom_image_test/20220411_210135/'
+    data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/20220419_164504/'
     load_data(data_folder)
     pre_process()
     assert_states_nodes()
 
     # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-    #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time)
+    #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time) # /single_worker/10m/20220419_164504/
+    plot_paper_plot_sat_vs_rec_copy(subfolder)
 
     #plot_pnml_encode_tests(subfolder) # '/single_worker/10m/pnml-encode/'
     #plot_copy_nodes_test(subfolder) # '/single_worker/10m/20220407_191756/'
-    plot_right_recursion_test(subfolder) # '/custom_image_test/20220411_210135/'
+    #plot_right_recursion_test(subfolder) # '/custom_image_test/20220411_210135/'
     # Plot locality metric correlation (Figure 10) (on same data)
     #plot_paper_plot_locality(subfolder, add_merge_time=False)
 
