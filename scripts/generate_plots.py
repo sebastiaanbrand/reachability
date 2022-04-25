@@ -16,6 +16,8 @@ label_folder = ''
 
 maxtime = 600 # time in seconds
 
+set_incorrect_as_timeout = True
+
 datamap = {} # map from ('dataset','type') -> dataframe
 matrix_folders = {  ('beem','vn-bdd') : 'models/beem/matrices/bdds/vanilla/', 
                     ('beem','sl-bdd') : 'models/beem/matrices/bdds/sloan/',
@@ -178,6 +180,13 @@ def assert_states_nodes():
                           row['final_states'],
                           df_key
                     ))
+                    if (set_incorrect_as_timeout):
+                        # removed entries are plotted as timeouts
+                        condition = df['strategy'] == stratIDs['rec']
+                        condition |= (df['strategy'] == stratIDs['rec-copy'])
+                        condition &= (df['benchmark'] == row['benchmark'])
+                        df.drop(df[condition].index, inplace=True)
+
                     total_wrong_states += 1
             # check final nodes
             if (row['benchmark'] not in n_nodes):
@@ -479,7 +488,7 @@ def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
     plt.close(fig)
 
 
-def plot_rec_over_sat_vs_rel_metric(data_label, metric, add_merge_time=False):
+def plot_rec_over_sat_vs_rel_metric(data_label, metric, strat_rec, add_merge_time=False):
     info("plotting rec/sat against {} on {}".format(metric, data_label), end='')
     if (metric[:3] == 'rel'):
         info(" (takes some time)")
@@ -499,7 +508,7 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric, add_merge_time=False):
 
         # select sat and rec of y data
         data_sat = data.loc[data['strategy'] == stratIDs['sat']]
-        data_rec = data.loc[data['strategy'] == stratIDs['rec']]
+        data_rec = data.loc[data['strategy'] == stratIDs[strat_rec]]
 
         # inner join sat and rec results
         data_rec = data_rec.set_index('benchmark')
@@ -1076,9 +1085,15 @@ def plot_pnml_encode_tests(subfolder):
                     ylabel='REACH on pnml2lts-sym LDDs')
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
-    set_subfolder_name(subfolder + '/Locality metric comparison (Figure 10)')
-    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', add_merge_time)
-    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw', add_merge_time)
+    set_subfolder_name(subfolder + '/Locality metric comparison (Figure 10) with copy nodes')
+    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', 'rec-copy', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw', 'rec', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-max-bw', 'rec-copy', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-max-bw', 'rec', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-avg-bw', 'rec-copy', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-avg-bw', 'rec', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-max-bw', 'rec-copy', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-max-bw', 'rec', add_merge_time)
 
 
 def plot_paper_plot_parallel(subfolder, plot_legend=True):
@@ -1120,6 +1135,7 @@ def plot_paper_plots(subfolder, add_merge_time):
     #plot_right_recursion_test(subfolder) # '/custom_image_test/20220411_210135/'
     # Plot locality metric correlation (Figure 10) (on same data)
     #plot_paper_plot_locality(subfolder, add_merge_time=False)
+    #plot_paper_plot_locality(subfolder, add_merge_time=True)
 
     # Plot relative merge time overhead (New Figure)
     #plot_paper_plot_merge_overhead(subfolder)
