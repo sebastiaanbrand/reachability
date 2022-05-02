@@ -160,7 +160,19 @@ def load_its_data(its_type):
     its_data['type'] = its_data['type'].str.strip()
 
     return its_data
-    
+
+def load_pnml_encode_data():
+    # load csv
+    data = pd.read_csv('bench_data/pnml-encode/pnml_encode_time_ldd_maxval_9.csv')
+
+    # some pre-processing
+    data.columns = data.columns.str.strip()
+    data = data.replace(' DNF', np.inf)
+    data = data.replace(' -', np.inf)
+    data = data.astype({"benchmark" : str, 
+                        "encode_time" : float,
+                        "ddmc_time" : float})
+    return data
 
 def assert_states_nodes():
     print("checking the state- and nodecounts")
@@ -758,15 +770,12 @@ def plot_merge_overhead(data_label):
     plt.close(fig)
 
 
-def plot_its_vs_dd(dd_type, dd_strat, its_type):
+def plot_its_vs_dd(its_type):
     data_its = load_its_data(its_type)
-    data_dd = datamap[('ptri', dd_type)]
-
-    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.ldd', '', regex=False)
-    data_dd['benchmark'] = data_dd['benchmark'].str.replace('.bdd', '', regex=False)
+    data_dd  = load_pnml_encode_data()
+    print(data_dd)
     
     # select relevant subset
-    data_dd = data_dd.loc[data_dd['strategy'] == stratIDs[dd_strat]]
     data_its = data_its.loc[data_its['type'] == its_type]
     its_zero_time = data_its.loc[data_its['reach_time'] == 0]
     data_its = data_its.loc[data_its['reach_time'] != 0]
@@ -778,16 +787,21 @@ def plot_its_vs_dd(dd_type, dd_strat, its_type):
     joined = data_dd.join(data_its, on='benchmark', how='outer',
                             lsuffix='_dd', rsuffix='_its')
     
+    print(joined)
+    
+    print("WARNING: currently not checking state counts")
+    """
     if ('final_states_its' in joined):
         neq_states = joined['final_states_dd'] != joined['final_states_its']
         if (sum(neq_states) > 0):
             print("WARNING: ITS-tools and Sylvan disagree on # states for:")
             issue_cases = joined.loc[neq_states]
             print(issue_cases)
+    """
     
-    ys_key = 'reach_time_dd' # total_time or reach_time_dd ?
-    xs = joined['reach_time_its'].to_numpy()
-    ys = joined[ys_key].to_numpy() 
+    xs = joined['reach_time'].to_numpy() # NOTE: output time from its-tools, not real wall time
+    ys = joined['encode_time'].to_numpy() + joined['ddmc_time'].to_numpy()
+    ys[np.isinf(ys)] = np.nan
 
     # some styling
     scaling = 4.8 # default = ~6.0
@@ -819,7 +833,7 @@ def plot_its_vs_dd(dd_type, dd_strat, its_type):
     # lables and formatting
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_ylabel("{}".format(axis_label[(dd_strat,dd_type[-3:])]))
+    ax.set_ylabel("pnml-encode + lddmc REACH")
     ax.set_xlabel("ITS-tools")
     ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
     ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
@@ -828,22 +842,20 @@ def plot_its_vs_dd(dd_type, dd_strat, its_type):
 
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
-        fig_name = '{}its{}_vs_{}_{}_{}.{}'.format(subfolder,
+        fig_name = '{}its{}_vs_{}_{}.{}'.format(subfolder,
                                             its_type.replace('.','_'), 
-                                            dd_type, 
-                                            dd_strat,
-                                            ys_key,
+                                            'ldd', 
+                                            'rec',
                                             fig_format)
         fig.savefig(fig_name, dpi=300)
     
     # add data-point labels and plot as pdf
     for i, bench_name in enumerate(all_names):
         ax.annotate(bench_name, (xs[i], ys[i]), fontsize=1.0)
-    fig_name = fig_name = '{}its{}_vs_{}_{}_{}.{}'.format(label_folder,
+    fig_name = fig_name = '{}its{}_vs_{}_{}.{}'.format(label_folder,
                                             its_type.replace('.','_'), 
-                                            dd_type, 
-                                            dd_strat,
-                                            ys_key,
+                                            'ldd', 
+                                            'rec',
                                             'pdf')
     fig.savefig(fig_name, dpi=300)
     plt.close(fig)
@@ -1111,12 +1123,10 @@ def plot_paper_plot_merge_overhead(subfolder):
 
 
 def plot_paper_plot_its_tools_vs_dds(subfolder):
-    set_subfolder_name(subfolder + '/ITS-Tools vs DDs (New Figure)')
-    plot_its_vs_dd('sl-ldd', 'rec', '.gal')
-    plot_its_vs_dd('sl-ldd', 'rec', '.img.gal')
-    #plot_its_vs_dd('sl-bdd', 'rec', '.gal')
-    #plot_its_vs_dd('sl-bdd', 'rec', '.img.gal')
-    plot_its_vs_dd_deadlocks('sl-bdd', 'rec', 'RD')
+    set_subfolder_name(subfolder + '/ITS-Tools vs DDs (copy nodes)')
+    plot_its_vs_dd('.gal')
+    plot_its_vs_dd('.img.gal')
+    #plot_its_vs_dd_deadlocks('sl-bdd', 'rec', 'RD')
 
 
 def plot_paper_plots(subfolder, add_merge_time):   
@@ -1128,7 +1138,7 @@ def plot_paper_plots(subfolder, add_merge_time):
 
     # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
     #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time) # /single_worker/10m/20220419_164504/
-    plot_paper_plot_sat_vs_rec_copy(subfolder)
+#    plot_paper_plot_sat_vs_rec_copy(subfolder)
 
     #plot_pnml_encode_tests(subfolder) # '/single_worker/10m/pnml-encode/'
     #plot_copy_nodes_test(subfolder) # '/single_worker/10m/20220407_191756/'
@@ -1141,7 +1151,7 @@ def plot_paper_plots(subfolder, add_merge_time):
     #plot_paper_plot_merge_overhead(subfolder)
 
     # Plot ITStools vs DDs
-    #plot_paper_plot_its_tools_vs_dds(subfolder)
+    plot_paper_plot_its_tools_vs_dds(subfolder)
 
     
     # Plot parallel (Figure 11)
