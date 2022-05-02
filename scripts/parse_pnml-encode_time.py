@@ -4,18 +4,28 @@ from pathlib import Path
 look_for1 = "pnml-encode: Result symbolic LTS written to"
 look_for2 = "real\t"
 
-maxval = 6
+look_for_ddmc1 = "Writing stats to"
+look_for_ddmc2 = "real\t"
 
-input_folder = 'models/petrinets/static_ldds/sloan/maxval_{}/overapprox/'.format(maxval)
-output_file = 'bench_data/pnml-encode/pnml_encode_time_ldd_overapprox_maxval_{}.csv'.format(maxval)
+maxval = 9
+
+encode_folder = 'models/petrinets/static_ldds/sloan/maxval_{}/'.format(maxval)
+ddmc_folder = 'bench_data/its_tools/20220429_131759_static_ldds/'
+output_file = 'bench_data/pnml-encode/pnml_encode_time_ldd_maxval_{}.csv'.format(maxval)
+
+encode_time = {}
+ddmc_time = {}
+both_time = {}
 
 def write_header():
     with open(output_file, 'w') as f:
-        f.write('benchmark, encode_time\n')
+        f.write('benchmark, encode_time, ddmc_time\n')
 
-def write_line(data):
+def write_to_csv():
+    write_header()
     with open(output_file, 'a') as f:
-        f.write('{}, {}\n'.format(*data))
+        for key, value in both_time.items():
+            f.write('{}, {}, {}\n'.format(key, value[0], value[1]))
 
 def parse_time(line):
     time_str = line.split()[1]
@@ -24,7 +34,7 @@ def parse_time(line):
     time_sec = float(time_str[1][:-1])
     return time_min * 60 + time_sec
 
-def parse_file(folder, filename):
+def parse_encode_file(folder, filename):
     with open(folder + filename, 'r') as f:
         lines = f.readlines()
         wrote_dd = False
@@ -35,16 +45,43 @@ def parse_file(folder, filename):
                 time = parse_time(line)
         if (not wrote_dd):
             time = 'DNF'
-        data = [filename[:-4], time]
-        write_line(data)
+        encode_time[filename[:-4]] = time
 
-def process_data(folder):
-    write_header()
+def parse_ddmc_file(folder, filename):
+    with open(folder + filename, 'r') as f:
+        lines = f.readlines()
+        finished = False
+        for index, line in enumerate(lines):
+            if (look_for_ddmc1 in line):
+                finished = True
+            if (line.startswith(look_for_ddmc2)):
+                time = parse_time(line)
+        if (not finished):
+            time = 'DNF'
+        ddmc_time[filename[:-15]] = time
+
+def process_encode_data(folder):
     for filename in sorted(os.listdir(folder)):
         if (filename.endswith('.log')):
-            parse_file(folder, filename)
+            parse_encode_file(folder, filename)
 
+def process_ddmc_data(folder):
+    for filename in sorted(os.listdir(folder)):
+        if (filename.endswith('.log')):
+            parse_ddmc_file(folder, filename)
+
+def merge_dicts():
+    for d in (encode_time, ddmc_time):
+        for key in d.keys():
+            both_time[key] = ['-', '-']
+    for key, value in encode_time.items():
+        both_time[key][0] = value
+    for key, value in ddmc_time.items():
+        both_time[key][1] = value
 
 if __name__ == '__main__':
     Path('bench_data/pnml-encode/').mkdir(parents=True, exist_ok=True)
-    process_data(input_folder)
+    process_encode_data(encode_folder)
+    process_ddmc_data(ddmc_folder)
+    merge_dicts()
+    write_to_csv()
