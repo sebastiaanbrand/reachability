@@ -833,7 +833,7 @@ def plot_its_vs_dd(its_type):
     # lables and formatting
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_ylabel("pnml-encode + lddmc REACH")
+    ax.set_ylabel("pnml2dd + ReachMDD")
     ax.set_xlabel("ITS-tools")
     ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
     ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
