@@ -505,8 +505,8 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric, strat_rec, add_merge_tim
     if (metric[:3] == 'rel'):
         info(" (takes some time)")
     
-    scaling = 5.0 # default = ~6.0
-    fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
+    scaling = 3.5 # default = ~6.0
+    fig, ax = plt.subplots(figsize=(scaling, scaling*0.70))
     point_size = 8.0
 
     max_val = 0
@@ -538,16 +538,26 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric, strat_rec, add_merge_tim
         relative_rec_times = rec_times / sat_times
 
         # get relation matrix metric of each of the datapoints (x value)
-        matrix_metrics = get_matrix_metrics(joined['benchmark'], 
-                                            (ds_name, data_label), metric)
+        if (False): # hack for quickly redoing the plot
+            if (os.path.exists('matrix_metric_{}.npy'.format(ds_name))):
+                print("loading from matrix_metric_{}.npy".format(ds_name))
+                matrix_metrics = np.load('matrix_metric_{}.npy'.format(ds_name))
+            else:
+                matrix_metrics = get_matrix_metrics(joined['benchmark'], 
+                                                (ds_name, data_label), metric)
+                print("saving to matrix_metric_{}.npy".format(ds_name))
+                np.save('matrix_metric_{}.npy'.format(ds_name), matrix_metrics)
+        else:
+            matrix_metrics = get_matrix_metrics(joined['benchmark'], 
+                                                (ds_name, data_label), metric)
 
         # some styling
         s = marker_size[ds_name]
         m = markers[ds_name]
-        l = legend_names[ds_name]
+        #l = legend_names[ds_name]
 
         # plot x vs y
-        ax.scatter(matrix_metrics, relative_rec_times, marker=m, s=s, label=l)
+        ax.scatter(matrix_metrics, relative_rec_times, marker=m, s=s) # , label=l
 
         # track for annotations (and trend line)
         all_xs.extend(matrix_metrics)
@@ -556,13 +566,13 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric, strat_rec, add_merge_tim
 
     # labels and formatting
     ax.hlines(1, 0, 1, colors=['grey'], linestyles='--')
-    ax.set_xlabel(metric_labels[metric])
+    ax.set_xlabel(metric_labels[metric]) #, fontsize = ...
     if (data_label[-3:] == 'bdd'):
-        ax.set_ylabel('time ReachBDD / saturation')
+        ax.set_ylabel('time ReachBDD / saturation') #, fontsize = ...
     elif (data_label[-3:] == 'ldd'):
         ax.set_ylabel('time ReachMDD / saturation')
     ax.set_yscale('log')
-    ax.legend(framealpha=1.0)
+    ax.legend(framealpha=1.0) # , prop={"size":16}
     plt.tight_layout()
 
     # plots without data-point lables
@@ -1097,14 +1107,14 @@ def plot_pnml_encode_tests(subfolder):
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
     set_subfolder_name(subfolder + '/Locality metric comparison (Figure 10) with copy nodes')
-    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', 'rec-copy', add_merge_time)
+    #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', 'rec-copy', add_merge_time)
     plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw', 'rec', add_merge_time)
-    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-max-bw', 'rec-copy', add_merge_time)
-    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-max-bw', 'rec', add_merge_time)
-    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-avg-bw', 'rec-copy', add_merge_time)
-    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-avg-bw', 'rec', add_merge_time)
-    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-max-bw', 'rec-copy', add_merge_time)
-    plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-max-bw', 'rec', add_merge_time)
+    #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-max-bw', 'rec-copy', add_merge_time)
+    #plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-max-bw', 'rec', add_merge_time)
+    #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-avg-bw', 'rec-copy', add_merge_time)
+    #plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-avg-bw', 'rec', add_merge_time)
+    #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'var-max-bw', 'rec-copy', add_merge_time)
+    #plot_rec_over_sat_vs_rel_metric('sl-bdd', 'var-max-bw', 'rec', add_merge_time)
 
 
 def plot_paper_plot_parallel(subfolder, plot_legend=True, ylabel=True):
@@ -1147,6 +1157,13 @@ def plot_both_parallel():
     else:
         print('no complete data found in ' + data_folder)
 
+def plot_all_locality_plots():
+    data_folder = 'bench_data/all/single_worker/10m/20220419_164504/'
+    load_data(data_folder)
+    pre_process()
+    assert_states_nodes()
+    plot_paper_plot_locality('all', add_merge_time=False)
+
 def plot_paper_plots(subfolder='all'):   
     # Plot Fig 9, Fig 10, New Fig
     data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/20220419_164504/'
@@ -1162,8 +1179,6 @@ def plot_paper_plots(subfolder='all'):
     #plot_copy_nodes_test(subfolder) # '/single_worker/10m/20220407_191756/'
     #plot_right_recursion_test(subfolder) # '/custom_image_test/20220411_210135/'
     # Plot locality metric correlation (Figure 10) (on same data)
-    #plot_paper_plot_locality(subfolder, add_merge_time=False)
-    #plot_paper_plot_locality(subfolder, add_merge_time=True)
 
     # Plot relative merge time overhead (New Figure)
     #plot_paper_plot_merge_overhead(subfolder)
@@ -1178,6 +1193,8 @@ if __name__ == '__main__':
     print(which_plot)
     if (which_plot == 'parallel'):
         plot_both_parallel()
+    elif (which_plot == 'locality'):
+        plot_all_locality_plots()
     #plot_paper_plots(subfolder)
     #plot_image_test_comparison()
     
