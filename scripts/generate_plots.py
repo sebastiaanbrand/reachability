@@ -782,21 +782,16 @@ def plot_merge_overhead(data_label):
 def plot_its_vs_dd(its_type):
     data_its = load_its_data(its_type)
     data_dd  = load_pnml_encode_data()
-    print(data_dd)
     
     # select relevant subset
     data_its = data_its.loc[data_its['type'] == its_type]
     its_zero_time = data_its.loc[data_its['reach_time'] == 0]
     data_its = data_its.loc[data_its['reach_time'] != 0]
 
-    print(its_zero_time)
-
     # inner join
     data_its = data_its.set_index('benchmark')
     joined = data_dd.join(data_its, on='benchmark', how='outer',
                             lsuffix='_dd', rsuffix='_its')
-    
-    print(joined)
     
     print("WARNING: currently not checking state counts")
     """
@@ -813,7 +808,7 @@ def plot_its_vs_dd(its_type):
     ys[np.isinf(ys)] = np.nan
 
     # some styling
-    scaling = 4.8 # default = ~6.0
+    scaling = 3.2 # default = ~6.0
     fig, ax = plt.subplots(1, 1, figsize=(scaling, scaling*0.75))
     c = marker_colors['ptri']
     s = marker_size['ptri']
@@ -1131,8 +1126,8 @@ def plot_paper_plot_merge_overhead(subfolder):
     plot_merge_overhead('sl-ldd')
 
 
-def plot_paper_plot_its_tools_vs_dds(subfolder):
-    set_subfolder_name(subfolder + '/ITS-Tools vs DDs (copy nodes)')
+def plot_paper_plot_its_tools_vs_dds():
+    set_subfolder_name('all/ITS-Tools vs DDs (copy nodes)')
     plot_its_vs_dd('.gal')
     plot_its_vs_dd('.img.gal')
     #plot_its_vs_dd_deadlocks('sl-bdd', 'rec', 'RD')
@@ -1183,9 +1178,6 @@ def plot_paper_plots(subfolder='all'):
     # Plot relative merge time overhead (New Figure)
     #plot_paper_plot_merge_overhead(subfolder)
 
-    # Plot ITStools vs DDs
-    plot_paper_plot_its_tools_vs_dds(subfolder)
-
 
 
 if __name__ == '__main__':
@@ -1195,6 +1187,8 @@ if __name__ == '__main__':
         plot_both_parallel()
     elif (which_plot == 'locality'):
         plot_all_locality_plots()
+    elif (which_plot == 'its'):
+        plot_paper_plot_its_tools_vs_dds()
     #plot_paper_plots(subfolder)
     #plot_image_test_comparison()
     
