@@ -460,7 +460,7 @@ def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
     info(" left:  {} ({}) vs {} ({})".format(x1_strat, x1_dd, y1_strat, y1_dd))
     info(" right: {} ({}) vs {} ({})".format(x2_strat, x2_dd, y2_strat, y2_dd))
 
-    scaling = 4.9 # default = ~6.0
+    scaling = 4.8 # default = ~6.0
     w = 1.6 # relative width
     fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
 
@@ -475,13 +475,13 @@ def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
     axs[1] = _plot_diagonal_lines(axs[1], max_val, min_val)
 
     # axis labels + legend
-    axs[0].set_ylabel(y_label)
+    axs[0].set_ylabel(y_label, fontsize=12)
     axs[0].set_title('{}s'.format(x1_dd[-3:].upper()))
     axs[1].set_title('{}s'.format(x2_dd[-3:].upper()))
-    fig.text(0.54, 0.01, x_label, ha='center')
+    fig.text(0.54, 0.01, x_label, ha='center', fontsize=12)
     axs[1].axes.yaxis.set_visible(False)
-    axs[0].legend(framealpha=1.0)
-    plt.tight_layout()
+    axs[0].legend(framealpha=1.0, fontsize=11)
+    plt.tight_layout(pad=0.2)
     #fig.subplots_adjust(bottom=0.22)
     fig.subplots_adjust(bottom=0.15)
 
@@ -1002,9 +1002,13 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
                         add_merge_time=add_merge_time)
     plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', add_merge_time)
 
-def plot_paper_plot_sat_vs_rec_copy(subfolder):
-    set_subfolder_name(subfolder + '/Saturation vs REACH (copy nodes)')
+def plot_paper_plot_sat_vs_rec_copy():
+    data_folder = 'bench_data/all/single_worker/10m/bdds_and_ldds_w_copy/'
+    load_data(data_folder)
+    pre_process()
+    assert_states_nodes()
 
+    set_subfolder_name('all/Saturation vs REACH (copy nodes)')
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec-copy', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
@@ -1183,6 +1187,8 @@ def plot_paper_plots(subfolder='all'):
 if __name__ == '__main__':
     which_plot, add_merge_time = parse_args()
     print(which_plot)
+    if (which_plot == 'saturation'):
+        plot_paper_plot_sat_vs_rec_copy()
     if (which_plot == 'parallel'):
         plot_both_parallel()
     elif (which_plot == 'locality'):
