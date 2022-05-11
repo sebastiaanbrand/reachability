@@ -24,7 +24,7 @@ For Ubuntu, the relevant dependencies can be installed with the following after 
 Run `./compile_sources.sh` to (re)compile. This creates, in `reach_algs/build/`, two programs: `bddmc` and `lddmc`, which contain several reachability algorithms for BDDs and LDDs.
 
 ### 3a. Reproducing experiments (subset)
-From the `~/tacas_126/` folder:
+From the root of the repository:
 
 * To generate (a small subset of) the data used for Figures 9 and 10 in the paper, run `./scripts/bench_subset.sh -n 10` and press enter. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
 * To generate (a small subset of) the data used for Figure 11 in the paper, run `./scripts/bench_subset.sh -n 10 -w "1 2 4 8" test-par` and press enter. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
@@ -34,7 +34,7 @@ The results of these benchmarks are written to `bench_data/subset/` as csv data.
 To generate plots from the generated data run `python3 scripts/generate_plots.py subset`. The plots are outputted to `plots/subset/`.
 
 ### 3b. Reproducing experiments (full)
-From the `~/tacas_126/` folder:
+From the root of the repository:
 
 * To generate the data used for Figures 9 and 10 in the paper, run `./scripts/bench_all.sh bdd ldd beem-sloan petri-sloan promela-sloan` and press enter.
 * To generate the data used for Figure 11 (1-8 core) in the paper, run `./scripts/bench_all.sh -w "1 2 4 8" test-par bdd ldd beem-sloan petri-sloan promela-sloan` and press enter.
