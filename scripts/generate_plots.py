@@ -72,15 +72,19 @@ def info(str, end='\n'):
 
 def parse_args():
     if (len(sys.argv) <= 1):
-        print("please specify which plot to generate")
-        exit(1)
+        print("please specify which plot to generate (give arg [saturation|locality|parallel|its])")
+        exit()
     which_plot = sys.argv[1]
-    add_merge_time=True
-    if (len(sys.argv) > 2):
-        if (sys.argv[2] == 'no-merge-time'):
-            add_merge_time=False
-    return which_plot, add_merge_time
-       
+
+    data_folder = None
+    if (which_plot != 'its'):
+        if (len(sys.argv) <= 2):
+            print("argument 2 (path to data folder) missing")
+            exit()
+        data_folder = sys.argv[2]
+    
+    return which_plot, data_folder
+
 
 def try_load_data(key, filepath):
     global datamap
@@ -486,6 +490,7 @@ def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
     fig.subplots_adjust(bottom=0.15)
 
     # plot for all formats
+    info("Writing plots to {}".format(plots_folder))
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}reachtime_{}_{}_vs_{}_{}_and_{}_{}vs_{}_{}_incmergetime{}.{}'.format(
@@ -576,6 +581,7 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric, strat_rec, add_merge_tim
     plt.tight_layout()
 
     # plots without data-point lables
+    info("Writing plots to {}".format(plots_folder))
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}rec_over_sat_vs_metric_{}_on_{}_incmergetime{}.{}'.format(subfolder, 
@@ -702,7 +708,8 @@ def _plot_parallel(strat1, strat2, strat3, data_label, min_time, plot_legend=Tru
                 loc='upper left', framealpha=1.0)
     plt.tight_layout()
 
-     # plots without data-point lables
+    # plots without data-point lables
+    info("Writing plots to {}".format(plots_folder))
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}speedups_{}_{}_{}_on{}_mintime_{}_{}_cores.{}'.format(subfolder, 
@@ -793,7 +800,6 @@ def plot_its_vs_dd(its_type):
     joined = data_dd.join(data_its, on='benchmark', how='outer',
                             lsuffix='_dd', rsuffix='_its')
     
-    print("WARNING: currently not checking state counts")
     """
     if ('final_states_its' in joined):
         neq_states = joined['final_states_dd'] != joined['final_states_its']
@@ -844,6 +850,7 @@ def plot_its_vs_dd(its_type):
     ax.legend(framealpha=1.0)
     plt.tight_layout()
 
+    info("Writing plots to {}".format(plots_folder))
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}its{}_vs_{}_{}.{}'.format(subfolder,
@@ -1002,17 +1009,16 @@ def plot_paper_plot_sat_vs_rec(subfolder, add_merge_time):
                         add_merge_time=add_merge_time)
     plot_comparison('sat', 'sl-ldd', 'rec', 'sl-ldd', add_merge_time)
 
-def plot_paper_plot_sat_vs_rec_copy():
-    data_folder = 'bench_data/all/single_worker/10m/bdds_and_ldds_w_copy/'
+def plot_paper_plot_sat_vs_rec_copy(data_folder):
     load_data(data_folder)
     pre_process()
     assert_states_nodes()
 
-    set_subfolder_name('all/Saturation vs REACH (copy nodes)')
+    set_subfolder_name('all/Saturation vs REACH (Figure 4)')
     plot_comparison_sbs('sat', 'sl-bdd', 'rec', 'sl-bdd', 
                         'sat', 'sl-ldd', 'rec-copy', 'sl-ldd', 
                         'Saturation time (s)', 'ReachBDD/MDD time (s)', 
-                        add_merge_time=add_merge_time)
+                        add_merge_time=True)
 
 def plot_copy_nodes_test(subfolder):
     set_subfolder_name(subfolder + '/Copy Nodes Test')
@@ -1105,7 +1111,7 @@ def plot_pnml_encode_tests(subfolder):
                     ylabel='REACH on pnml2lts-sym LDDs')
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
-    set_subfolder_name(subfolder + '/Locality metric comparison (Figure 10) with copy nodes')
+    set_subfolder_name(subfolder + '/Locality metric comparison (Figure 5)')
     #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', 'rec-copy', add_merge_time)
     plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw', 'rec', add_merge_time)
     #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-max-bw', 'rec-copy', add_merge_time)
@@ -1117,7 +1123,7 @@ def plot_paper_plot_locality(subfolder, add_merge_time):
 
 
 def plot_paper_plot_parallel(subfolder, plot_legend=True, ylabel=True):
-    set_subfolder_name(subfolder + '/Parallel speedups (Figure 11)')
+    set_subfolder_name(subfolder + '/Parallel speedups (Figure 7)')
     if subfolder == 'subset':
         _plot_parallel('sat', 'rec', 'rec-par', 'sl-bdd', 0, plot_legend, ylabel)
     else:
@@ -1131,15 +1137,13 @@ def plot_paper_plot_merge_overhead(subfolder):
 
 
 def plot_paper_plot_its_tools_vs_dds():
-    set_subfolder_name('all/ITS-Tools vs DDs (copy nodes)')
+    set_subfolder_name('all/ITS-Tools vs DDs (Figure 6)')
     plot_its_vs_dd('.gal')
-    plot_its_vs_dd('.img.gal')
+    #plot_its_vs_dd('.img.gal')
     #plot_its_vs_dd_deadlocks('sl-bdd', 'rec', 'RD')
 
 
-def plot_both_parallel():
-    # Plot parallel (Figure 11)
-    data_folder = 'bench_data/all/par_8/2m/'
+def plot_both_parallel(data_folder):
     if(load_data(data_folder, expected=3)):
         pre_process()
         assert_states_nodes()
@@ -1156,8 +1160,7 @@ def plot_both_parallel():
     else:
         print('no complete data found in ' + data_folder)
 
-def plot_all_locality_plots():
-    data_folder = 'bench_data/all/single_worker/10m/20220419_164504/'
+def plot_all_locality_plots(data_folder):
     load_data(data_folder)
     pre_process()
     assert_states_nodes()
@@ -1185,17 +1188,16 @@ def plot_paper_plots(subfolder='all'):
 
 
 if __name__ == '__main__':
-    which_plot, add_merge_time = parse_args()
-    print(which_plot)
-    if (which_plot == 'saturation'):
-        plot_paper_plot_sat_vs_rec_copy()
-    if (which_plot == 'parallel'):
-        plot_both_parallel()
-    elif (which_plot == 'locality'):
-        plot_all_locality_plots()
+    which_plot, data_folder = parse_args()
+    if (which_plot == 'saturation'): # bench_data/all/single_worker/10m/bdds_and_ldds_w_copy/
+        plot_paper_plot_sat_vs_rec_copy(data_folder)
+    elif (which_plot == 'parallel'): # bench_data/all/par_8/2m/
+        plot_both_parallel(data_folder)
+    elif (which_plot == 'locality'): # bench_data/all/single_worker/10m/bdds_and_ldds_w_copy/
+        plot_all_locality_plots(data_folder)
     elif (which_plot == 'its'):
         plot_paper_plot_its_tools_vs_dds()
-    #plot_paper_plots(subfolder)
-    #plot_image_test_comparison()
+    else:
+        print("First argument must be [saturation|parallel|locality|its]")
     
 
