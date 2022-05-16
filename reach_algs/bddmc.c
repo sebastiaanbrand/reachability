@@ -841,9 +841,8 @@ VOID_TASK_1(bfs_plain, set_t, set)
 }
 
 /**
- * Implementation of recursive reachability algorithm for a single global
- * relation.
- * (Quite slow, maybe there are things which can be better optimized)
+ * ReachBDD: Implementation of recursive reachability algorithm for a single 
+ * global relation.
  */
 TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
 {

@@ -11,13 +11,15 @@ maxval=9
 bddmc=reach_algs/build/bddmc
 lddmc=reach_algs/build/lddmc
 
-while getopts "w:t:m:" opt; do
+while getopts "w:t:m:o:" opt; do
   case $opt in
     w) num_workers="$OPTARG"
     ;;
     t) maxtime="$OPTARG"
     ;;
     m) maxval="$OPTARG"
+    ;;
+    o) custom_folder=bench_data/"$OPTARG"; overwrite_folder=true;
     ;;
     \?) echo "Invalid option -$OPTARG" >&1; exit 1;
     ;;
@@ -69,6 +71,10 @@ fi
 
 dt=$(date '+%Y%m%d_%H%M%S');
 outputfolder=$outputfolder/$dt
+
+if [[ $overwrite_folder ]]; then
+    outputfolder=$custom_folder
+fi
 
 if [[ $deadlocks ]]; then
     filename_app="_deadlocks"
@@ -385,9 +391,11 @@ fi
 if [[ $bench_ptri_sl && $bench_ldd_static ]]; then
     for filename in models/petrinets/static_ldds/sloan/maxval_$maxval/*.ldd; do
         for nw in $num_workers; do
+            fname=$(basename $filename)
+            log_file=$outputfolder/${fname%.*}_w${nw}_rec_ldd.log
             timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd_static
-            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static
-            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static
+            (time timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static) |& tee $log_file
+            #timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static
         done
     done
 fi

@@ -103,6 +103,7 @@ parse_opt(int key, char *arg, struct argp_state *state)
         break;
     case 6:
         merge_relations = 1;
+        custom_img = 1;
         break;
     case 9:
         if (strategy == strat_rec || strategy == strat_rec2 || strategy == strat_bfs_plain)
@@ -824,8 +825,8 @@ get_next_meta(MDD meta)
 
 
 /**
- * Implementation of recursive reachability algorithm for a single global
- * relation.
+ * ReachLDD: Implementation of recursive reachability algorithm for a single 
+ * global relation.
  */
 TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
 {
@@ -1368,6 +1369,9 @@ main(int argc, char **argv)
 #ifdef HAVE_PROFILER
     if (profile_filename != NULL) ProfilerStart(profile_filename);
 #endif
+
+    if (custom_img)
+        INFO("Using custom image %d\n", custom_img);
 
     if (strategy == strat_bfs) {
         double t1 = wctime();

@@ -152,9 +152,9 @@ def pre_process():
 def load_its_data(its_type):
     # load csv
     if (its_type == 'RD'):
-        its_data = pd.read_csv('bench_data/its_tools/its_tools_petrinets_deadlocks.csv')
+        its_data = pd.read_csv('bench_data/reach-vs-its/its_tools_petrinets_deadlocks.csv')
     else:
-        its_data = pd.read_csv('bench_data/its_tools/its_tools_petrinets.csv')
+        its_data = pd.read_csv('bench_data/reach-vs-its/its_tools_petrinets.csv')
 
     # some pre-processing
     its_data.columns = its_data.columns.str.strip()
@@ -167,7 +167,7 @@ def load_its_data(its_type):
 
 def load_pnml_encode_data():
     # load csv
-    data = pd.read_csv('bench_data/pnml-encode/pnml_encode_time_ldd_maxval_9.csv')
+    data = pd.read_csv('bench_data/reach-vs-its/pnml_encode_time_ldd_maxval_9.csv')
 
     # some pre-processing
     data.columns = data.columns.str.strip()
@@ -1112,7 +1112,7 @@ def plot_pnml_encode_tests(subfolder):
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
     set_subfolder_name(subfolder + '/Locality metric comparison (Figure 5)')
-    #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', 'rec-copy', add_merge_time)
+    plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', 'rec-copy', add_merge_time)
     plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw', 'rec', add_merge_time)
     #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-max-bw', 'rec-copy', add_merge_time)
     #plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-max-bw', 'rec', add_merge_time)

@@ -2,7 +2,7 @@ import os
 
 look_for = 'Model ,|S| ,Time ,Mem(kb) ,fin. SDD ,fin. DDD ,peak SDD ,peak DDD ,SDD Hom ,SDD cache peak ,DDD Hom ,DDD cachepeak ,SHom cache\n'
 
-output_file = 'bench_data/its_tools/its_tools_petrinets.csv'
+output_file = 'bench_data/reach-vs-its/its_tools_petrinets.csv'
 
 def write_header():
     with open(output_file, 'w') as f:
@@ -47,4 +47,4 @@ def process_data(folder):
 
 
 if __name__ == '__main__':
-    process_data('bench_data/its_tools/petrinets/')
+    process_data('bench_data/reach-vs-its/its_tools/')
