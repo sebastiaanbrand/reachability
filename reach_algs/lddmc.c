@@ -1467,6 +1467,7 @@ main(int argc, char **argv)
     print_memory_usage();
     sylvan_stats_report(stdout);
 
+    sylvan_quit();
     lace_stop();
 
     double t_end = wctime();

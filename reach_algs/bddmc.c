@@ -1510,6 +1510,7 @@ main(int argc, char **argv)
 
     sylvan_stats_report(stdout);
 
+    sylvan_quit();
     lace_stop();
 
     double t_end = wctime();
