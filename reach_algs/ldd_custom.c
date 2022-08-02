@@ -444,3 +444,62 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
 
     return res;
 }
+
+TASK_IMPL_2(MDD, lddmc_rel_union, MDD, a, MDD, b)
+{
+    /* Terminal cases */
+    if (a == b) return a;
+    if (a == lddmc_false) return b;
+    if (b == lddmc_false) return a;
+    assert(a != lddmc_true && b != lddmc_true); // expect same lenght
+
+    /* Consult cache */
+    MDD res;
+    if (cache_get3(CACHE_LDD_REL_UNION, a, b, 0, &res)) {
+        return res;
+    }
+
+    /* Get nodes */
+    mddnode_t na = LDD_GETNODE(a);
+    mddnode_t nb = LDD_GETNODE(b);
+
+    const int na_copy = mddnode_getcopy(na) ? 1 : 0;
+    const int nb_copy = mddnode_getcopy(nb) ? 1 : 0;
+    const uint32_t na_value = mddnode_getvalue(na);
+    const uint32_t nb_value = mddnode_getvalue(nb);
+
+    /* Recursive calls */
+    // (assume read level)
+    if (na_copy && nb_copy) {
+        MDD down = CALL(lddmc_rel_union, mddnode_getdown(na), mddnode_getdown(nb));
+        MDD right = CALL(lddmc_rel_union, mddnode_getright(na), mddnode_getright(nb));
+        res = lddmc_make_copynode(down, right);
+    }
+    else if (na_copy) {
+        MDD right = CALL(lddmc_rel_union, mddnode_getright(na), b);
+        res = lddmc_make_copynode(mddnode_getdown(na), right);
+    }
+    else if (nb_copy) {
+        MDD right = CALL(lddmc_rel_union, a, mddnode_getright(nb));
+        res = lddmc_make_copynode(mddnode_getdown(nb), right);
+    }
+    else if (na_value < nb_value) {
+        MDD right = CALL(lddmc_rel_union, mddnode_getright(na), b);
+        res = lddmc_makenode(na_value, mddnode_getdown(na), right);
+    }
+    else if (na_value == nb_value) {
+        MDD down = CALL(lddmc_rel_union, mddnode_getdown(na), mddnode_getdown(nb));
+        MDD right = CALL(lddmc_rel_union, mddnode_getright(na), mddnode_getright(nb));
+        res = lddmc_makenode(na_value, down, right);
+    }
+    else /* na_value > nb_value */ {
+        MDD right = CALL(lddmc_rel_union, a, mddnode_getright(nb));
+        res = lddmc_makenode(nb_value, mddnode_getdown(nb), right);
+    }
+
+    /* Put in cache */
+    cache_put3(CACHE_LDD_REL_UNION, a, b, 0, res);
+
+    return res;
+}
+

@@ -31,3 +31,11 @@ TASK_DECL_3(MDD, lddmc_image2, MDD, MDD, MDD);
  */
 TASK_DECL_3(MDD, lddmc_extend_rel, MDD, MDD, uint32_t);
 #define lddmc_extend_rel(rel, meta, nvars) RUN(lddmc_extend_rel,rel,meta,nvars)
+
+/**
+ * In principle the `lddmc_union` already in Sylvan should work for our 
+ * definition of rels, however in some cases it gives incorrect results so we
+ * have this custom function for taking the union of relations.
+ */
+TASK_DECL_2(MDD, lddmc_rel_union, MDD, MDD);
+#define lddmc_rel_union(a, b) RUN(lddmc_rel_union, a, b)
