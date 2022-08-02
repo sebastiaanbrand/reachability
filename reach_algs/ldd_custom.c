@@ -303,6 +303,10 @@ TASK_3(MDD, only_read_helper, MDD, right, MDD, next_meta, MDD, next_nvars)
 
 TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
 {
+    // No need to extend an empty relation, as this is a terminal case for
+    // REACH, union, and custom_image.
+    if (rel == lddmc_false) return lddmc_false;
+
     if (nvars == 0) {
         if (rel == lddmc_true || rel == lddmc_false) return rel;
         if (lddmc_getvalue(meta) == 5) return rel;
