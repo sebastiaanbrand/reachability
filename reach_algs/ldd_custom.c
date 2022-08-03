@@ -5,7 +5,6 @@
 MDD lddmc_make_normalnode(uint32_t value, MDD ifeq, MDD ifneq)
 {
     assert(value < 1<<31);
-    value = value | 0x80000000;
     return lddmc_makenode(value, ifeq, ifneq);
 }
 
@@ -13,6 +12,7 @@ MDD lddmc_make_normalnode(uint32_t value, MDD ifeq, MDD ifneq)
 MDD lddmc_make_homomorphism_node(uint32_t value, MDD ifeq, MDD ifneq)
 {
     assert(value < 1<<31);
+    value = value | 0x80000000;
     return lddmc_makenode(value, ifeq, ifneq);
 }
 
@@ -21,7 +21,7 @@ bool lddmc_is_homomorphism(uint32_t *value)
 {
     uint32_t flag = (*value) & 0x80000000;
     *value = (*value) & 0x7fffffff; // remove flag from value
-    return !((bool) flag); // currently flag = 0 represents homomorphism
+    return (bool) flag; // currently flag = 1 represents homomorphism
 }
 
 
