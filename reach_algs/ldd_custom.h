@@ -2,6 +2,11 @@
 
 #include "sylvan_int.h"
 
+MDD lddmc_make_normalnode(uint32_t value, MDD ifeq, MDD ifneq);
+MDD lddmc_make_homomorphism_node(uint32_t value, MDD ifeq, MDD ifneq);
+// NOTE: also removes homomorphism flag from value
+bool lddmc_is_homomorphism(uint32_t *value);
+
 MDD lddmc_make_readwrite_meta(uint32_t nvars, bool action_label);
 
 /**

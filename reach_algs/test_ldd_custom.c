@@ -203,6 +203,29 @@ int test_lddmc_image_only_write2()
     return 0;
 }
 
+int test_homomorphism_nodes1()
+{
+    // Test construction
+    MDD normal_node = lddmc_make_normalnode(5, lddmc_true, lddmc_false);
+    MDD hmorph_node = lddmc_make_homomorphism_node(17, lddmc_true, lddmc_false);
+    
+    uint32_t normal_value = lddmc_getvalue(normal_node);
+    uint32_t hmorph_value = lddmc_getvalue(hmorph_node);
+
+    test_assert(!lddmc_is_homomorphism(&normal_value));
+    test_assert(lddmc_is_homomorphism(&hmorph_value));
+    test_assert(normal_value == 5);
+    test_assert(hmorph_value == 17);
+
+    return 0;
+}
+
+int test_homomorphism_nodes2()
+{
+    // TODO
+    return 0;
+}
+
 int test_lddmc_extend_rel1()
 {
     // Meta = [1, 2, 1, 2], Rel = {<6,4> -> <7, 3>),(<6,6> -> <10,20>)}
@@ -1454,6 +1477,11 @@ int runtests()
     printf("    * only-write...                             "); fflush(stdout);
     if (test_lddmc_image_only_write1()) return 1;
     if (test_lddmc_image_only_write2()) return 1;
+    printf("OK\n");
+
+    printf("Testing homomorphism nodes...                   "); fflush(stdout);
+    if (test_homomorphism_nodes1()) return 1;
+    if (test_homomorphism_nodes2()) return 1;
     printf("OK\n");
 
     printf("Testing extend LDD relations to full domain...  "); fflush(stdout);
