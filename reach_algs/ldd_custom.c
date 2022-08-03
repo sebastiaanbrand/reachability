@@ -153,8 +153,10 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
         // rel = (* -> j), i.e. read anything, write j
 
         // Iterate over all reads of 'set'
+        // TODO: we only need to iterate over homomorphism nodes (although they are currently at the back)
         for (itr_r = set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
             
+            uint32_t i = lddmc_getvalue(itr_r);
             set_i = lddmc_getdown(itr_r);
 
             // Iterate over all writes (j) of rel
@@ -167,7 +169,13 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
                 // Extend succ_j and add to successors
-                tmp = lddmc_makenode(j, tmp, lddmc_false);
+                if (lddmc_is_homomorphism(&j)) { // homomorphism: "read i, write i+j"
+                    tmp = lddmc_makenode(i+j, tmp, lddmc_false);
+                }
+                else { // normal write: "read i, write j"
+                    tmp = lddmc_makenode(j, tmp, lddmc_false);                   
+                }
+                
                 res = lddmc_union(res, tmp);
             }
         }

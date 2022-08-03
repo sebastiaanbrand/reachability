@@ -222,7 +222,42 @@ int test_homomorphism_nodes1()
 
 int test_homomorphism_nodes2()
 {
-    // TODO
+    // Rel : ({* -> *(+3) } v (5 -> 6))
+    MDD rel, cpy3, r5w6;
+    r5w6 = lddmc_make_normalnode(6, lddmc_true, lddmc_false);
+    r5w6 = lddmc_make_normalnode(5, r5w6, lddmc_false);
+    cpy3 = lddmc_make_homomorphism_node(3, lddmc_true, lddmc_false);
+    cpy3 = lddmc_make_copynode(cpy3, lddmc_false);
+    rel  = lddmc_union(r5w6, cpy3);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
+
+    // s1 = {5}, s2 = {4,5,7}, s3 = {8}
+    MDD s1, s2, s3;
+    s1 = lddmc_make_normalnode(5, lddmc_true, lddmc_false);
+    s2 = lddmc_make_normalnode(7, lddmc_true, lddmc_false);
+    s2 = lddmc_make_normalnode(5, lddmc_true, s2);
+    s2 = lddmc_make_normalnode(4, lddmc_true, s2);
+    s3 = lddmc_make_normalnode(8, lddmc_true, lddmc_false);
+
+    MDD t1, t2, t3;
+    t1 = lddmc_image(s1, rel, meta); // {6, 8 (5+3)}
+    t2 = lddmc_image(s2, rel, meta); // {6, 7 (4+3), 8 (5+3), 10 (7+3)}
+    t3 = lddmc_image(s3, rel, meta); // {11 (8+3)}
+
+    MDD temp = t1;
+    test_assert(lddmc_getvalue(temp) == 6);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 8);     temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+    temp = t2;
+    test_assert(lddmc_getvalue(temp) == 6);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 7);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 8);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+    temp = t3;
+    test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+
     return 0;
 }
 
