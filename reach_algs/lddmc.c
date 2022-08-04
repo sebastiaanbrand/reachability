@@ -886,8 +886,12 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                     set_i = CALL(go_rec, set_i, rel_ij, next_meta);
 
                     // Extend set_i and add to 'set'
+                    // TODO: maybe we could use lddmc_extend_node here
+                    // instead of makenode + union?
                     MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                    lddmc_refs_push(set_i_ext);
                     _set = lddmc_union(_set, set_i_ext);
+                    lddmc_refs_pop(1);
                 }
 
                 // After (* -> *), there might still be (* -> j)'s
@@ -919,14 +923,22 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                             Abort("Must use custom image w/ copy nodes in rel\n");
                         
                         // Extend succ_j and add to 'set'
+                        // TODO: maybe we could use lddmc_extend_node here
+                        // instead of makenode + union?
                         MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                        lddmc_refs_push(set_j_ext);
                         _set = lddmc_union(_set, set_j_ext);
+                        lddmc_refs_pop(1);
                     }
                 }
 
                 // Extend set_i and add to 'set'
+                // TODO: maybe we could use lddmc_extend_node here
+                // instead of makenode + union?
                 MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                lddmc_refs_push(set_i_ext);
                 _set = lddmc_union(_set, set_i_ext);
+                lddmc_refs_pop(1);
             }
         }
         
@@ -955,14 +967,22 @@ TASK_3(MDD, go_rec, MDD, set, MDD, rel, MDD, meta)
                         succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
 
                     // Extend succ_j and add to 'set'
+                    // TODO: maybe we could use lddmc_extend_node here
+                    // instead of makenode + union?
                     MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                    lddmc_refs_push(set_j_ext);
                     _set = lddmc_union(_set, set_j_ext);
+                    lddmc_refs_pop(1);
                 } 
             }
 
             // Extend set_i and add to 'set'
+            // TODO: maybe we could use lddmc_extend_node here
+            // instead of makenode + union?
             MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+            lddmc_refs_push(set_i_ext);
             _set = lddmc_union(_set, set_i_ext);
+            lddmc_refs_pop(1);
         }
     }
 
@@ -1033,8 +1053,12 @@ TASK_3(MDD, go_rec2, MDD, set, MDD, rel, MDD, meta)
                     set_i = CALL(go_rec, set_i, rel_ij, next_meta);
 
                     // Extend set_i and add to 'set'
+                    // TODO: maybe we could use lddmc_extend_node here
+                    // instead of makenode + union?
                     MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                    lddmc_refs_push(set_i_ext);
                     _set = lddmc_union(_set, set_i_ext);
+                    lddmc_refs_pop(1);
                 }
 
                 // After (* -> *), there might still be (* -> j)'s
@@ -1066,14 +1090,22 @@ TASK_3(MDD, go_rec2, MDD, set, MDD, rel, MDD, meta)
                             Abort("Must use custom image w/ copy nodes in rel\n");
                         
                         // Extend succ_j and add to 'set'
+                        // TODO: maybe we could use lddmc_extend_node here
+                        // instead of makenode + union?
                         MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                        lddmc_refs_push(set_j_ext);
                         _set = lddmc_union(_set, set_j_ext);
+                        lddmc_refs_pop(1);
                     }
                 }
 
                 // Extend set_i and add to 'set'
+                // TODO: maybe we could use lddmc_extend_node here
+                // instead of makenode + union?
                 MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                lddmc_refs_push(set_i_ext);
                 _set = lddmc_union(_set, set_i_ext);
+                lddmc_refs_pop(1);
             }
         }
         else { // not copy, normal read
@@ -1100,19 +1132,29 @@ TASK_3(MDD, go_rec2, MDD, set, MDD, rel, MDD, meta)
                         succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
 
                     // Extend succ_j and add to 'set'
+                    // TODO: maybe we could use lddmc_extend_node here
+                    // instead of makenode + union?
                     MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                    lddmc_refs_push(set_j_ext);
                     _set = lddmc_union(_set, set_j_ext);
+                    lddmc_refs_pop(1);
                 } 
             }
 
             // Extend set_i and add to 'set'
+            // TODO: maybe we could use lddmc_extend_node here
+            // instead of makenode + union?
             MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+            lddmc_refs_push(set_i_ext);
             _set = lddmc_union(_set, set_i_ext);
+            lddmc_refs_pop(1);
         }
 
         // NEW: instead of iterating over _rel to the right here, recursively call self
         MDD res_right = CALL(go_rec2, _set, lddmc_getright(_rel), meta);
+        lddmc_refs_push(res_right);
         _set = lddmc_union(_set, res_right);
+        lddmc_refs_pop(1);
     }
 
     lddmc_refs_popptr(8);
