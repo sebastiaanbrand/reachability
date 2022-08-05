@@ -280,6 +280,47 @@ int test_homomorphism_nodes2()
     return 0;
 }
 
+int test_homomorphism_nodes3()
+{
+    // Test homomorphisms in REACH
+    // Rel : ({<10,*> -> <20,*(+3)> })
+    MDD rel;
+    rel = lddmc_make_homomorphism_node(3, lddmc_true, lddmc_false);
+    rel = lddmc_make_copynode(rel, lddmc_false);
+    rel = lddmc_make_normalnode(20, rel, lddmc_false);
+    rel = lddmc_make_normalnode(10, rel, lddmc_false);
+    MDD meta = lddmc_make_readwrite_meta(2, false);
+
+    MDD s1, s2; // s1 = {<10,2>}, s2 = {<10,2>, <10,8>}
+    s1 = lddmc_make_normalnode(2, lddmc_true, lddmc_false);
+    s1 = lddmc_make_normalnode(10, s1, lddmc_false);
+    s2 = lddmc_make_normalnode(8, lddmc_true, lddmc_false);
+    s2 = lddmc_make_normalnode(10, s2, lddmc_false);
+    s2 = lddmc_union(s1, s2);
+
+    MDD reach1, reach2, temp;
+    reach1 = RUN(go_rec, s1, rel, meta, 1); // {<10,2>,<20,5>}
+    reach2 = RUN(go_rec, s2, rel, meta, 1); // {<10,2>,<10,8>,<20,5>,<20,11>}
+
+    temp = reach1;
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 2);     temp = lddmc_getright(reach1);
+    test_assert(lddmc_getvalue(temp) == 20);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+
+    temp = reach2;
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 2);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 8);     temp = lddmc_getright(reach2);
+    test_assert(lddmc_getvalue(temp) == 20);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+
+    return 0;
+}
+
 int test_lddmc_extend_rel1()
 {
     // Meta = [1, 2, 1, 2], Rel = {<6,4> -> <7, 3>),(<6,6> -> <10,20>)}
@@ -1536,6 +1577,7 @@ int runtests()
     printf("Testing homomorphism nodes...                   "); fflush(stdout);
     if (test_homomorphism_nodes1()) return 1;
     if (test_homomorphism_nodes2()) return 1;
+    if (test_homomorphism_nodes3()) return 1;
     printf("OK\n");
 
     printf("Testing extend LDD relations to full domain...  "); fflush(stdout);

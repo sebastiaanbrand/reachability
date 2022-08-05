@@ -43,3 +43,6 @@ TASK_DECL_3(MDD, lddmc_extend_rel, MDD, MDD, uint32_t);
  */
 TASK_DECL_2(MDD, lddmc_rel_union, MDD, MDD);
 #define lddmc_rel_union(a, b) RUN(lddmc_rel_union, a, b)
+
+TASK_DECL_4(MDD, go_rec, MDD, MDD, MDD, int);
+TASK_DECL_4(MDD, go_rec2, MDD, MDD, MDD, int);

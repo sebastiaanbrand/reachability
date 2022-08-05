@@ -1,6 +1,8 @@
 #include "ldd_custom.h"
 #include "cache_op_ids.h"
 
+#define Abort(...) { fprintf(stderr, __VA_ARGS__); fprintf(stderr, "Abort at line %d!\n", __LINE__); exit(-1); }
+
 
 MDD lddmc_make_normalnode(uint32_t value, MDD ifeq, MDD ifneq)
 {
@@ -532,3 +534,351 @@ TASK_IMPL_2(MDD, lddmc_rel_union, MDD, a, MDD, b)
     return res;
 }
 
+
+/**
+ * ReachLDD: Implementation of recursive reachability algorithm for a single 
+ * global relation.
+ */
+TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
+{
+    /* Terminal cases */
+    if (set == lddmc_false) return lddmc_false; // empty.R* = empty
+    if (rel == lddmc_false) return set; // s.empty* = s.(empty union I)^+ = s
+    if (set == lddmc_true || rel == lddmc_true) return lddmc_true;
+    // all.r* = all, s.all* = all (if s is not empty)
+
+    /* Assert assumptions about rel */
+    assert(lddmc_getvalue(meta) == 1);
+
+    /* We can skip nodes if Rel requires a "read" which is not in S */
+    //if (!match_ldds(&set, &rel)) return lddmc_false;
+
+    /* Consult cache */
+    int cachenow = 1;
+    if (cachenow) {
+        MDD res;
+        if (cache_get3(CACHE_LDD_REACH, set, rel, 0, &res)) return res;
+    }
+    
+    /* Protect relevant MDDs */
+    MDD next_meta = get_next_meta(meta); // Q: protect this?
+    MDD prev      = lddmc_false;    lddmc_refs_pushptr(&prev);
+    MDD itr_r     = lddmc_false;    lddmc_refs_pushptr(&itr_r);
+    MDD itr_w     = lddmc_false;    lddmc_refs_pushptr(&itr_w);
+    MDD rel_ij    = lddmc_false;    lddmc_refs_pushptr(&rel_ij);
+    MDD set_i     = lddmc_false;    lddmc_refs_pushptr(&set_i);
+    MDD rel_i     = lddmc_false;    lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
+    MDD _set      = set;            lddmc_refs_pushptr(&_set);
+    MDD _rel      = rel;            lddmc_refs_pushptr(&_rel);
+
+    /* Loop until reachable set has converged */
+    while (_set != prev) {
+        prev = _set;
+        _rel = rel;
+
+        // 1. Iterate over all reads (i) of 'rel'
+        // 1a. (possibly a copy node first)
+        if (lddmc_iscopy(_rel)) {
+            // Current read is a copy node (i.e. interpret as R_ii for all i)
+            rel_i = lddmc_getdown(_rel);
+
+            // 2. Iterate over all corresponding writes (j) 
+            // 2a. rel = (* -> *), i.e. read anything, write what was read
+            if (lddmc_iscopy(rel_i)) {
+
+                rel_ij = lddmc_getdown(rel_i); // j = i
+
+                // Iterate over all reads of 'set'
+                for (itr_r = _set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+                    uint32_t i = lddmc_getvalue(itr_r);
+                    set_i = lddmc_getdown(itr_r);
+
+                    // Compute REACH for S_i.R_ii*
+                    set_i = CALL(go_rec, set_i, rel_ij, next_meta, img);
+
+                    // Extend set_i and add to 'set'
+                    // TODO: maybe we could use lddmc_extend_node here
+                    // instead of makenode + union?
+                    MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                    lddmc_refs_push(set_i_ext);
+                    _set = lddmc_union(_set, set_i_ext);
+                    lddmc_refs_pop(1);
+                }
+
+                // After (* -> *), there might still be (* -> j)'s
+                rel_i = lddmc_getright(rel_i);
+            }
+            // 2b. rel = (* -> j), i.e. read anything, write j
+            // Iterate over all reads (i) of 'set'
+            for (itr_r = _set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+
+                uint32_t i = lddmc_getvalue(itr_r);
+                set_i = lddmc_getdown(itr_r);
+
+                // Iterate over over all writes (j) of rel
+                for (itr_w = rel_i; itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+                    
+                    uint32_t j = lddmc_getvalue(itr_w);
+                    rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
+
+                    if (lddmc_is_homomorphism(&j)) {
+                        Abort("Homomorphisms within REACH are not well defined for an unconstrained domain.\n");
+                    }
+
+                    if (i == j) {
+                        set_i = CALL(go_rec, set_i, rel_ij, next_meta, img);
+                    }
+                    else {
+                        MDD succ_j;
+                        if (img == 1)
+                            succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                        else if (img == 2)
+                            succ_j = lddmc_image2(set_i, rel_ij, next_meta);
+                        else {
+                            Abort("Must use custom image w/ copy nodes in rel\n");
+                        }
+                        
+                        // Extend succ_j and add to 'set'
+                        // TODO: maybe we could use lddmc_extend_node here
+                        // instead of makenode + union?
+                        MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                        lddmc_refs_push(set_j_ext);
+                        _set = lddmc_union(_set, set_j_ext);
+                        lddmc_refs_pop(1);
+                    }
+                }
+
+                // Extend set_i and add to 'set'
+                // TODO: maybe we could use lddmc_extend_node here
+                // instead of makenode + union?
+                MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                lddmc_refs_push(set_i_ext);
+                _set = lddmc_union(_set, set_i_ext);
+                lddmc_refs_pop(1);
+            }
+        }
+        
+        for (itr_r = _rel;  itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+
+            uint32_t i = lddmc_getvalue(itr_r);
+            set_i = lddmc_follow(_set, i);
+
+            // Iterate over all writes (j) corresponding to reading 'i'
+            for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+
+                uint32_t j = lddmc_getvalue(itr_w);
+                rel_ij = lddmc_getdown(itr_w); // equiv to following i then j from rel
+                
+                if (i == j) {
+                    set_i = CALL(go_rec, set_i, rel_ij, next_meta, img);
+                }
+                else {
+                    // TODO: USE CALL instead of RUN?
+                    MDD succ_j;
+                    if (img == 1)
+                        succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                    else if (img == 2)
+                        succ_j = lddmc_image2(set_i, rel_ij, next_meta);
+                    else
+                        succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
+
+                    // Extend succ_j and add to 'set'
+                    // TODO: maybe we could use lddmc_extend_node here
+                    // instead of makenode + union?
+                    MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                    lddmc_refs_push(set_j_ext);
+                    _set = lddmc_union(_set, set_j_ext);
+                    lddmc_refs_pop(1);
+                } 
+            }
+
+            // Extend set_i and add to 'set'
+            // TODO: maybe we could use lddmc_extend_node here
+            // instead of makenode + union?
+            MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+            lddmc_refs_push(set_i_ext);
+            _set = lddmc_union(_set, set_i_ext);
+            lddmc_refs_pop(1);
+        }
+    }
+
+    lddmc_refs_popptr(8);
+
+    /* Put in cache */
+    if (cachenow)
+        cache_put3(CACHE_LDD_REACH, set, rel, 0, _set);
+
+    return _set;
+}
+
+
+/**
+ * REACH but now with right-recursion instead of loop over reads of rel
+ */
+TASK_IMPL_4(MDD, go_rec2, MDD, set, MDD, rel, MDD, meta, int, img)
+{
+    /* Terminal cases */
+    if (set == lddmc_false) return lddmc_false; // empty.R* = empty
+    if (rel == lddmc_false) return set; // s.empty* = s.(empty union I)^+ = s
+    if (set == lddmc_true || rel == lddmc_true) return lddmc_true;
+    // all.r* = all, s.all* = all (if s is not empty)
+
+    // we'll still deal with the read and write levels in the same recursive call
+    assert(lddmc_getvalue(meta) == 1);
+
+    /* Consult cache */
+    int cachenow = 1;
+    if (cachenow) {
+        MDD res;
+        if (cache_get3(CACHE_LDD_REACH, set, rel, 0, &res)) return res;
+    }
+
+    /* Protect relevant MDDs */
+    MDD next_meta = get_next_meta(meta); // Q: protect this?
+    MDD prev      = lddmc_false;    lddmc_refs_pushptr(&prev);
+    MDD itr_r     = lddmc_false;    lddmc_refs_pushptr(&itr_r);
+    MDD itr_w     = lddmc_false;    lddmc_refs_pushptr(&itr_w);
+    MDD rel_ij    = lddmc_false;    lddmc_refs_pushptr(&rel_ij);
+    MDD set_i     = lddmc_false;    lddmc_refs_pushptr(&set_i);
+    MDD rel_i     = lddmc_false;    lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
+    MDD _set      = set;            lddmc_refs_pushptr(&_set);
+    MDD _rel      = rel;            lddmc_refs_pushptr(&_rel);
+
+
+    /* Loop until reachable set has converged */
+    while (_set != prev) {
+        prev = _set;
+
+        // 1. Iterate over all reads (i) of 'rel'
+        // 1a. (possibly a copy node first)
+        if (lddmc_iscopy(_rel)) {
+            // Current read is a copy node (i.e. interpret as R_ii for all i)
+            rel_i = lddmc_getdown(_rel);
+
+            // 2. Iterate over all corresponding writes (j) 
+            // 2a. rel = (* -> *), i.e. read anything, write what was read
+            if (lddmc_iscopy(rel_i)) {
+
+                rel_ij = lddmc_getdown(rel_i); // j = i
+
+                // Iterate over all reads of 'set'
+                for (itr_r = _set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+                    uint32_t i = lddmc_getvalue(itr_r);
+                    set_i = lddmc_getdown(itr_r);
+
+                    // Compute REACH for S_i.R_ii*
+                    set_i = CALL(go_rec2, set_i, rel_ij, next_meta, img);
+
+                    // Extend set_i and add to 'set'
+                    // TODO: maybe we could use lddmc_extend_node here
+                    // instead of makenode + union?
+                    MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                    lddmc_refs_push(set_i_ext);
+                    _set = lddmc_union(_set, set_i_ext);
+                    lddmc_refs_pop(1);
+                }
+
+                // After (* -> *), there might still be (* -> j)'s
+                rel_i = lddmc_getright(rel_i);
+            }
+            // 2b. rel = (* -> j), i.e. read anything, write j
+            // Iterate over all reads (i) of 'set'
+            for (itr_r = _set; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
+
+                uint32_t i = lddmc_getvalue(itr_r);
+                set_i = lddmc_getdown(itr_r);
+
+                // Iterate over over all writes (j) of rel
+                for (itr_w = rel_i; itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+                    
+                    uint32_t j = lddmc_getvalue(itr_w);
+                    rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
+
+                    if (i == j) {
+                        set_i = CALL(go_rec2, set_i, rel_ij, next_meta, img);
+                    }
+                    else {
+                        MDD succ_j;
+                        if (img == 1)
+                            succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                        else if (img == 2)
+                            succ_j = lddmc_image2(set_i, rel_ij, next_meta);
+                        else
+                            Abort("Must use custom image w/ copy nodes in rel\n");
+                        
+                        // Extend succ_j and add to 'set'
+                        // TODO: maybe we could use lddmc_extend_node here
+                        // instead of makenode + union?
+                        MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                        lddmc_refs_push(set_j_ext);
+                        _set = lddmc_union(_set, set_j_ext);
+                        lddmc_refs_pop(1);
+                    }
+                }
+
+                // Extend set_i and add to 'set'
+                // TODO: maybe we could use lddmc_extend_node here
+                // instead of makenode + union?
+                MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+                lddmc_refs_push(set_i_ext);
+                _set = lddmc_union(_set, set_i_ext);
+                lddmc_refs_pop(1);
+            }
+        }
+        else { // not copy, normal read
+            uint32_t i = lddmc_getvalue(_rel);
+            set_i = lddmc_follow(_set, i);
+
+            // Iterate over all writes (j) corresponding to reading 'i'
+            for (itr_w = lddmc_getdown(_rel); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+
+                uint32_t j = lddmc_getvalue(itr_w);
+                rel_ij = lddmc_getdown(itr_w); // equiv to following i then j from rel
+                
+                if (i == j) {
+                    set_i = CALL(go_rec2, set_i, rel_ij, next_meta, img);
+                }
+                else {
+                    // TODO: USE CALL instead of RUN?
+                    MDD succ_j;
+                    if (img == 1)
+                        succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                    else if (img == 2)
+                        succ_j = lddmc_image2(set_i, rel_ij, next_meta);
+                    else
+                        succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
+
+                    // Extend succ_j and add to 'set'
+                    // TODO: maybe we could use lddmc_extend_node here
+                    // instead of makenode + union?
+                    MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
+                    lddmc_refs_push(set_j_ext);
+                    _set = lddmc_union(_set, set_j_ext);
+                    lddmc_refs_pop(1);
+                } 
+            }
+
+            // Extend set_i and add to 'set'
+            // TODO: maybe we could use lddmc_extend_node here
+            // instead of makenode + union?
+            MDD set_i_ext = lddmc_makenode(i, set_i, lddmc_false);
+            lddmc_refs_push(set_i_ext);
+            _set = lddmc_union(_set, set_i_ext);
+            lddmc_refs_pop(1);
+        }
+
+        // NEW: instead of iterating over _rel to the right here, recursively call self
+        MDD res_right = CALL(go_rec2, _set, lddmc_getright(_rel), meta, img);
+        lddmc_refs_push(res_right);
+        _set = lddmc_union(_set, res_right);
+        lddmc_refs_pop(1);
+    }
+
+    lddmc_refs_popptr(8);
+
+    /* Put in cache */
+    if (cachenow)
+        cache_put3(CACHE_LDD_REACH, set, rel, 0, _set);
+
+    return _set;
+}
