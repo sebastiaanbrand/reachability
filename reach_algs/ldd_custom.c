@@ -169,25 +169,16 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
                 // Extend succ_j and add to successors
-                if (lddmc_is_homomorphism(&j)) { // homomorphism: "read i, write i+j"
+                if (lddmc_is_homomorphism(&j)) // homomorphism: "read i, write i+j"
                     tmp = lddmc_makenode(i+j, tmp, lddmc_false);
-                }
-                else { // normal write: "read i, write j"
-                    tmp = lddmc_makenode(j, tmp, lddmc_false);                   
-                }
+                else // normal write: "read i, write j"
+                    tmp = lddmc_makenode(j, tmp, lddmc_false);
                 
                 res = lddmc_union(res, tmp);
             }
         }
         _rel = lddmc_getright(_rel);
     }
-
-
-    // NOTE: Sylvan's lddmc_relprod, instead of this loop over children, 
-    // simply delegates this "iterating to the right" by using recursion. 
-    // I find this loop easier to think about, but maybe pure recursion is 
-    // more efficient?
-    // (Also by using pure recursion it is easier to parallelize this func)
 
     // Iterate over all reads (i) of 'rel'
     for (itr_r = _rel; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
@@ -291,8 +282,15 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
             if (lddmc_iscopy(_rel)) value = lddmc_getvalue(_set);
             else value = lddmc_getvalue(_rel);
 
+            // down recursive call
             tmp = CALL(lddmc_image2, lddmc_getdown(_set), lddmc_getdown(_rel), next_meta);
-            tmp = lddmc_makenode(value, tmp, lddmc_false);
+            
+            // Extend succ_value and add to successors
+            if (lddmc_is_homomorphism(&value)) // homomorphism: "read i, write i + value"
+                tmp = lddmc_makenode(lddmc_getvalue(_set) + value, tmp, lddmc_false);
+            else // normal write: "read i, write value"
+                tmp = lddmc_makenode(value, tmp, lddmc_false);
+
             res = CALL(lddmc_union, res, tmp);
 
             _rel = lddmc_getright(_rel);
