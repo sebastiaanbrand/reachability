@@ -323,11 +323,14 @@ TASK_3(MDD, only_read_helper, MDD, right, MDD, next_meta, MDD, next_nvars)
     mddnode_t node = LDD_GETNODE(right);
     MDD next_right = mddnode_getright(node);
     MDD down       = mddnode_getdown(node);
-    MDD value      = mddnode_getvalue(node);
+    uint32_t value = mddnode_getvalue(node);
     assert(!mddnode_getcopy(node) && "there should be no copy-nodes to the right");
     
+    lddmc_refs_pushptr(&next_right);
+    lddmc_refs_pushptr(&down);
     next_right = CALL(only_read_helper, next_right, next_meta, next_nvars);
     down       = CALL(lddmc_extend_rel, down, next_meta, next_nvars);
+    lddmc_refs_popptr(2);
     return lddmc_makenode(value, down, next_right);
 }
 
@@ -393,7 +396,7 @@ TASK_IMPL_3(MDD, lddmc_extend_rel, MDD, rel, MDD, meta, uint32_t, nvars)
     }
 
     /* Get next meta */
-    MDD next_meta = next_meta = lddmc_getdown(meta);
+    MDD next_meta = lddmc_getdown(meta);
     uint32_t next_nvars;
     if (meta_val == 1 || meta_val == 2)
         next_nvars = nvars - 1; // for a read/write we step 1 var
