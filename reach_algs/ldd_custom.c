@@ -80,6 +80,29 @@ match_ldds(MDD *one, MDD *two)
 }
 
 
+static MDD 
+apply_write(uint32_t read, uint32_t write, MDD down)
+{
+    MDD res;
+    if (lddmc_is_homomorphism(&write)) {
+        if (lddmc_hmorph_get_sign(&write)) {
+            // "read i, write i-j, if i-j>=0"
+            if ((int) read - (int) write >= 0) {
+                res = lddmc_make_normalnode(read - write, down, lddmc_false);  
+            } else {
+                res = lddmc_false;
+            }
+        } else { // "read i, write i+j"
+            res = lddmc_make_normalnode(read + write, down, lddmc_false); 
+        }
+    }
+    else { // normal write
+        res = lddmc_make_normalnode(write, down, lddmc_false);
+    }
+    return res;
+}
+
+
 MDD lddmc_make_readwrite_meta(uint32_t nvars, bool action_label)
 {
     MDD meta = lddmc_true;
@@ -179,24 +202,9 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 // Compute successors T_j = S_*.R_*j
                 tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
-                // Extend succ_j and add to successors
-                if (lddmc_is_homomorphism(&j)) { // homomorphism: 
-                    if (lddmc_hmorph_get_sign(&j)) {
-                        if ((int) i - (int) j >= 0) {
-                            tmp = lddmc_make_normalnode(i-j, tmp, lddmc_false);  // "read i, write i-j, if i-j>=0"
-                        } else {
-                            tmp = lddmc_false; 
-                            // in this case the recursive call earlier would not have been necessary.
-                            // TODO: refactor code to avoid doing unnecessary work
-                        }
-                    } else {
-                        tmp = lddmc_make_normalnode(i+j, tmp, lddmc_false); // "read i, write i+j"
-                    }
-                }
-                else // normal write: "read i, write j"
-                    tmp = lddmc_make_normalnode(j, tmp, lddmc_false);
-                
-                res = lddmc_union(res, tmp);
+                // Write j (or some hmorph) and add to successors
+                tmp = apply_write(i, j, tmp);                
+                res = CALL(lddmc_union, res, tmp);
             }
         }
         _rel = lddmc_getright(_rel);
@@ -307,24 +315,8 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
             // down recursive call
             tmp = CALL(lddmc_image2, lddmc_getdown(_set), lddmc_getdown(_rel), next_meta);
             
-            // Extend succ_value and add to successors           
-            if (lddmc_is_homomorphism(&j)) { // homomorphism: 
-                int i = lddmc_getvalue(_set);
-                if (lddmc_hmorph_get_sign(&j)) {
-                    if ((int) i - (int) j >= 0) {
-                        tmp = lddmc_makenode(i-j, tmp, lddmc_false);  // "read i, write i-j, if i-j>=0"
-                    } else {
-                        tmp = lddmc_false; 
-                        // in this case the recursive call earlier would not have been necessary.
-                        // TODO: refactor code to avoid doing unnecessary work
-                    }
-                } else {
-                    tmp = lddmc_makenode(i+j, tmp, lddmc_false); // "read i, write i+j"
-                }
-            }
-            else // normal write: "read i, write j"
-                tmp = lddmc_makenode(j, tmp, lddmc_false);
-
+            // Write j (or some hmorph) and add to successors
+            tmp = apply_write(lddmc_getvalue(_set), j, tmp);
             res = CALL(lddmc_union, res, tmp);
 
             _rel = lddmc_getright(_rel);
@@ -670,25 +662,8 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
                             Abort("Must use custom image w/ copy nodes in rel\n");
                         }
 
-                        // TODO: put this processing of hmorph nodes in separate function
-                        // (this block is also used in img, img2, rec2)
-                        MDD set_j_ext;
-                        if (lddmc_is_homomorphism(&j)) { // homomorphism: 
-                            if (lddmc_hmorph_get_sign(&j)) {
-                                if ((int) i - (int) j >= 0) {
-                                    set_j_ext = lddmc_make_normalnode(i-j, succ_j, lddmc_false);  // "read i, write i-j, if i-j>=0"
-                                } else {
-                                    set_j_ext = lddmc_false; 
-                                    // in this case the recursive call earlier would not have been necessary.
-                                    // TODO: refactor code to avoid doing unnecessary work
-                                }
-                            } else {
-                                set_j_ext = lddmc_make_normalnode(i+j, succ_j, lddmc_false); // "read i, write i+j"
-                            }
-                        }
-                        else // normal write: "read i, write j"
-                            set_j_ext = lddmc_make_normalnode(j, succ_j, lddmc_false);
-                        
+                        // Write j (or some hmorph) and add to set
+                        MDD set_j_ext = apply_write(i, j, succ_j);
                         // Extend succ_j and add to 'set'
                         // TODO: maybe we could use lddmc_extend_node here
                         // instead of makenode + union?
@@ -858,29 +833,11 @@ TASK_IMPL_4(MDD, go_rec2, MDD, set, MDD, rel, MDD, meta, int, img)
                         else
                             Abort("Must use custom image w/ copy nodes in rel\n");
 
-                        // TODO: put this processing of hmorph nodes in separate function
-                        // (this block is also used in img, img2, rec2)
-                        MDD set_j_ext;
-                        if (lddmc_is_homomorphism(&j)) { // homomorphism: 
-                            if (lddmc_hmorph_get_sign(&j)) {
-                                if ((int) i - (int) j >= 0) {
-                                    set_j_ext = lddmc_make_normalnode(i-j, succ_j, lddmc_false);  // "read i, write i-j, if i-j>=0"
-                                } else {
-                                    set_j_ext = lddmc_false; 
-                                    // in this case the recursive call earlier would not have been necessary.
-                                    // TODO: refactor code to avoid doing unnecessary work
-                                }
-                            } else {
-                                set_j_ext = lddmc_make_normalnode(i+j, succ_j, lddmc_false); // "read i, write i+j"
-                            }
-                        }
-                        else // normal write: "read i, write j"
-                            set_j_ext = lddmc_make_normalnode(j, succ_j, lddmc_false);
-                        
-                        // Extend succ_j and add to 'set'
+
+                        // Write j (or some hmorph) and add to successors
+                        MDD set_j_ext = apply_write(i, j , succ_j);
                         // TODO: maybe we could use lddmc_extend_node here
                         // instead of makenode + union?
-                        //MDD set_j_ext = lddmc_makenode(j, succ_j, lddmc_false);
                         lddmc_refs_push(set_j_ext);
                         _set = lddmc_union(_set, set_j_ext);
                         lddmc_refs_pop(1);
