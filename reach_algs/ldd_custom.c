@@ -6,15 +6,16 @@
 
 MDD lddmc_make_normalnode(uint32_t value, MDD ifeq, MDD ifneq)
 {
-    assert(value < 1<<31);
+    assert(value < 1<<30);
     return lddmc_makenode(value, ifeq, ifneq);
 }
 
 
-MDD lddmc_make_homomorphism_node(uint32_t value, MDD ifeq, MDD ifneq)
+MDD lddmc_make_homomorphism_node(uint32_t value, bool sign, MDD ifeq, MDD ifneq)
 {
-    assert(value < 1<<31);
-    value = value | 0x80000000;
+    assert(value < (uint32_t)(1<<30)); // top two bits are reserved
+    value = value | 0x80000000; // first bit is hmorph flag
+    if (sign) value = value | 0x40000000; // second bit is sign
     return lddmc_makenode(value, ifeq, ifneq);
 }
 
@@ -23,7 +24,15 @@ bool lddmc_is_homomorphism(uint32_t *value)
 {
     uint32_t flag = (*value) & 0x80000000;
     *value = (*value) & 0x7fffffff; // remove flag from value
-    return (bool) flag; // currently flag = 1 represents homomorphism
+    return (bool) flag; // flag = 1 represents homomorphism
+}
+
+
+bool lddmc_hmorph_get_sign(uint32_t * value)
+{
+    uint32_t sign = (*value) & 0x40000000;
+    *value = (*value) & 0xbfffffff; // remove sign flag from value
+    return (bool) sign;
 }
 
 
@@ -171,8 +180,19 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
                 // Extend succ_j and add to successors
-                if (lddmc_is_homomorphism(&j)) // homomorphism: "read i, write i+j"
-                    tmp = lddmc_makenode(i+j, tmp, lddmc_false);
+                if (lddmc_is_homomorphism(&j)) { // homomorphism: 
+                    if (lddmc_hmorph_get_sign(&j)) {
+                        if ((int) i - (int) j >= 0) {
+                            tmp = lddmc_makenode(i-j, tmp, lddmc_false);  // "read i, write i-j, if i-j>=0"
+                        } else {
+                            tmp = lddmc_false; 
+                            // in this case the recursive call earlier would not have been necessary.
+                            // TODO: refactor code to avoid doing unnecessary work
+                        }
+                    } else {
+                        tmp = lddmc_makenode(i+j, tmp, lddmc_false); // "read i, write i+j"
+                    }
+                }
                 else // normal write: "read i, write j"
                     tmp = lddmc_makenode(j, tmp, lddmc_false);
                 
@@ -280,18 +300,30 @@ TASK_IMPL_3(MDD, lddmc_image2, MDD, set, MDD, rel, MDD, meta)
 
         // call for every value to write (rel)
         for (;;) {
-            uint32_t value;
-            if (lddmc_iscopy(_rel)) value = lddmc_getvalue(_set);
-            else value = lddmc_getvalue(_rel);
+            uint32_t j;
+            if (lddmc_iscopy(_rel)) j = lddmc_getvalue(_set);
+            else j = lddmc_getvalue(_rel);
 
             // down recursive call
             tmp = CALL(lddmc_image2, lddmc_getdown(_set), lddmc_getdown(_rel), next_meta);
             
-            // Extend succ_value and add to successors
-            if (lddmc_is_homomorphism(&value)) // homomorphism: "read i, write i + value"
-                tmp = lddmc_makenode(lddmc_getvalue(_set) + value, tmp, lddmc_false);
-            else // normal write: "read i, write value"
-                tmp = lddmc_makenode(value, tmp, lddmc_false);
+            // Extend succ_value and add to successors           
+            if (lddmc_is_homomorphism(&j)) { // homomorphism: 
+                int i = lddmc_getvalue(_set);
+                if (lddmc_hmorph_get_sign(&j)) {
+                    if ((int) i - (int) j >= 0) {
+                        tmp = lddmc_makenode(i-j, tmp, lddmc_false);  // "read i, write i-j, if i-j>=0"
+                    } else {
+                        tmp = lddmc_false; 
+                        // in this case the recursive call earlier would not have been necessary.
+                        // TODO: refactor code to avoid doing unnecessary work
+                    }
+                } else {
+                    tmp = lddmc_makenode(i+j, tmp, lddmc_false); // "read i, write i+j"
+                }
+            }
+            else // normal write: "read i, write j"
+                tmp = lddmc_makenode(j, tmp, lddmc_false);
 
             res = CALL(lddmc_union, res, tmp);
 
@@ -625,7 +657,7 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
                     rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
 
                     if (lddmc_is_homomorphism(&j)) {
-                        Abort("Homomorphisms within REACH are not well defined for an unconstrained domain.\n");
+                        Abort("Homomorphisms (+%d) within REACH are not well defined for an unconstrained domain.\n", j);
                     }
 
                     if (i == j) {

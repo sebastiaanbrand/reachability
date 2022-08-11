@@ -207,7 +207,7 @@ int test_homomorphism_nodes1()
 {
     // Test construction
     MDD normal_node = lddmc_make_normalnode(5, lddmc_true, lddmc_false);
-    MDD hmorph_node = lddmc_make_homomorphism_node(17, lddmc_true, lddmc_false);
+    MDD hmorph_node = lddmc_make_homomorphism_node(17, 0, lddmc_true, lddmc_false);
     
     uint32_t normal_value = lddmc_getvalue(normal_node);
     uint32_t hmorph_value = lddmc_getvalue(hmorph_node);
@@ -226,7 +226,7 @@ int test_homomorphism_nodes2()
     MDD rel, cpy3, r5w6;
     r5w6 = lddmc_make_normalnode(6, lddmc_true, lddmc_false);
     r5w6 = lddmc_make_normalnode(5, r5w6, lddmc_false);
-    cpy3 = lddmc_make_homomorphism_node(3, lddmc_true, lddmc_false);
+    cpy3 = lddmc_make_homomorphism_node(3, 0, lddmc_true, lddmc_false);
     cpy3 = lddmc_make_copynode(cpy3, lddmc_false);
     rel  = lddmc_union(r5w6, cpy3);
     MDD meta = lddmc_make_readwrite_meta(1, false);
@@ -285,7 +285,7 @@ int test_homomorphism_nodes3()
     // Test homomorphisms in REACH
     // Rel : ({<10,*> -> <20,*(+3)> })
     MDD rel;
-    rel = lddmc_make_homomorphism_node(3, lddmc_true, lddmc_false);
+    rel = lddmc_make_homomorphism_node(3, 0, lddmc_true, lddmc_false);
     rel = lddmc_make_copynode(rel, lddmc_false);
     rel = lddmc_make_normalnode(20, rel, lddmc_false);
     rel = lddmc_make_normalnode(10, rel, lddmc_false);
@@ -316,6 +316,51 @@ int test_homomorphism_nodes3()
     test_assert(lddmc_getvalue(temp) == 20);    temp = lddmc_getdown(temp);
     test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getright(temp);
     test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+
+    return 0;
+}
+
+int test_homomorphism_nodes4()
+{
+    // Negative homomorphism nodes
+    // Note that the value in the state is not allowed to become negative.
+    // Rel : {(* -> *(-3))}
+    MDD rel;
+    rel = lddmc_make_homomorphism_node(3, 1, lddmc_true, lddmc_false);
+    rel = lddmc_make_copynode(rel, lddmc_false);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
+
+    
+    // s1 = {5}, s2 = {2,3,4}
+    MDD s1, s2;
+    s1 = lddmc_make_normalnode(5, lddmc_true, lddmc_false);
+    s2 = lddmc_make_normalnode(4, lddmc_true, lddmc_false);
+    s2 = lddmc_make_normalnode(3, lddmc_true, s2);
+    s2 = lddmc_make_normalnode(2, lddmc_true, s2);
+
+    MDD t1, t2, temp;
+    t1 = lddmc_image(s1, rel, meta); // {2 (5-3)}
+    t2 = lddmc_image(s2, rel, meta); // {0 (3-3), 1 (4-3)}
+
+    temp = t1;
+    test_assert(lddmc_getvalue(temp) == 2);     temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+    temp = t2;
+    test_assert(lddmc_getvalue(temp) == 0);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 1);     temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+
+    // same as above but for lddmc_image2
+    t1 = lddmc_image2(s1, rel, meta); // {2 (5-3)}
+    t2 = lddmc_image2(s2, rel, meta); // {0 (3-3), 1 (4-3)}
+
+    temp = t1;
+    test_assert(lddmc_getvalue(temp) == 2);     temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+    temp = t2;
+    test_assert(lddmc_getvalue(temp) == 0);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 1);     temp = lddmc_getright(temp);
     test_assert(temp == lddmc_false);
 
     return 0;
@@ -1578,6 +1623,7 @@ int runtests()
     if (test_homomorphism_nodes1()) return 1;
     if (test_homomorphism_nodes2()) return 1;
     if (test_homomorphism_nodes3()) return 1;
+    if (test_homomorphism_nodes4()) return 1;
     printf("OK\n");
 
     printf("Testing extend LDD relations to full domain...  "); fflush(stdout);

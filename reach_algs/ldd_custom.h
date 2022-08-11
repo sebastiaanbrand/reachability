@@ -3,7 +3,7 @@
 #include "sylvan_int.h"
 
 MDD lddmc_make_normalnode(uint32_t value, MDD ifeq, MDD ifneq);
-MDD lddmc_make_homomorphism_node(uint32_t value, MDD ifeq, MDD ifneq);
+MDD lddmc_make_homomorphism_node(uint32_t value, bool sign, MDD ifeq, MDD ifneq);
 // NOTE: also removes homomorphism flag from value
 bool lddmc_is_homomorphism(uint32_t *value);
 
