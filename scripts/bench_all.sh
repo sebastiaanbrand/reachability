@@ -6,8 +6,6 @@
 maxtime=2m # todo: add as command line argument
 num_workers=1 # can pass e.g. -w "1 2 4 8" to run with 1, 2, 4, and 8 workers
 
-maxval=9
-
 bddmc=reach_algs/build/bddmc
 lddmc=reach_algs/build/lddmc
 
@@ -16,8 +14,6 @@ while getopts "w:t:m:o:" opt; do
     w) num_workers="$OPTARG"
     ;;
     t) maxtime="$OPTARG"
-    ;;
-    m) maxval="$OPTARG"
     ;;
     o) custom_folder=bench_data/"$OPTARG"; overwrite_folder=true;
     ;;
@@ -102,8 +98,8 @@ promela_vn_stats_ldd="$outputfolder/promela_vanilla_stats_ldd.csv"
 promela_sl_stats_ldd="$outputfolder/promela_sloan_stats_ldd.csv"
 promela_f_stats_ldd="$outputfolder/promela_force_stats_ldd.csv"
 
-petri_sl_stats_bdd_static="$outputfolder/petrinets_sloan_stats_bdd_static_$maxval.csv"
-petri_sl_stats_ldd_static="$outputfolder/petrinets_sloan_stats_ldd_static_$maxval.csv"
+petri_sl_stats_bdd_static="$outputfolder/petrinets_sloan_stats_bdd_static.csv"
+petri_sl_stats_ldd_static="$outputfolder/petrinets_sloan_stats_ldd_static.csv"
 
 echo "Running following benchmarks with [$num_workers] workers:"
 
@@ -128,8 +124,8 @@ if [[ $bench_prom_vn && $bench_ldd ]]; then echo "  - Promela LDDs vanilla"; fi
 if [[ $bench_prom_sl && $bench_ldd ]]; then echo "  - Promela LDDs Sloan"; fi
 if [[ $bench_prom_f  && $bench_ldd ]]; then echo "  - Promela LDDs FORCE"; fi
 
-if [[ $bench_ptri_sl && $bench_bdd_static ]]; then echo "  - Petri Nets Static BDDs Sloan (maxval = $maxval)"; fi
-if [[ $bench_ptri_sl && $bench_ldd_static ]]; then echo "  - Petri Nets Static LDDs Sloan (maxval = $maxval)"; fi
+if [[ $bench_ptri_sl && $bench_bdd_static ]]; then echo "  - Petri Nets Static BDDs Sloan"; fi
+if [[ $bench_ptri_sl && $bench_ldd_static ]]; then echo "  - Petri Nets Static LDDs Sloan"; fi
 
 if [[ $bench_awari && $bench_bdd ]]; then echo "  - Awari BDDs"; fi
 
@@ -230,7 +226,7 @@ fi
 
 # Petri nets, Sloan static BDDs
 if [[ $bench_ptri_sl && $bench_bdd_static ]]; then
-    for filename in models/petrinets/static_bdds/sloan/maxval_$maxval/*.bdd; do
+    for filename in models/petrinets/static_bdds/sloan/*.bdd; do
         for nw in $num_workers; do
             timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_bdd_static
         done
@@ -389,7 +385,7 @@ fi
 
 # Petri nets, Sloan static LDDs
 if [[ $bench_ptri_sl && $bench_ldd_static ]]; then
-    for filename in models/petrinets/static_ldds/sloan/maxval_$maxval/*.ldd; do
+    for filename in models/petrinets/static_ldds/sloan/*.ldd; do
         for nw in $num_workers; do
             fname=$(basename $filename)
             log_file=$outputfolder/${fname%.*}_w${nw}_rec_ldd.log
