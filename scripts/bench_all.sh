@@ -389,7 +389,6 @@ if [[ $bench_ptri_sl && $bench_ldd_static ]]; then
         for nw in $num_workers; do
             fname=$(basename $filename)
             log_file=$outputfolder/${fname%.*}_w${nw}_rec_ldd.log
-            timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd_static
             (time timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static) |& tee $log_file
             #timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static
         done
