@@ -366,6 +366,71 @@ int test_homomorphism_nodes4()
     return 0;
 }
 
+int test_homomorphism_nodes_copy1()
+{
+    // Really just a copy, but encoded as hmorph(+0)
+    // Rel : ({forall i : (i -> i+0)})
+    MDD rel = lddmc_true;
+    rel = lddmc_make_homomorphism_node(0, 0, rel, lddmc_false);
+    rel = lddmc_make_copynode(rel, lddmc_false);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
+
+    // s0 = {0}, s134 = {1,3,4}
+    MDD s0 = lddmc_makenode(0, lddmc_true, lddmc_false);
+    MDD s134 = lddmc_false;
+    s134 = lddmc_union(s134, lddmc_makenode(1, lddmc_true, lddmc_false));
+    s134 = lddmc_union(s134, lddmc_makenode(3, lddmc_true, lddmc_false));
+    s134 = lddmc_union(s134, lddmc_makenode(4, lddmc_true, lddmc_false));
+    test_assert(lddmc_satcount(s0) == 1);
+    test_assert(lddmc_satcount(s134) == 3);
+
+    MDD t0 = lddmc_image(s0, rel, meta);
+    MDD t134 = lddmc_image(s134, rel, meta);
+    test_assert(lddmc_satcount(t0) == 1);
+    test_assert(lddmc_satcount(t134) == 3);
+    test_assert(t0 == s0);
+    test_assert(t134 == s134);
+
+    return 0;
+}
+
+int test_homomorphism_nodes_copy2()
+{
+    // Really just a copy, but encoded as hmorph(+0)
+    // Rel : ({* -> *(+0) } v (5 -> 7))
+    MDD r5_w7  = stack_transition(5, 7, lddmc_true);
+    MDD w_copy = lddmc_make_homomorphism_node(0, 0, lddmc_true, lddmc_false);
+    MDD rel = lddmc_make_copynode(w_copy, r5_w7);
+    MDD meta = lddmc_make_readwrite_meta(1, false);
+
+    // s3 = {3}, s5 = {5}, s456 = {4,5,6}
+    MDD s3 = lddmc_makenode(3, lddmc_true, lddmc_false);
+    MDD s5 = lddmc_makenode(5, lddmc_true, lddmc_false);
+    MDD s456 = lddmc_false;
+    s456 = lddmc_union(s456, lddmc_makenode(4, lddmc_true, lddmc_false));
+    s456 = lddmc_union(s456, lddmc_makenode(5, lddmc_true, lddmc_false));
+    s456 = lddmc_union(s456, lddmc_makenode(6, lddmc_true, lddmc_false));
+    test_assert(lddmc_satcount(s3) == 1);
+    test_assert(lddmc_satcount(s5) == 1);
+    test_assert(lddmc_satcount(s456) == 3);
+
+    MDD t3 = lddmc_image(s3, rel, meta); // {3}
+    MDD t5 = lddmc_image(s5, rel, meta); // {5,7}
+    MDD t456 = lddmc_image(s456, rel, meta); // {4,5,6,7}
+    test_assert(lddmc_satcount(t3) == 1);
+    test_assert(lddmc_satcount(t5) == 2);
+    test_assert(lddmc_satcount(t456) == 4);
+    test_assert(lddmc_follow(t3, 3) == lddmc_true);
+    test_assert(lddmc_follow(t5, 5) == lddmc_true);
+    test_assert(lddmc_follow(t5, 7) == lddmc_true);
+    test_assert(lddmc_follow(t456, 4) == lddmc_true);
+    test_assert(lddmc_follow(t456, 5) == lddmc_true);
+    test_assert(lddmc_follow(t456, 6) == lddmc_true);
+    test_assert(lddmc_follow(t456, 7) == lddmc_true);
+
+    return 0;
+}
+
 int test_lddmc_extend_rel1()
 {
     // Meta = [1, 2, 1, 2], Rel = {<6,4> -> <7, 3>),(<6,6> -> <10,20>)}
@@ -1624,6 +1689,8 @@ int runtests()
     if (test_homomorphism_nodes2()) return 1;
     if (test_homomorphism_nodes3()) return 1;
     if (test_homomorphism_nodes4()) return 1;
+    if (test_homomorphism_nodes_copy1()) return 1;
+    if (test_homomorphism_nodes_copy2()) return 1;
     printf("OK\n");
 
     printf("Testing extend LDD relations to full domain...  "); fflush(stdout);
