@@ -21,6 +21,8 @@ TASK_DECL_3(MDD, lddmc_image, MDD, MDD, MDD);
 
 /**
  * Version of image which also use right recursion.
+ * 
+ * NOTE: currently doesn't support homomorphisms
  */
 TASK_DECL_3(MDD, lddmc_image2, MDD, MDD, MDD);
 #define lddmc_image2(s, r, meta) RUN(lddmc_image2, s, r, meta)

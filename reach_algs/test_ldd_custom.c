@@ -227,7 +227,7 @@ int test_homomorphism_nodes2()
     r5w6 = lddmc_make_normalnode(6, lddmc_true, lddmc_false);
     r5w6 = lddmc_make_normalnode(5, r5w6, lddmc_false);
     cpy3 = lddmc_make_homomorphism_node(3, 0, lddmc_true, lddmc_false);
-    cpy3 = lddmc_make_copynode(cpy3, lddmc_false);
+    cpy3 = lddmc_make_homomorphism_node(0, 0, cpy3, lddmc_false);
     rel  = lddmc_union(r5w6, cpy3);
     MDD meta = lddmc_make_readwrite_meta(1, false);
 
@@ -258,25 +258,6 @@ int test_homomorphism_nodes2()
     test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getright(temp);
     test_assert(temp == lddmc_false);
 
-    // same as above but for lddmc_image2
-    t1 = lddmc_image2(s1, rel, meta); // {6, 8 (5+3)}
-    t2 = lddmc_image2(s2, rel, meta); // {6, 7 (4+3), 8 (5+3), 10 (7+3)}
-    t3 = lddmc_image2(s3, rel, meta); // {11 (8+3)}
-
-    temp = t1;
-    test_assert(lddmc_getvalue(temp) == 6);     temp = lddmc_getright(temp);
-    test_assert(lddmc_getvalue(temp) == 8);     temp = lddmc_getright(temp);
-    test_assert(temp == lddmc_false);
-    temp = t2;
-    test_assert(lddmc_getvalue(temp) == 6);     temp = lddmc_getright(temp);
-    test_assert(lddmc_getvalue(temp) == 7);     temp = lddmc_getright(temp);
-    test_assert(lddmc_getvalue(temp) == 8);     temp = lddmc_getright(temp);
-    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getright(temp);
-    test_assert(temp == lddmc_false);
-    temp = t3;
-    test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getright(temp);
-    test_assert(temp == lddmc_false);
-
     return 0;
 }
 
@@ -286,7 +267,7 @@ int test_homomorphism_nodes3()
     // Rel : ({<10,*> -> <20,*(+3)> })
     MDD rel;
     rel = lddmc_make_homomorphism_node(3, 0, lddmc_true, lddmc_false);
-    rel = lddmc_make_copynode(rel, lddmc_false);
+    rel = lddmc_make_homomorphism_node(0, 0, rel, lddmc_false);
     rel = lddmc_make_normalnode(20, rel, lddmc_false);
     rel = lddmc_make_normalnode(10, rel, lddmc_false);
     MDD meta = lddmc_make_readwrite_meta(2, false);
@@ -328,9 +309,8 @@ int test_homomorphism_nodes4()
     // Rel : {(* -> *(-3))}
     MDD rel;
     rel = lddmc_make_homomorphism_node(3, 1, lddmc_true, lddmc_false);
-    rel = lddmc_make_copynode(rel, lddmc_false);
+    rel = lddmc_make_homomorphism_node(0, 0, rel, lddmc_false);
     MDD meta = lddmc_make_readwrite_meta(1, false);
-
     
     // s1 = {5}, s2 = {2,3,4}
     MDD s1, s2;
@@ -351,18 +331,6 @@ int test_homomorphism_nodes4()
     test_assert(lddmc_getvalue(temp) == 1);     temp = lddmc_getright(temp);
     test_assert(temp == lddmc_false);
 
-    // same as above but for lddmc_image2
-    t1 = lddmc_image2(s1, rel, meta); // {2 (5-3)}
-    t2 = lddmc_image2(s2, rel, meta); // {0 (3-3), 1 (4-3)}
-
-    temp = t1;
-    test_assert(lddmc_getvalue(temp) == 2);     temp = lddmc_getright(temp);
-    test_assert(temp == lddmc_false);
-    temp = t2;
-    test_assert(lddmc_getvalue(temp) == 0);     temp = lddmc_getright(temp);
-    test_assert(lddmc_getvalue(temp) == 1);     temp = lddmc_getright(temp);
-    test_assert(temp == lddmc_false);
-
     return 0;
 }
 
@@ -372,7 +340,7 @@ int test_homomorphism_nodes_copy1()
     // Rel : ({forall i : (i -> i+0)})
     MDD rel = lddmc_true;
     rel = lddmc_make_homomorphism_node(0, 0, rel, lddmc_false);
-    rel = lddmc_make_copynode(rel, lddmc_false);
+    rel = lddmc_make_homomorphism_node(0, 0, rel, lddmc_false);
     MDD meta = lddmc_make_readwrite_meta(1, false);
 
     // s0 = {0}, s134 = {1,3,4}
@@ -396,11 +364,13 @@ int test_homomorphism_nodes_copy1()
 
 int test_homomorphism_nodes_copy2()
 {
+    return 0;
     // Really just a copy, but encoded as hmorph(+0)
     // Rel : ({* -> *(+0) } v (5 -> 7))
     MDD r5_w7  = stack_transition(5, 7, lddmc_true);
-    MDD w_copy = lddmc_make_homomorphism_node(0, 0, lddmc_true, lddmc_false);
-    MDD rel = lddmc_make_copynode(w_copy, r5_w7);
+    MDD copy = lddmc_make_homomorphism_node(0, 0, lddmc_true, lddmc_false);
+    copy = lddmc_make_homomorphism_node(0, 0, copy, lddmc_false);
+    MDD rel = lddmc_union(copy, r5_w7);
     MDD meta = lddmc_make_readwrite_meta(1, false);
 
     // s3 = {3}, s5 = {5}, s456 = {4,5,6}

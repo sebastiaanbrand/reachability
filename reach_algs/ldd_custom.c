@@ -137,9 +137,10 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
     }
 
     /* Skip nodes if possible */
-    if (!lddmc_iscopy(rel)) {
-        if (!match_ldds(&set, &rel)) return lddmc_false;
-    }
+    // NOTE: we cannot sync because of possible hmorph nodes
+    //if (!lddmc_iscopy(rel)) {
+    //    if (!match_ldds(&set, &rel)) return lddmc_false;
+    //}
 
     /* Consult cache */
     MDD res = lddmc_false;
@@ -147,9 +148,12 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 
     MDD next_meta = get_next_meta(meta);
 
+    // TODO: rename itr_r, itr_w to itr_i, itr_j ?
+    // TODO: maybe we could do with fewer helper MDDs in this function
     MDD _rel   = rel;           lddmc_refs_pushptr(&_rel);
     MDD itr_r  = lddmc_false;   lddmc_refs_pushptr(&itr_r);
     MDD itr_w  = lddmc_false;   lddmc_refs_pushptr(&itr_w);
+    MDD itr_3  = lddmc_false;   lddmc_refs_pushptr(&itr_3);
     MDD rel_ij = lddmc_false;   lddmc_refs_pushptr(&rel_ij);
     MDD set_i  = lddmc_false;   lddmc_refs_pushptr(&set_i);
     MDD rel_i  = lddmc_false;   lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
@@ -203,7 +207,7 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
                 // Write j (or some hmorph) and add to successors
-                tmp = apply_write(i, j, tmp);                
+                tmp = apply_write(i, j, tmp); // TODO: this should always be a normal write, so shouln't need this function here
                 res = CALL(lddmc_union, res, tmp);
             }
         }
@@ -214,26 +218,55 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
     for (itr_r = _rel; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
 
         uint32_t i = lddmc_getvalue(itr_r);
-        set_i = lddmc_follow(set, i); // NOTE: this is not efficient, since
-        // lddmc_follow needs to iterate 'set' from the beginning each time
-        // (need to iterate over set and reads of rel at the same time)
+    
+        // hmorph on read level is interpreted as "can sync on all reads >= i"
+        if (lddmc_is_homomorphism(&i)) {
 
-        // Iterate over all writes (j) corresponding to this read
-        for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+            // Iterate over all writes (j) corresponding to this read
+            for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
 
-            uint32_t j = lddmc_getvalue(itr_w);
-            rel_ij = lddmc_getdown(itr_w); // equiv to following i then j
+                uint32_t j = lddmc_getvalue(itr_w);
 
-            // Compute successors T_j = S_i.R_ij
-            tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
-        
-            // Extend succ_j and add to successors
-            tmp = lddmc_make_normalnode(j, tmp, lddmc_false);
-            res = lddmc_union(res, tmp);
+                // Iterate over all reads (v) of set
+                for (itr_3 = set; itr_3 != lddmc_false; itr_3 = lddmc_getright(itr_3)) {
+                    uint32_t v = lddmc_getvalue(itr_3);
+                    if (v >= i) {
+                        // Compute successors T_j = S_i.R_ij
+                        rel_ij = lddmc_getdown(itr_w);
+                        set_i = lddmc_getdown(itr_3);
+                        tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
+
+                        // Write (hmorph) j and add to successors
+                        tmp = apply_write(v, j, tmp);
+                        res = CALL(lddmc_union, res, tmp);
+                    }
+                }
+            }
+
+        }
+        else { // THIS IS THE ACTUAL NORMAL "READ i, WRITE j"
+            set_i = lddmc_follow(set, i); // NOTE: this is not efficient, since
+            // lddmc_follow needs to iterate 'set' from the beginning each time
+            // (need to iterate over set and reads of rel at the same time)          
+
+            // Iterate over all writes (j) corresponding to this read
+            for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+
+                uint32_t j = lddmc_getvalue(itr_w);
+                //printf("normal write j = %d\n", j);
+                rel_ij = lddmc_getdown(itr_w); // equiv to following i then j
+
+                // Compute successors T_j = S_i.R_ij
+                tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
+            
+                // Extend succ_j and add to successors
+                tmp = lddmc_make_normalnode(j, tmp, lddmc_false);
+                res = lddmc_union(res, tmp);
+            }
         }
     }
 
-    lddmc_refs_popptr(8);
+    lddmc_refs_popptr(9);
 
     /* Put in cache */
     cache_put3(CACHE_LDD_IMAGE, set, rel, 0, res);
@@ -649,7 +682,9 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
                     uint32_t j = lddmc_getvalue(itr_w);
                     rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
 
-                    if (i == j) {
+                    if (i == j) { // || is_zero_hmorph(j)
+                        // TODO: it might be an hmorph node of +0 (effectively a 
+                        // copy node), in this case we can call rec
                         set_i = CALL(go_rec, set_i, rel_ij, next_meta, img);
                     }
                     else {
