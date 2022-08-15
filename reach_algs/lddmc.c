@@ -777,7 +777,6 @@ VOID_TASK_1(chaining, set_t, set)
  */
 VOID_TASK_1(bfs_plain, set_t, set)
 {
-    if (next_count != 1) Abort("Strategy bfs-plain requires merge-relations");
     MDD visited = set->dd;
     MDD prev = lddmc_false;
     MDD succ = lddmc_false;
@@ -788,13 +787,15 @@ VOID_TASK_1(bfs_plain, set_t, set)
 
     while (prev != visited) {
         prev = visited;
-        if (custom_img == 1)
-            succ = lddmc_image(visited, next[0]->dd, next[0]->meta);
-        else if (custom_img == 2)
-            succ = lddmc_image2(visited, next[0]->dd, next[0]->meta);
-        else
-            succ = lddmc_relprod(visited, next[0]->dd, next[0]->meta);
-        visited = lddmc_union(visited, succ);
+        for (int i = 0; i < next_count; i++) {
+            if (custom_img == 1)
+                succ = lddmc_image(visited, next[i]->dd, next[i]->meta);
+            else if (custom_img == 2)
+                succ = lddmc_image2(visited, next[i]->dd, next[i]->meta);
+            else
+                succ = lddmc_relprod(visited, next[i]->dd, next[i]->meta);
+            visited = lddmc_union(visited, succ);
+        }
     }
 
     lddmc_unprotect(&visited);
@@ -1034,9 +1035,9 @@ main(int argc, char **argv)
         exit(0);
     }
 
-    if (merge_relations) {
-        double t1 = wctime();
 
+    double t1 = wctime();
+    if (extend_rels || custom_img != 0) {
         // extend relations (only works with custom image function)
         if (extend_rels || custom_img != 0) {
             INFO("Extending relation to full domain.\n");
@@ -1045,7 +1046,8 @@ main(int argc, char **argv)
                 next[i]->meta = lddmc_make_readwrite_meta(vector_size, true);
             }
         }
-
+    }
+    if (merge_relations) {
         INFO("Asserting transition relations to cover full domain.\n");
         for (int i = 0; i < next_count; i++) {
             assert_meta_full_domain(next[i]->meta);
@@ -1061,9 +1063,10 @@ main(int argc, char **argv)
             next[i]->firstvar = 0;
         }
         next_count = 1;
-        double t2 = wctime();
-        stats.merge_rel_time = t2-t1;
     }
+    double t2 = wctime();
+    stats.merge_rel_time = t2-t1;
+
 
     set_t states = set_clone(initial);
 
