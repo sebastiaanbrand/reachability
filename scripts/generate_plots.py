@@ -72,7 +72,7 @@ def info(str, end='\n'):
 
 def parse_args():
     if (len(sys.argv) <= 1):
-        print("please specify which plot to generate (give arg [saturation|locality|parallel|its])")
+        print("please specify which plot to generate (give arg [saturation|locality|parallel|its|static])")
         exit()
     which_plot = sys.argv[1]
 
@@ -117,8 +117,8 @@ def load_data(data_folder, expected=0):
     try_load_data(('prom','sl-ldd'), data_folder + 'promela_sloan_stats_ldd.csv')
 
     # Static BDDs / LDDs
-    try_load_data(('ptri', 'sl-static-9-bdd'), data_folder + 'petrinets_sloan_stats_bdd_static_9.csv')
-    try_load_data(('ptri', 'sl-static-9-ldd'), data_folder + 'petrinets_sloan_stats_ldd_static_9.csv')
+    try_load_data(('ptri', 'sl-static-bdd'), data_folder + 'petrinets_sloan_stats_bdd_static.csv')
+    try_load_data(('ptri', 'sl-static-ldd'), data_folder + 'petrinets_sloan_stats_ldd_static.csv')
 
     # Deadlocks
     try_load_data(('ptri-dl', 'sl-bdd'), data_folder + 'petrinets_sloan_stats_bdd_deadlocks.csv')
@@ -1066,8 +1066,20 @@ def plot_right_recursion_test(subfolder):
     plot_comparison('rec-copy', 'sl-ldd', 'rec-copy-rr', 'sl-ldd', False,
                     xlabel='REACH w/ copy nodes, LOOP',
                     ylabel='REACH w/ copy nodes, RECURSIVE')
+
+
+def plot_static_vs_otf(data_folder):
+    load_data(data_folder)
+    pre_process()
+    assert_states_nodes()
     
-    # Recursive version against saturation
+    set_subfolder_name('all/Static (with hmorphn nodes) vs On-The-Fly ')
+    plot_comparison('rec-copy', 'sl-ldd', 'rec-copy', 'sl-static-ldd', True,
+                    xlabel='REACH time (s) on LTSmin on-the-fly LDDs',
+                    ylabel='REACH time (s) on pnml-encode')
+    plot_comparison('rec-copy', 'sl-ldd', 'rec-copy', 'sl-static-ldd', False,
+                    xlabel='REACH time (s) on LTSmin on-the-fly LDDs',
+                    ylabel='REACH time (s) on pnml-encode')
 
 
 def plot_pnml_encode_tests(subfolder):
@@ -1197,7 +1209,9 @@ if __name__ == '__main__':
         plot_all_locality_plots(data_folder)
     elif (which_plot == 'its'):
         plot_paper_plot_its_tools_vs_dds()
+    elif (which_plot == 'static'):
+        plot_static_vs_otf(data_folder)
     else:
-        print("First argument must be [saturation|parallel|locality|its]")
+        print("First argument must be [saturation|parallel|locality|its|static]")
     
 
