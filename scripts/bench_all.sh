@@ -385,10 +385,11 @@ fi
 
 # Petri nets, Sloan static LDDs
 if [[ $bench_ptri_sl && $bench_ldd_static ]]; then
+    mkdir -p $outputfolder/logs/
     for filename in models/petrinets/static_ldds/sloan/*.ldd; do
         for nw in $num_workers; do
             fname=$(basename $filename)
-            log_file=$outputfolder/${fname%.*}_w${nw}_rec_ldd.log
+            log_file=$outputfolder/logs/${fname%.*}_w${nw}_rec_ldd.log
             (time timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=rec --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static) |& tee $log_file
             #timeout $maxtime ./$lddmc $filename --workers=$nw --strategy=bfs-plain --merge-relations --custom-image --count-nodes --statsfile=$petri_sl_stats_ldd_static
         done
