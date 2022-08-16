@@ -304,6 +304,54 @@ int test_homomorphism_nodes3()
 
 int test_homomorphism_nodes4()
 {
+    // Test homomorphisms in REACH
+    // Rel : ({<*(>=5),10> -> <*(+3),20> })
+    MDD rel = lddmc_true;
+    rel = lddmc_make_normalnode(20, rel, lddmc_false);
+    rel = lddmc_make_normalnode(10, rel, lddmc_false);
+    rel = lddmc_make_homomorphism_node(3, 0, rel, lddmc_false);
+    rel = lddmc_make_homomorphism_node(5, 0, rel, lddmc_false);
+    MDD meta = lddmc_make_readwrite_meta(2, false);
+
+    MDD s1, s2; // s1 = {<5,10>, <5,11>, <6,10>}, s2 = {}
+    s1 = lddmc_false;
+    s1 = lddmc_union(s1, lddmc_make_normalnode(5, lddmc_make_normalnode(10, lddmc_true, lddmc_false), lddmc_false));
+    s1 = lddmc_union(s1, lddmc_make_normalnode(5, lddmc_make_normalnode(11, lddmc_true, lddmc_false), lddmc_false));
+    s1 = lddmc_union(s1, lddmc_make_normalnode(6, lddmc_make_normalnode(10, lddmc_true, lddmc_false), lddmc_false));
+    test_assert(lddmc_satcount(s1) == 3);
+
+    MDD reach1, reach2, temp;
+    reach1 = RUN(go_rec, s1, rel, meta, 1); // {<5,10>, <5,11>, <6,10>, <8,20>, <9,20>}
+    //reach2 = RUN(go_rec, s2, rel, meta, 1); // {}
+
+    test_assert(lddmc_satcount(reach1) == 5);
+
+    temp = reach1;
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getright(reach1);
+    test_assert(lddmc_getvalue(temp) == 6);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getright(lddmc_getright(reach1));
+    test_assert(lddmc_getvalue(temp) == 8);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 20);    temp = lddmc_getright(lddmc_getright(lddmc_getright(reach1)));
+    test_assert(lddmc_getvalue(temp) == 9);     temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 20);
+
+    /*
+    temp = reach2;
+    test_assert(lddmc_getvalue(temp) == 10);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 2);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 8);     temp = lddmc_getright(reach2);
+    test_assert(lddmc_getvalue(temp) == 20);    temp = lddmc_getdown(temp);
+    test_assert(lddmc_getvalue(temp) == 5);     temp = lddmc_getright(temp);
+    test_assert(lddmc_getvalue(temp) == 11);    temp = lddmc_getright(temp);
+    test_assert(temp == lddmc_false);
+    */
+
+    return 0;
+}
+
+int test_homomorphism_nodes5()
+{
     // Negative homomorphism nodes
     // Note that the value in the state is not allowed to become negative.
     // Rel : {(* -> *(-3))}
@@ -1659,6 +1707,7 @@ int runtests()
     if (test_homomorphism_nodes2()) return 1;
     if (test_homomorphism_nodes3()) return 1;
     if (test_homomorphism_nodes4()) return 1;
+    if (test_homomorphism_nodes5()) return 1;
     if (test_homomorphism_nodes_copy1()) return 1;
     if (test_homomorphism_nodes_copy2()) return 1;
     printf("OK\n");
