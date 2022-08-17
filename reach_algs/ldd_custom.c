@@ -745,7 +745,9 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
 
                             // Write (hmorph) j and add to successors
                             succ_j = apply_write(v, j, succ_j);
+                            lddmc_refs_push(succ_j);
                             _set = CALL(lddmc_union, _set, succ_j);
+                            lddmc_refs_pop(1);
                         }
                     }
                 }
