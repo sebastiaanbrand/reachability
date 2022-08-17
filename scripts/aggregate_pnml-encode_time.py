@@ -7,11 +7,9 @@ look_for2 = "real\t"
 look_for_ddmc1 = "Writing stats to"
 look_for_ddmc2 = "real\t"
 
-maxval = 9
-
-encode_folder = 'models/petrinets/static_ldds/sloan/maxval_{}/'.format(maxval)
-ddmc_folder = 'bench_data/reach-vs-its/reach_ldd/'
-output_file = 'bench_data/reach-vs-its/pnml_encode_time_ldd_maxval_{}.csv'.format(maxval)
+encode_folder = 'models/petrinets/static_ldds/sloan/'
+ddmc_folder = 'bench_data/all/single_worker/2m/20220816_210129/logs/'
+output_file = 'bench_data/reach-vs-its/pnml_encode_time_ldd_hmorph.csv'
 
 encode_time = {}
 ddmc_time = {}
@@ -31,7 +29,7 @@ def parse_time(line):
     time_str = line.split()[1]
     time_str = time_str.split('m')
     time_min = float(time_str[0])
-    time_sec = float(time_str[1][:-1])
+    time_sec = float(time_str[1][:-1].replace(',','.'))
     return time_min * 60 + time_sec
 
 def parse_encode_file(folder, filename):

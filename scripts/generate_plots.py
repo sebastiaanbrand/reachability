@@ -167,7 +167,7 @@ def load_its_data(its_type):
 
 def load_pnml_encode_data():
     # load csv
-    data = pd.read_csv('bench_data/reach-vs-its/pnml_encode_time_ldd_maxval_9.csv')
+    data = pd.read_csv('bench_data/reach-vs-its/pnml_encode_time_ldd_hmorph.csv')
 
     # some pre-processing
     data.columns = data.columns.str.strip()
@@ -843,7 +843,7 @@ def plot_its_vs_dd(its_type):
     # lables and formatting
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_ylabel("pnml2dd + ReachMDD")
+    ax.set_ylabel("pnml-encode + ReachMDD")
     ax.set_xlabel("ITS-tools")
     ax.set_xlim([min_val-0.15*min_val, max_val+0.15*max_val])
     ax.set_ylim([min_val-0.15*min_val, max_val+0.15*max_val])
@@ -1079,7 +1079,7 @@ def plot_static_vs_otf(data_folder):
                     ylabel='REACH time (s) on pnml-encode')
     plot_comparison('rec-copy', 'sl-ldd', 'rec-copy', 'sl-static-ldd', False,
                     xlabel='REACH time (s) on LTSmin on-the-fly LDDs',
-                    ylabel='REACH time (s) on pnml-encode')
+                    ylabel='REACH time (s) on pnml-encode LDDs')
 
 
 def plot_pnml_encode_tests(subfolder):
@@ -1149,7 +1149,7 @@ def plot_paper_plot_merge_overhead(subfolder):
 
 
 def plot_paper_plot_its_tools_vs_dds():
-    set_subfolder_name('all/ITS-Tools vs DDs (Figure 6)')
+    set_subfolder_name('all/ITS-Tools vs LDDs with hmorph nodes')
     plot_its_vs_dd('.gal')
     #plot_its_vs_dd('.img.gal')
     #plot_its_vs_dd_deadlocks('sl-bdd', 'rec', 'RD')
