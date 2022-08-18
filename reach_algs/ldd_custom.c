@@ -79,6 +79,23 @@ match_ldds(MDD *one, MDD *two)
     return 1;
 }
 
+/**
+ * Move MDD one to the right until value is reached (or passed)
+ */
+static int
+match_ldd(MDD *one, uint32_t value)
+{
+    assert(*one != lddmc_true);
+    if (*one == lddmc_false) return 0;
+
+    while (lddmc_getvalue(*one) < value) {
+        *one = lddmc_getright(*one);
+        if (*one == lddmc_false) return 0;
+    }
+    if (lddmc_getvalue(*one) != value) return 0;
+    return 1;
+}
+
 
 static MDD 
 apply_write(uint32_t read, uint32_t write, MDD down)
@@ -150,14 +167,14 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 
     // TODO: rename itr_r, itr_w to itr_i, itr_j ?
     // TODO: maybe we could do with fewer helper MDDs in this function
-    MDD _rel   = rel;           lddmc_refs_pushptr(&_rel);
-    MDD itr_r  = lddmc_false;   lddmc_refs_pushptr(&itr_r);
-    MDD itr_w  = lddmc_false;   lddmc_refs_pushptr(&itr_w);
-    MDD itr_3  = lddmc_false;   lddmc_refs_pushptr(&itr_3);
-    MDD rel_ij = lddmc_false;   lddmc_refs_pushptr(&rel_ij);
-    MDD set_i  = lddmc_false;   lddmc_refs_pushptr(&set_i);
-    MDD rel_i  = lddmc_false;   lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
-    MDD tmp    = lddmc_false;   lddmc_refs_pushptr(&tmp);
+    MDD _rel     = rel;           lddmc_refs_pushptr(&_rel);
+    MDD itr_r    = lddmc_false;   lddmc_refs_pushptr(&itr_r);
+    MDD itr_w    = lddmc_false;   lddmc_refs_pushptr(&itr_w);
+    MDD itr_set  = lddmc_false;   lddmc_refs_pushptr(&itr_set);
+    MDD rel_ij   = lddmc_false;   lddmc_refs_pushptr(&rel_ij);
+    MDD set_i    = lddmc_false;   lddmc_refs_pushptr(&set_i);
+    MDD rel_i    = lddmc_false;   lddmc_refs_pushptr(&rel_i); // might be possible to only use itr_w
+    MDD tmp      = lddmc_false;   lddmc_refs_pushptr(&tmp);
     lddmc_refs_pushptr(&res);
 
     /* Handle copy nodes */
@@ -215,6 +232,7 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
     }
 
     // Iterate over all reads (i) of 'rel'
+    itr_set = set;
     for (itr_r = _rel; itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
 
         uint32_t i = lddmc_getvalue(itr_r);
@@ -228,12 +246,12 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
                 uint32_t j = lddmc_getvalue(itr_w);
 
                 // Iterate over all reads (v) of set
-                for (itr_3 = set; itr_3 != lddmc_false; itr_3 = lddmc_getright(itr_3)) {
-                    uint32_t v = lddmc_getvalue(itr_3);
+                for (itr_set = set; itr_set != lddmc_false; itr_set = lddmc_getright(itr_set)) {
+                    uint32_t v = lddmc_getvalue(itr_set);
                     if (v >= i) {
                         // Compute successors T_j = S_i.R_ij
                         rel_ij = lddmc_getdown(itr_w);
-                        set_i = lddmc_getdown(itr_3);
+                        set_i = lddmc_getdown(itr_set);
                         tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
 
                         // Write (hmorph) j and add to successors
@@ -245,22 +263,22 @@ TASK_IMPL_3(MDD, lddmc_image, MDD, set, MDD, rel, MDD, meta)
 
         }
         else { // THIS IS THE ACTUAL NORMAL "READ i, WRITE j"
-            set_i = lddmc_follow(set, i); // NOTE: this is not efficient, since
-            // lddmc_follow needs to iterate 'set' from the beginning each time
-            // (need to iterate over set and reads of rel at the same time)          
+            if (match_ldd(&itr_set, i)) { // match the read (i) in rel with set
+                set_i = lddmc_getdown(itr_set);         
 
-            // Iterate over all writes (j) corresponding to this read
-            for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+                // Iterate over all writes (j) corresponding to this read
+                for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
 
-                uint32_t j = lddmc_getvalue(itr_w);
-                rel_ij = lddmc_getdown(itr_w); // equiv to following i then j
+                    uint32_t j = lddmc_getvalue(itr_w);
+                    rel_ij = lddmc_getdown(itr_w); // equiv to following i then j
 
-                // Compute successors T_j = S_i.R_ij
-                tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
-            
-                // Extend succ_j and add to successors
-                tmp = lddmc_make_normalnode(j, tmp, lddmc_false);
-                res = lddmc_union(res, tmp);
+                    // Compute successors T_j = S_i.R_ij
+                    tmp = CALL(lddmc_image, set_i, rel_ij, next_meta);
+                
+                    // Extend succ_j and add to successors
+                    tmp = lddmc_make_normalnode(j, tmp, lddmc_false);
+                    res = lddmc_union(res, tmp);
+                }
             }
         }
     }
@@ -593,6 +611,18 @@ TASK_IMPL_2(MDD, lddmc_rel_union, MDD, a, MDD, b)
     return res;
 }
 
+static inline MDD
+extend_and_add(MDD set, uint32_t val, MDD ifeq)
+{
+    // I don't think we can replace this with lddmc_extendnode() because there
+    // set[val] is overwritten with ifeq, whereas we want the union there
+    MDD res = lddmc_make_normalnode(val, ifeq, lddmc_false);
+    lddmc_refs_push(res);
+    res = lddmc_union(set, res);
+    lddmc_refs_pop(1);
+    return res;
+}
+
 
 /**
  * ReachLDD: Implementation of recursive reachability algorithm for a single 
@@ -656,16 +686,11 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
                     uint32_t i = lddmc_getvalue(itr_r);
                     set_i = lddmc_getdown(itr_r);
 
-                    // Compute REACH for S_i.R_ii*
+                    // Compute REACH for S_i.R_ii* and add to set
                     set_i = CALL(go_rec, set_i, rel_ij, next_meta, img);
 
                     // Extend set_i and add to 'set'
-                    // TODO: maybe we could use lddmc_extend_node here
-                    // instead of makenode + union?
-                    MDD set_i_ext = lddmc_make_normalnode(i, set_i, lddmc_false);
-                    lddmc_refs_push(set_i_ext);
-                    _set = lddmc_union(_set, set_i_ext);
-                    lddmc_refs_pop(1);
+                    _set = extend_and_add(_set, i, set_i);
                 }
 
                 // After (* -> *), there might still be (* -> j)'s
@@ -685,9 +710,7 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
                     uint32_t j = lddmc_getvalue(itr_w);
                     rel_ij = lddmc_getdown(itr_w); // equiv to following * then j
 
-                    if (i == j) { // || is_zero_hmorph(j)
-                        // TODO: it might be an hmorph node of +0 (effectively a 
-                        // copy node), in this case we can call rec
+                    if (i == j) {
                         set_i = CALL(go_rec, set_i, rel_ij, next_meta, img);
                     }
                     else {
@@ -702,9 +725,6 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
 
                         // Write j (or some hmorph) and add to set
                         MDD set_j_ext = apply_write(i, j, succ_j);
-                        // Extend succ_j and add to 'set'
-                        // TODO: maybe we could use lddmc_extend_node here
-                        // instead of makenode + union?
                         lddmc_refs_push(set_j_ext);
                         _set = lddmc_union(_set, set_j_ext);
                         lddmc_refs_pop(1);
@@ -712,16 +732,12 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
                 }
 
                 // Extend set_i and add to 'set'
-                // TODO: maybe we could use lddmc_extend_node here
-                // instead of makenode + union?
-                MDD set_i_ext = lddmc_make_normalnode(i, set_i, lddmc_false);
-                lddmc_refs_push(set_i_ext);
-                _set = lddmc_union(_set, set_i_ext);
-                lddmc_refs_pop(1);
+                _set = lddmc_extendnode(_set, i, set_i);
             }
         }
         
         // 1b. normal reads and homomorphisms of rel
+        itr_set = _set;
         for (itr_r = _rel;  itr_r != lddmc_false; itr_r = lddmc_getright(itr_r)) {
 
             uint32_t i = lddmc_getvalue(itr_r);
@@ -754,43 +770,35 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
                 
             }
             else { // This is the actual normal "read i, write j"
-                set_i = lddmc_follow(_set, i);
+                if (match_ldd(&itr_set, i)) {
+                    set_i = lddmc_getdown(itr_set);
 
-                // Iterate over all writes (j) corresponding to reading 'i'
-                for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
+                    // Iterate over all writes (j) corresponding to reading 'i'
+                    for (itr_w = lddmc_getdown(itr_r); itr_w != lddmc_false; itr_w = lddmc_getright(itr_w)) {
 
-                    uint32_t j = lddmc_getvalue(itr_w);
-                    rel_ij = lddmc_getdown(itr_w); // equiv to following i then j from rel
-                    assert(!lddmc_is_homomorphism(&j)); // we shouldn't have homomorphisms after a normal read
-                    
-                    if (i == j) {
-                        set_i = CALL(go_rec, set_i, rel_ij, next_meta, img);
+                        uint32_t j = lddmc_getvalue(itr_w);
+                        rel_ij = lddmc_getdown(itr_w); // equiv to following i then j from rel
+                        assert(!lddmc_is_homomorphism(&j)); // we shouldn't have homomorphisms after a normal read
+                        
+                        if (i == j) {
+                            set_i = CALL(go_rec, set_i, rel_ij, next_meta, img);
 
-                        // Extend set_i and add to 'set'
-                        // TODO: maybe we could use lddmc_extend_node here
-                        // instead of makenode + union?
-                        MDD set_i_ext = lddmc_make_normalnode(i, set_i, lddmc_false);
-                        lddmc_refs_push(set_i_ext);
-                        _set = lddmc_union(_set, set_i_ext);
-                        lddmc_refs_pop(1);
-                    }
-                    else {
-                        // TODO: USE CALL instead of RUN?
-                        MDD succ_j;
-                        if (img == 1)
-                            succ_j = lddmc_image(set_i, rel_ij, next_meta);
-                        else if (img == 2)
-                            succ_j = lddmc_image2(set_i, rel_ij, next_meta);
-                        else
-                            succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
+                            // Extend set_i and add to 'set'
+                            _set = extend_and_add(_set, i, set_i);
+                        }
+                        else {
+                            // TODO: USE CALL instead of RUN?
+                            MDD succ_j;
+                            if (img == 1)
+                                succ_j = lddmc_image(set_i, rel_ij, next_meta);
+                            else if (img == 2)
+                                succ_j = lddmc_image2(set_i, rel_ij, next_meta);
+                            else
+                                succ_j = lddmc_relprod(set_i, rel_ij, next_meta);
 
-                        // Extend succ_j and add to 'set'
-                        // TODO: maybe we could use lddmc_extend_node here
-                        // instead of makenode + union?
-                        MDD set_j_ext = lddmc_make_normalnode(j, succ_j, lddmc_false);
-                        lddmc_refs_push(set_j_ext);
-                        _set = lddmc_union(_set, set_j_ext);
-                        lddmc_refs_pop(1);
+                            // Extend succ_j and add to 'set'
+                            _set = extend_and_add(_set, j, succ_j);
+                        }
                     }
                 }
             }
