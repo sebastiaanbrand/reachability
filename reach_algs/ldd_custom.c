@@ -732,7 +732,7 @@ TASK_IMPL_4(MDD, go_rec, MDD, set, MDD, rel, MDD, meta, int, img)
                 }
 
                 // Extend set_i and add to 'set'
-                _set = lddmc_extendnode(_set, i, set_i);
+                _set = extend_and_add(_set, i, set_i);
             }
         }
         
