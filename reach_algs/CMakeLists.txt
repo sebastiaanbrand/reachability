@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.1)
 
 project(ReachabilityAlgorithms)
 
+set(CMAKE_BUILD_TYPE Release)
+
 # use included version of Sylvan, not installed version
 include_directories(. ../sylvan/src/)
 
