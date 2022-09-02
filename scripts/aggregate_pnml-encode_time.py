@@ -1,5 +1,8 @@
+# This script combines the wall times for encoding the hmorph LDDs (mostly
+# negligible) and the wall time for running REACH on them.
+
 import os
-from pathlib import Path
+import sys
 
 look_for1 = "pnml-encode: Result symbolic LTS written to"
 look_for2 = "real\t"
@@ -8,8 +11,7 @@ look_for_ddmc1 = "Writing stats to"
 look_for_ddmc2 = "real\t"
 
 encode_folder = 'models/petrinets/static_ldds/sloan/'
-ddmc_folder = 'bench_data/all/single_worker/2m/20220816_210129/logs/'
-output_file = 'bench_data/reach-vs-its/pnml_encode_time_ldd_hmorph.csv'
+outputfile = ''
 
 encode_time = {}
 ddmc_time = {}
@@ -79,8 +81,23 @@ def merge_dicts():
     for key, value in ddmc_time.items():
         both_time[key][1] = value
 
+
+def parse_args():
+
+    data_folder = None
+    if (len(sys.argv) <= 1):
+        print("argument 1 (path to data folder) missing")
+        exit()
+    data_folder = sys.argv[1]
+    return data_folder
+
+
 if __name__ == '__main__':
+
+    data_folder = parse_args()
+    output_file = data_folder + 'pnml_encode_time_ldd_hmorph.csv'
+
     process_encode_data(encode_folder)
-    process_ddmc_data(ddmc_folder)
+    process_ddmc_data(data_folder + 'logs/')
     merge_dicts()
     write_to_csv()
