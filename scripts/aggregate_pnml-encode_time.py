@@ -10,7 +10,7 @@ look_for2 = "real\t"
 look_for_ddmc1 = "Writing stats to"
 look_for_ddmc2 = "real\t"
 
-encode_folder = 'models/petrinets/static_ldds/sloan/'
+encode_folder = 'models/petrinets/static_ldds/sloan/logs/'
 outputfile = ''
 
 encode_time = {}
