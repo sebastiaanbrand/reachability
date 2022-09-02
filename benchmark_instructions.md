@@ -21,10 +21,11 @@ TODO
 
 
 ### REACH vs ITS-tools
-Running and processing REACH benchmarks:
+(1) run benchmarks, (2) aggregate benchmark data, (3) plot (NOTE: paths for the plots are hardcoded atm)
 ```
 $ [run bench for reach]
 $ python scripts/aggregate_pnml-encode_time.py bench_data/for_paper/reach-vs-its/reach/
+$ python scripts/generate_plots.py its
 ```
 
 

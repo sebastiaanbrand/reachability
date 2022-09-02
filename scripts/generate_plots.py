@@ -152,9 +152,9 @@ def pre_process():
 def load_its_data(its_type):
     # load csv
     if (its_type == 'RD'):
-        its_data = pd.read_csv('bench_data/reach-vs-its/its_tools_petrinets_deadlocks.csv')
+        its_data = pd.read_csv('bench_data/for_paper/reach-vs-its/its/its_tools_petrinets_deadlocks.csv')
     else:
-        its_data = pd.read_csv('bench_data/reach-vs-its/its_tools_petrinets.csv')
+        its_data = pd.read_csv('bench_data/for_paper/reach-vs-its/its/its_tools_petrinets.csv')
 
     # some pre-processing
     its_data.columns = its_data.columns.str.strip()
@@ -167,7 +167,7 @@ def load_its_data(its_type):
 
 def load_pnml_encode_data():
     # load csv
-    data = pd.read_csv('bench_data/reach-vs-its/pnml_encode_time_ldd_hmorph.csv')
+    data = pd.read_csv('bench_data/for_paper/reach-vs-its/reach/pnml_encode_time_ldd_hmorph.csv')
 
     # some pre-processing
     data.columns = data.columns.str.strip()
