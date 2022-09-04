@@ -2,9 +2,11 @@
 ```
 bench_data/
 ├─ for_paper/
+|  ├─ parallel/
 |  ├─ reach-vs-its/
 |  |  ├─ reach/
 |  |  ├─ its/
+|  ├─ reach-vs-saturation/
 ```
 
 
@@ -16,7 +18,11 @@ TODO
 
 ### Parallel benchmarks
 ```
-TODO
+$ bash scripts/bench_all.sh -t 10m -w "1 2 4 8" -o bench_data/for_paper/parallel bdd beem-sloan petri-sloan promela-sloan bdd test-par
+
+$ bash scripts/bench_all.sh -t 10m -w "1 2 4 8" -o bench_data/for_paper/parallel bdd beem-sloan bdd test-par
+$ bash scripts/bench_all.sh -t 10m -w "1 2 4 8" -o bench_data/for_paper/parallel bdd petri-sloan bdd test-par
+$ bash scripts/bench_all.sh -t 10m -w "1 2 4 8" -o bench_data/for_paper/parallel bdd promela-sloan bdd test-par
 ```
 
 
