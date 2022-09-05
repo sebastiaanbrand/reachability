@@ -725,7 +725,7 @@ def _plot_parallel(strat1, strat2, strat3, data_label, min_time, plot_legend=Tru
 
 def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
 
-    scaling = 5.0 # default = ~6.0
+    scaling = 4.0 # default = ~6.0
     fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
     
     max_val = 0
@@ -787,9 +787,11 @@ def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
     _plot_diagonal_lines(ax, max_val, min_val, at=[x_cores / y_cores])
 
 
-     # set axis labels + legend
-    xlabel = '{} time (s), {} cores'.format(axis_label[(strat,'bdd')], x_cores)
-    ylabel = '{} time (s), {} cores'.format(axis_label[(strat,'bdd')], y_cores)
+    # set axis labels + legend
+    _xc = 'core' if x_cores == 1 else 'cores'
+    _yc = 'core' if y_cores == 1 else 'cores'
+    xlabel = '{} time (s), {} {}'.format(axis_label[(strat,'bdd')], x_cores, _xc)
+    ylabel = '{} time (s), {} {}'.format(axis_label[(strat,'bdd')], y_cores, _yc)
     
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
