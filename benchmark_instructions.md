@@ -13,6 +13,13 @@ bench_data/
 
 
 ## REACH vs saturation
+
+Generate data:
+```
+$ ./scripts/bench_all.sh -t 10m -o for_paper/reach-vs-saturation beem-sloan petri-sloan promela-sloan bdd ldd
+```
+
+Generate plots:
 ```
 TODO
 ```

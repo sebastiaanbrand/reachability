@@ -1,7 +1,7 @@
 # Decision diagram operation for reachability
 
 ## Files
-* In `reach_algs/`, `bddmc.c` and `lddmc.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (line 847 in [bddmc.c](reach_algs/bddmc.c) and line 831 in [lddmc.c](reach_algs/lddmc.c)).
+* In `reach_algs/`, `bddmc.c` and `lddmc.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (line 847 in [bddmc.c](reach_algs/bddmc.c) and line 631 in [ldd_custom.c](reach_algs/ldd_custom.c)).
 * `scripts/` contains a number of scripts for benchmarking and plotting.
 * `sylvan/` contains the source of Sylvan. (For compatibility reasons we include a specific version of Sylvan rather than using an installed version.)
 
@@ -31,9 +31,9 @@ Run `./compile_sources.sh` to (re)compile. This creates, in `reach_algs/build/`,
 ### 4. Running on individual models
 From the root of the repository, the following runs REACH and saturation on the `adding.1.bdd` model with 1 worker/thread. Note that REACH requires `--merge-relations` to merge the partial relations.
 ```bash
-$ ./reach_algs/build/bddmc models/beem/bdds/adding.1.bdd -s rec --merge-relations -w 1
+$ ./reach_algs/build/bddmc models/beem/bdds/sloan/adding.1.bdd -s rec --merge-relations -w 1
 
-$ ./reach_algs/build/bddmc models/beem/bdds/adding.1.bdd -s sat -w 1
+$ ./reach_algs/build/bddmc models/beem/bdds/sloan/adding.1.bdd -s sat -w 1
 ```
 
 And similarly for running REACH for the LDDs:
@@ -90,4 +90,7 @@ $ python scripts/generate_plots.py locality path/to/data/
 
 # Fig. 6: Parallel performance of REACH vs saturation
 $ python scripts/generate_plots.py parallel path/to/data/
+
+# Fig. ?: Parallel performance scatter plots
+$ python scripts/generate_plots.py parallel-scatter path/to/data/
 ```
