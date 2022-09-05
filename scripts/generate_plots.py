@@ -49,6 +49,7 @@ stratIDs     = {'bfs' : 0,
 axis_label = {('bfs','bdd') : 'BFS',
               ('sat','bdd') : 'Saturation',
               ('rec','bdd') : 'Algorithm 1',
+              ('rec-par','bdd') : 'Algorithm 2',
               ('bfs','ldd') : 'BFS',
               ('sat','ldd') : 'Saturation',
               ('rec','ldd') : 'Algorithm 3',
@@ -399,7 +400,7 @@ def _plot_time_comp(ax, x_strat, x_dd, y_strat, y_dd, add_merge_time):
     return ax, meta
 
 
-def _plot_diagonal_lines(ax, max_val, min_val):
+def _plot_diagonal_lines(ax, max_val, min_val, at=[]):
     """
     Add diagonal lines to ax
     """
@@ -410,8 +411,12 @@ def _plot_diagonal_lines(ax, max_val, min_val):
 
     # diagonal lines
     ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
-    ax.plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
-    ax.plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
+    if len(at) == 0:
+        ax.plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
+        ax.plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
+    else:
+        for k in at:
+            ax.plot([min_val, max_val], [min_val*k, max_val*k], ls=":", c="#767676")
 
     return ax
 
@@ -716,6 +721,100 @@ def _plot_parallel(strat1, strat2, strat3, data_label, min_time, plot_legend=Tru
                     strat1, strat2, strat3, data_label, min_time, max(n_workers), fig_format)
         fig.savefig(fig_name, dpi=300)
     plt.close(fig)
+
+
+def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
+
+    scaling = 5.0 # default = ~6.0
+    fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
+    
+    max_val = 0
+    min_val = 1e9
+    all_xs = []
+    all_ys = []
+    all_names = []
+    for ds_name in datasetnames:
+        # get the relevant data
+        try:
+            data = datamap[(ds_name, 'sl-bdd')]
+        except:
+            print("Could not find data for '{}', skipping...".format(ds_name))
+            continue
+        
+        # get relevant subsets of data
+        data = data.loc[data['strategy'] == stratIDs[strat]]
+        data = data.loc[data['reach_time'] >= min_time]
+        group_x = data.loc[data['workers'] == x_cores]
+        group_y = data.loc[data['workers'] == y_cores]
+
+        # inner join of x and y
+        group_y = group_y.set_index('benchmark')
+        joined  = group_x.join(group_y, on='benchmark', how='inner',
+                                        lsuffix='_x', rsuffix='_y')
+        
+        # plot reachability time of x vs y
+        xs = joined['reach_time_x'].to_numpy()
+        ys = joined['reach_time_y'].to_numpy()
+        if (add_merge_time):
+            xs += joined['merge_time_x'].to_numpy()
+            ys += joined['merge_time_y'].to_numpy()
+        
+        # some styling
+        s = marker_size[ds_name]
+        m = markers[ds_name]
+        l = legend_names[ds_name]
+        ec = marker_colors[ds_name]
+        fc = np.array([marker_colors[ds_name]]*len(xs))
+        fc[np.isnan(xs)] = 'none'
+        fc[np.isnan(ys)] = 'none'
+
+        # actually plot the data points
+        ax.scatter(xs, ys, s=s, marker=m, facecolors=fc, edgecolors=ec, label=l)
+
+        # track for diagonal lines
+        max_val = max(max_val, np.max(xs), np.max(ys))
+        min_val = min(min_val, np.min(xs), np.min(ys))
+
+        # track names for annotations
+        all_xs.extend(xs)
+        all_ys.extend(ys)
+        all_names.extend(joined['benchmark'])
+    
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+
+    # plot diagonal lines
+    _plot_diagonal_lines(ax, max_val, min_val, at=[x_cores / y_cores])
+
+
+     # set axis labels + legend
+    xlabel = '{} time (s), {} cores'.format(axis_label[(strat,'bdd')], x_cores)
+    ylabel = '{} time (s), {} cores'.format(axis_label[(strat,'bdd')], y_cores)
+    
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend(framealpha=1.0)
+    plt.tight_layout()
+
+    # plots without data-point lables
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}reachtime_{}_{}cores_vs_{}cores_incMergeTime{}.{}'.format(subfolder,
+                                                          strat, x_cores, y_cores,
+                                                          add_merge_time,
+                                                          fig_format)
+        fig.savefig(fig_name, dpi=300)
+    
+    # add data-point labes and plot as pdf
+    for i, bench_name in enumerate(all_names):
+        ax.annotate(bench_name, (all_xs[i], all_ys[i]), fontsize=1.0)
+    fig_name = '{}reachtime_{}_{}cores_vs_{}cores_incMergeTime{}.{}'.format(label_folder,
+                                                      strat, x_cores, y_cores,
+                                                      add_merge_time,
+                                                      'pdf')
+    fig.savefig(fig_name, dpi=300)
+    plt.close(fig)
+
 
 
 def plot_merge_overhead(data_label):
@@ -1172,6 +1271,26 @@ def plot_both_parallel(data_folder):
     else:
         print('no complete data found in ' + data_folder)
 
+
+def plot_all_parallel_scatter(data_folder):
+    load_data(data_folder)
+    pre_process()
+    assert_states_nodes()
+    set_subfolder_name('all/Parallel speedups scatter')
+
+    min_time = 0.1
+    mt = False
+    _plot_parallel_scatter(1, 2, 'rec-par', min_time, mt)
+    _plot_parallel_scatter(1, 4, 'rec-par', min_time, mt)
+    _plot_parallel_scatter(1, 8, 'rec-par', min_time, mt)
+    _plot_parallel_scatter(1, 2, 'rec', min_time, mt)
+    _plot_parallel_scatter(1, 4, 'rec', min_time, mt)
+    _plot_parallel_scatter(1, 8, 'rec', min_time, mt)
+    _plot_parallel_scatter(1, 2, 'sat', min_time, mt)
+    _plot_parallel_scatter(1, 4, 'sat', min_time, mt)
+    _plot_parallel_scatter(1, 8, 'sat', min_time, mt)
+
+
 def plot_all_locality_plots(data_folder):
     load_data(data_folder)
     pre_process()
@@ -1205,6 +1324,8 @@ if __name__ == '__main__':
         plot_paper_plot_sat_vs_rec_copy(data_folder)
     elif (which_plot == 'parallel'): # bench_data/all/par_8/2m/
         plot_both_parallel(data_folder)
+    elif (which_plot == 'parallel-scatter'):
+        plot_all_parallel_scatter(data_folder)
     elif (which_plot == 'locality'): # bench_data/all/single_worker/10m/bdds_and_ldds_w_copy/
         plot_all_locality_plots(data_folder)
     elif (which_plot == 'its'):
@@ -1212,6 +1333,6 @@ if __name__ == '__main__':
     elif (which_plot == 'static'):
         plot_static_vs_otf(data_folder)
     else:
-        print("First argument must be [saturation|parallel|locality|its|static]")
+        print("First argument must be [saturation|parallel|parallel-scatter|locality|its|static]")
     
 
