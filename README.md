@@ -52,7 +52,7 @@ $ ./scripts/bench_subset.sh -n 10
 
 * To generate (a small subset of) the data used for Figure 6 in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
 ```
-$ ./scripts/bench_subset.sh -n 10 -w "1 2 4 8" test-par
+$ ./scripts/bench_subset.sh -n 10 -w "1 8" test-par-only
 ```
 
 The results of these benchmarks are written to `bench_data/subset/*/` as csv data. Running these commands multiple times appends the results of the new run to that of earlier runs.
@@ -66,14 +66,14 @@ $ ./scripts/bench_all.sh -t 10m bdd ldd beem-sloan petri-sloan promela-sloan
 ```
 
 
-* To generate the data used for Figure 6 (1-8 core) in the paper, run 
+* To generate the data used for Figure 6 (8 core) in the paper, run 
 ```
-$ ./scripts/bench_all.sh -w "1 2 4 8" test-par bdd ldd beem-sloan petri-sloan promela-sloan`
+$ ./scripts/bench_all.sh -w "1 8" test-par-only bdd ldd beem-sloan petri-sloan promela-sloan`
 ```
 
-* To generate the data used for Figure 6 (16-96 core), run 
+* To generate the data used for Figure 6 (64 core), run 
 ```
-$ ./scripts/bench_all.sh -w "16 32 64 96" -t 30m test-par bdd ldd beem-sloan petri-sloan promela-sloan
+$ ./scripts/bench_all.sh -w "1 64" -t 30m test-par-only bdd ldd beem-sloan petri-sloan promela-sloan
 ```
 
 The results of these benchmarks are written to `bench_data/all/*/` as csv data.

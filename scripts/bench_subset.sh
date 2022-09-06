@@ -23,29 +23,42 @@ while getopts "w:t:n:" opt; do
   esac
 done
 
+test_sat=true
+test_reach=true
+test_bdd=true
+test_ldd=true
+
 for var in "$@"; do
   if [[ $var == 'test-par' ]]; then test_par=true; fi
+  if [[ $var == 'test-par-only' ]]; then test_par=true; test_reach=false; fi
   if [[ $var == 'bfs' ]]; then test_bfs=true; fi
   if [[ $var == 'deadlocks' ]]; then deadlocks="--deadlocks"; fi
 done
 
+if [[ $test_par ]]; then
+  test_ldd=false
+fi
+
 echo "Running following benchmarks with [$num_workers] workers:"
-echo "  - BEEM BDDs Sloan ($amount random small instances)"
-echo "  - BEEM LDDs Sloan ($amount random small instances)"
-echo "  - Petri Nets BDDs Sloan ($amount random small instances)"
-echo "  - Petri Nets LDDs Sloan ($amount random small instances)"
-echo "  - Promela BDDs Sloan ($amount random small instances)"
-echo "  - Promela LDDs Sloan ($amount random small instances)"
+if [[ $test_bdd == true ]]; then echo "  - BEEM BDDs Sloan ($amount random small instances)"; fi
+if [[ $test_ldd == true ]]; then echo "  - BEEM LDDs Sloan ($amount random small instances)"; fi
+if [[ $test_bdd == true ]]; then echo "  - Petri Nets BDDs Sloan ($amount random small instances)"; fi
+if [[ $test_ldd == true ]]; then echo "  - Petri Nets LDDs Sloan ($amount random small instances)"; fi
+if [[ $test_bdd == true ]]; then echo "  - Promela BDDs Sloan ($amount random small instances)"; fi
+if [[ $test_ldd == true ]]; then echo "  - Promela LDDs Sloan ($amount random small instances)"; fi
 if [[ $test_par ]]; then echo "  * Testing parallelism for BDD rec-reach"; fi
+if [[ $test_reach == false ]]; then echo "    (only testing par version of reach)"; fi
 if [[ $deadlocks ]]; then echo "  * Testing for deadlocks for BDD algs"; fi
 
 # output folder
 if [[ $num_workers == 1 ]]; then
   outputfolder=bench_data/subset/single_worker
-elif [[ $num_workers == "1 2 4 8" ]]; then
+elif [[ $num_workers == "1 2 4 8" || $num_workers == "1 8" ]]; then
   outputfolder=bench_data/subset/par_8
-elif [[ $num_workers == "16 32 64 96" ]]; then
+elif [[ $num_workers == "1 16 32 64 96" ]]; then
   outputfolder=bench_data/subset/par_96
+elif [[ $num_workers == "1 64" ]]; then
+  outputfolder=bench_data/subset/par_64
 else
   outputfolder=bench_data/subset/par
 fi
@@ -68,6 +81,8 @@ petri_sl_stats_ldd="$outputfolder/petrinets_sloan_stats_ldd.csv"
 promela_sl_stats_ldd="$outputfolder/promela_sloan_stats_ldd.csv"
 
 
+if [[ $test_bdd == true ]]; then
+
 # BEEM, Sloan BDDs
 shuf -n $amount models/beem/small_bdd.txt | while read filename; do
   filepath=models/beem/bdds/sloan/$filename
@@ -75,8 +90,12 @@ shuf -n $amount models/beem/small_bdd.txt | while read filename; do
       if [[ $test_bfs ]]; then
         timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
       fi
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$beem_sl_stats
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
+      if [[ $test_sat == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$beem_sl_stats
+      fi
+      if [[ $test_reach == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
+      fi
       if [[ $test_par ]]; then
           timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
       fi
@@ -90,8 +109,12 @@ shuf -n $amount models/petrinets/small_bdd.txt | while read filename; do
       if [[ $test_bfs ]]; then
         timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
       fi
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$petri_sl_stats
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
+      if [[ $test_sat == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$petri_sl_stats
+      fi
+      if [[ $test_reach == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
+      fi
       if [[ $test_par ]]; then
           timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
       fi
@@ -105,13 +128,24 @@ shuf -n $amount models/promela/small_bdd.txt | while read filename; do
       if [[ $test_bfs ]]; then
         timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
       fi
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$promela_sl_stats
-      timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
+      if [[ $test_sat == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=sat --count-nodes $deadlocks --statsfile=$promela_sl_stats
+      fi
+      if [[ $test_reach == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
+      fi
       if [[ $test_par ]]; then
           timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
       fi
   done
 done
+
+fi # $test_bdd == true
+
+
+
+
+if [[ $test_ldd == true ]]; then
 
 # BEEM, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
 if [[ $num_workers == 1 ]]; then
@@ -154,3 +188,5 @@ if [[ $num_workers == 1 ]]; then
       done
   done
 fi
+
+fi # $test_ldd == true
