@@ -496,11 +496,9 @@ def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
     axs[0].set_ylabel(y_label, fontsize=12)
     axs[0].set_title('{}s'.format(x1_dd[-3:].upper()))
     axs[1].set_title('{}s'.format(x2_dd[-3:].upper()))
-    fig.text(0.54, 0.01, x_label, ha='center', fontsize=12)
     axs[1].axes.yaxis.set_visible(False)
     axs[0].legend(framealpha=1.0, fontsize=11)
     plt.tight_layout(pad=0.2)
-    #fig.subplots_adjust(bottom=0.22)
     fig.subplots_adjust(bottom=0.15)
 
     # plot for all formats
@@ -801,17 +799,18 @@ def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_m
     axs[1] = _plot_diagonal_lines(axs[1], max_val, min_val, at=[x_cores/y_cores])
 
     # set axis labels+ legend
-    # TODO: single x label, put ReachBDD / Saturation above the plots
     _xc = 'core' if x_cores == 1 else 'cores'
     _yc = 'core' if y_cores == 1 else 'cores'
-    xlabel0 = '{} time (s), {} {}'.format(axis_label[(strat0,'bdd')], x_cores, _xc)
-    xlabel1 = '{} time (s), {} {}'.format(axis_label[(strat1,'bdd')], x_cores, _xc)
-    ylabel = 'time (s), {} {}'.format(y_cores, _yc)
-    axs[0].set_xlabel(xlabel0)
-    axs[1].set_xlabel(xlabel1)
-    axs[0].set_ylabel(ylabel)
+    x_label = 'Reachability time (s), {} {}'.format(x_cores, _xc)
+    y_label = 'Reachability time (s), {} {}'.format(y_cores, _yc)
+    fig.text(0.54, 0.01, x_label, ha='center', fontsize=12)
+    axs[0].set_ylabel(y_label, fontsize=12)
+    axs[1].axes.yaxis.set_visible(False)
+    axs[0].set_title(axis_label[(strat0, 'bdd')])
+    axs[1].set_title(axis_label[(strat1, 'bdd')])
     axs[0].legend(framealpha=1.0, fontsize=11)
-    plt.tight_layout()
+    plt.tight_layout(pad=0.2)
+    fig.subplots_adjust(bottom=0.15)
 
     # plots without data-point lables
     for fig_format in fig_formats:
