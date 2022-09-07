@@ -373,8 +373,6 @@ def _plot_time_comp(compare, ax, x_dd, y_dd, x_select, y_select, z_select=None,
         group_y = group_y.set_index('benchmark')
         joined  = group_x.join(group_y, on='benchmark', how=join_type,
                                lsuffix='_x', rsuffix='_y')
-        
-        print(joined)
 
         # plot reachability time of x vs y
         xs = joined['reach_time_x'].to_numpy()
@@ -506,7 +504,7 @@ def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
     fig.subplots_adjust(bottom=0.15)
 
     # plot for all formats
-    info("Writing plots to {}".format(plots_folder))
+    info(f"Writing plots to {plots_folder}")
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}reachtime_{}_{}_vs_{}_{}_and_{}_{}vs_{}_{}_incmergetime{}.{}'.format(
@@ -753,7 +751,6 @@ def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
     _yc = 'core' if y_cores == 1 else 'cores'
     xlabel = '{} time (s), {} {}'.format(axis_label[(strat,'bdd')], x_cores, _xc)
     ylabel = '{} time (s), {} {}'.format(axis_label[(strat,'bdd')], y_cores, _yc)
-    
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.legend(framealpha=1.0)
@@ -778,6 +775,54 @@ def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
     fig.savefig(fig_name, dpi=300)
     plt.close(fig)
 
+
+def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_merge_time):
+
+    scaling = 4.8 # default = ~6.0
+    w = 1.6 # relative width
+    fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
+
+    # actually fill in the subplots
+    axs[0], meta0 = _plot_time_comp('cores', axs[0], 'sl-bdd', 'sl-bdd', 
+                                    x_cores, y_cores, strat0,
+                                    min_time=min_time,
+                                    join_type='inner',
+                                    add_merge_time=add_merge_time)
+    axs[1], meta1 = _plot_time_comp('cores', axs[1], 'sl-bdd', 'sl-bdd', 
+                                    x_cores, y_cores, strat1,
+                                    min_time=min_time,
+                                    join_type='inner',
+                                    add_merge_time=add_merge_time)
+    
+    # plot diagonal lines
+    max_val = max(meta0['max_val'], meta1['max_val'])
+    min_val = min(meta0['min_val'], meta1['min_val'])
+    axs[0] = _plot_diagonal_lines(axs[0], max_val, min_val, at=[x_cores/y_cores])
+    axs[1] = _plot_diagonal_lines(axs[1], max_val, min_val, at=[x_cores/y_cores])
+
+    # set axis labels+ legend
+    # TODO: single x label, put ReachBDD / Saturation above the plots
+    _xc = 'core' if x_cores == 1 else 'cores'
+    _yc = 'core' if y_cores == 1 else 'cores'
+    xlabel0 = '{} time (s), {} {}'.format(axis_label[(strat0,'bdd')], x_cores, _xc)
+    xlabel1 = '{} time (s), {} {}'.format(axis_label[(strat1,'bdd')], x_cores, _xc)
+    ylabel = 'time (s), {} {}'.format(y_cores, _yc)
+    axs[0].set_xlabel(xlabel0)
+    axs[1].set_xlabel(xlabel1)
+    axs[0].set_ylabel(ylabel)
+    axs[0].legend(framealpha=1.0, fontsize=11)
+    plt.tight_layout()
+
+    # plots without data-point lables
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}reachtime_{}_and_{}_{}cores_vs_{}cores_incMergeTime{}.{}'.format(subfolder,
+                                                          strat0, strat1, 
+                                                          x_cores, y_cores,
+                                                          add_merge_time,
+                                                          fig_format)
+        fig.savefig(fig_name, dpi=300)
+    
 
 
 def plot_merge_overhead(data_label):
@@ -912,7 +957,7 @@ def plot_its_vs_dd(its_type):
     ax.legend(framealpha=1.0)
     plt.tight_layout()
 
-    info("Writing plots to {}".format(plots_folder))
+    info(f"Writing plots to {plots_folder}")
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
         fig_name = '{}its{}_vs_{}_{}.{}'.format(subfolder,
@@ -1242,9 +1287,13 @@ def plot_all_parallel_scatter(data_folder):
     set_subfolder_name('all/Parallel speedups scatter')
 
     min_time = 0.1
-    _plot_parallel_scatter(1, 8, 'rec-par', min_time, True)
-    _plot_parallel_scatter(1, 8, 'rec-par', min_time, False)
-    _plot_parallel_scatter(1, 8, 'sat', min_time, False)
+
+    print(f"Writing plots to {plots_folder}")
+    #_plot_parallel_scatter(1, 8, 'rec-par', min_time, True)
+    #_plot_parallel_scatter(1, 8, 'rec-par', min_time, False)
+    #_plot_parallel_scatter(1, 8, 'sat', min_time, False)
+    _plot_parallel_scatter_sbs(1, 8, 'sat', 'rec-par', min_time, True)
+    _plot_parallel_scatter_sbs(1, 8, 'sat', 'rec-par', min_time, False)
 
 
 def plot_all_locality_plots(data_folder):
