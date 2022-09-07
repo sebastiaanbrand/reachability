@@ -901,25 +901,24 @@ TASK_3(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars)
             s0 = sylvan_or(s0, sylvan_relnext(s1, r10, next_vars));
         }
         else if (loop_order == loop_par) {
-            // 2 recursive calls in parallel
+            // 2 recursive REACH calls in parallel
             bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars));
-            bdd_refs_spawn(SPAWN(go_rec, s1, r11, next_vars));
-            s1 = bdd_refs_sync(SYNC(go_rec)); // syncs s1 = s1.r11*
+            s1 = CALL(go_rec, s1, r11, next_vars);
             s0 = bdd_refs_sync(SYNC(go_rec)); // syncs s0 = s0.r00*
 
             // 2 relnext calls in parallel
             bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
-            bdd_refs_spawn(SPAWN(sylvan_relnext, s1, r10, next_vars, 0));
-            BDD t0 = bdd_refs_sync(SYNC(sylvan_relnext)); // syncs t0 = s1.r10
+            BDD t0 = CALL(sylvan_relnext, s1, r10, next_vars, 0);
+            bdd_refs_push(t0);
             BDD t1 = bdd_refs_sync(SYNC(sylvan_relnext)); // syncs t1 = s0.r01
-            bdd_refs_push(t1); // t0 doesn't need to be protected
+            bdd_refs_push(t1);
 
             // 2 or's in parallel ( or is implemented via !(!A ^ !B) )
             bdd_refs_spawn(SPAWN(sylvan_and, sylvan_not(s0), sylvan_not(t0), 0));
-            bdd_refs_spawn(SPAWN(sylvan_and, sylvan_not(s1), sylvan_not(t1), 0));
-            s1 = sylvan_not(bdd_refs_sync(SYNC(sylvan_and))); // syncs s1 = !(!s1 ^ !t1)
+            s1 = sylvan_not(CALL(sylvan_and, sylvan_not(s1), sylvan_not(t1), 0));
             s0 = sylvan_not(bdd_refs_sync(SYNC(sylvan_and))); // syncs s0 = !(!s0 ^ !t0)
-            bdd_refs_pop(1);
+
+            bdd_refs_pop(2); // pops t0, t1
         }
         else {
             Abort("Invalid loop order\n");
@@ -1308,6 +1307,8 @@ main(int argc, char **argv)
     printf(" max.\n");
 
     sylvan_set_limits(max, 1, 6);
+    //sylvan_set_limits(max, 1, 1);
+    //sylvan_gc_disable();
     sylvan_init_package();
     sylvan_init_bdd();
     sylvan_gc_hook_pregc(TASK(gc_start));
