@@ -335,9 +335,11 @@ def get_matrix_metrics(bench_names, data_label, metric):
     return metrics
 
 
-def _plot_time_comp(ax, x_strat, x_dd, y_strat, y_dd, add_merge_time):
+def _plot_time_comp(compare, ax, x_dd, y_dd, x_select, y_select, z_select=None, 
+                    min_time=0, join_type='outer', add_merge_time=True):
     """
     The actual plotting of the runtime comparisons happens here.
+    compare = [strat | cores]
     """
 
     max_val = 0
@@ -349,17 +351,30 @@ def _plot_time_comp(ax, x_strat, x_dd, y_strat, y_dd, add_merge_time):
             x_data = datamap[(ds_name, x_dd)]
             y_data = datamap[(ds_name, y_dd)]
         except:
-            print("Could not find data for '{}', skipping...".format(ds_name))
+            print(f"Could not find data for '{ds_name}', skipping...")
             continue
 
         # select subsets of x and y data
-        group_x = x_data.loc[x_data['strategy'] == stratIDs[x_strat]]
-        group_y = y_data.loc[y_data['strategy'] == stratIDs[y_strat]]
+        group_x = x_data.loc[x_data['reach_time'] >= min_time]
+        group_y = y_data.loc[y_data['reach_time'] >= min_time]
+        if (compare == 'strat'):
+            group_x = group_x.loc[group_x['strategy'] == stratIDs[x_select]]
+            group_y = group_y.loc[group_y['strategy'] == stratIDs[y_select]]
+        elif (compare == 'cores'):
+            group_x = group_x.loc[group_x['strategy'] == stratIDs[z_select]]
+            group_y = group_y.loc[group_y['strategy'] == stratIDs[z_select]]
+            group_x = group_x.loc[group_x['workers'] == x_select]
+            group_y = group_y.loc[group_y['workers'] == y_select]
+        else:
+            print(f"ERROR: Argument 'compare' must be [strat|cores]")
+            exit(1)
 
         # outer join of x and y
         group_y = group_y.set_index('benchmark')
-        joined  = group_x.join(group_y, on='benchmark', how='outer',
+        joined  = group_x.join(group_y, on='benchmark', how=join_type,
                                lsuffix='_x', rsuffix='_y')
+        
+        print(joined)
 
         # plot reachability time of x vs y
         xs = joined['reach_time_x'].to_numpy()
@@ -400,7 +415,7 @@ def _plot_time_comp(ax, x_strat, x_dd, y_strat, y_dd, add_merge_time):
     return ax, meta
 
 
-def _plot_diagonal_lines(ax, max_val, min_val, at=[]):
+def _plot_diagonal_lines(ax, max_val, min_val, at=[0.1, 10]):
     """
     Add diagonal lines to ax
     """
@@ -411,12 +426,8 @@ def _plot_diagonal_lines(ax, max_val, min_val, at=[]):
 
     # diagonal lines
     ax.plot([min_val, max_val], [min_val, max_val], ls="--", c="gray")
-    if len(at) == 0:
-        ax.plot([min_val, max_val], [min_val*10, max_val*10], ls=":", c="#767676")
-        ax.plot([min_val, max_val], [min_val/10, max_val/10], ls=":", c="#767676")
-    else:
-        for k in at:
-            ax.plot([min_val, max_val], [min_val*k, max_val*k], ls=":", c="#767676")
+    for k in at:
+        ax.plot([min_val, max_val], [min_val*k, max_val*k], ls=":", c="#767676")
 
     return ax
 
@@ -427,7 +438,7 @@ def plot_comparison(x_strat, x_dd, y_strat, y_dd, add_merge_time, xlabel='', yla
     fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
 
     # actually fills in the subplot
-    ax, meta = _plot_time_comp(ax, x_strat, x_dd, y_strat, y_dd, add_merge_time)
+    ax, meta = _plot_time_comp('strat', ax, x_dd, y_dd, x_strat, y_strat, add_merge_time=add_merge_time)
     ax = _plot_diagonal_lines(ax, meta['max_val'], meta['min_val'])
     
     # set axis labels + legend
@@ -474,8 +485,8 @@ def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
     fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
 
     # actually fill in the subplots
-    axs[0], meta0 = _plot_time_comp(axs[0], x1_strat, x1_dd, y1_strat, y1_dd, add_merge_time)
-    axs[1], meta1 = _plot_time_comp(axs[1], x2_strat, x2_dd, y2_strat, y2_dd, add_merge_time)
+    axs[0], meta0 = _plot_time_comp('strat', axs[0], x1_dd, y1_dd, x1_strat, y1_strat, add_merge_time=add_merge_time)
+    axs[1], meta1 = _plot_time_comp('strat', axs[1], x2_dd, y2_dd, x2_strat, y2_strat, add_merge_time=add_merge_time)
 
     # diagonal lines
     max_val = max(meta0['max_val'], meta1['max_val'])
@@ -728,64 +739,14 @@ def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
     scaling = 4.0 # default = ~6.0
     fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
     
-    max_val = 0
-    min_val = 1e9
-    all_xs = []
-    all_ys = []
-    all_names = []
-    for ds_name in datasetnames:
-        # get the relevant data
-        try:
-            data = datamap[(ds_name, 'sl-bdd')]
-        except:
-            print("Could not find data for '{}', skipping...".format(ds_name))
-            continue
-        
-        # get relevant subsets of data
-        data = data.loc[data['strategy'] == stratIDs[strat]]
-        data = data.loc[data['reach_time'] >= min_time]
-        group_x = data.loc[data['workers'] == x_cores]
-        group_y = data.loc[data['workers'] == y_cores]
-
-        # inner join of x and y
-        group_y = group_y.set_index('benchmark')
-        joined  = group_x.join(group_y, on='benchmark', how='inner',
-                                        lsuffix='_x', rsuffix='_y')
-        
-        # plot reachability time of x vs y
-        xs = joined['reach_time_x'].to_numpy()
-        ys = joined['reach_time_y'].to_numpy()
-        if (add_merge_time):
-            xs += joined['merge_time_x'].to_numpy()
-            ys += joined['merge_time_y'].to_numpy()
-        
-        # some styling
-        s = marker_size[ds_name]
-        m = markers[ds_name]
-        l = legend_names[ds_name]
-        ec = marker_colors[ds_name]
-        fc = np.array([marker_colors[ds_name]]*len(xs))
-        fc[np.isnan(xs)] = 'none'
-        fc[np.isnan(ys)] = 'none'
-
-        # actually plot the data points
-        ax.scatter(xs, ys, s=s, marker=m, facecolors=fc, edgecolors=ec, label=l)
-
-        # track for diagonal lines
-        max_val = max(max_val, np.max(xs), np.max(ys))
-        min_val = min(min_val, np.min(xs), np.min(ys))
-
-        # track names for annotations
-        all_xs.extend(xs)
-        all_ys.extend(ys)
-        all_names.extend(joined['benchmark'])
-    
-    ax.set_xscale('log')
-    ax.set_yscale('log')
+    ax, meta = _plot_time_comp('cores', ax, 'sl-bdd', 'sl-bdd', 
+                                x_cores, y_cores, strat, 
+                                min_time=min_time, 
+                                join_type='inner',
+                                add_merge_time=add_merge_time)
 
     # plot diagonal lines
-    _plot_diagonal_lines(ax, max_val, min_val, at=[x_cores / y_cores])
-
+    ax = _plot_diagonal_lines(ax, meta['max_val'], meta['min_val'], at=[x_cores/y_cores])
 
     # set axis labels + legend
     _xc = 'core' if x_cores == 1 else 'cores'
@@ -806,10 +767,10 @@ def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
                                                           add_merge_time,
                                                           fig_format)
         fig.savefig(fig_name, dpi=300)
-    
+
     # add data-point labes and plot as pdf
-    for i, bench_name in enumerate(all_names):
-        ax.annotate(bench_name, (all_xs[i], all_ys[i]), fontsize=1.0)
+    for i, bench_name in enumerate(meta['names']):
+        ax.annotate(bench_name, (meta['xs'][i], meta['ys'][i]), fontsize=1.0)
     fig_name = '{}reachtime_{}_{}cores_vs_{}cores_incMergeTime{}.{}'.format(label_folder,
                                                       strat, x_cores, y_cores,
                                                       add_merge_time,
@@ -1281,16 +1242,9 @@ def plot_all_parallel_scatter(data_folder):
     set_subfolder_name('all/Parallel speedups scatter')
 
     min_time = 0.1
-    mt = False
-    _plot_parallel_scatter(1, 2, 'rec-par', min_time, mt)
-    _plot_parallel_scatter(1, 4, 'rec-par', min_time, mt)
-    _plot_parallel_scatter(1, 8, 'rec-par', min_time, mt)
-    _plot_parallel_scatter(1, 2, 'rec', min_time, mt)
-    _plot_parallel_scatter(1, 4, 'rec', min_time, mt)
-    _plot_parallel_scatter(1, 8, 'rec', min_time, mt)
-    _plot_parallel_scatter(1, 2, 'sat', min_time, mt)
-    _plot_parallel_scatter(1, 4, 'sat', min_time, mt)
-    _plot_parallel_scatter(1, 8, 'sat', min_time, mt)
+    _plot_parallel_scatter(1, 8, 'rec-par', min_time, True)
+    _plot_parallel_scatter(1, 8, 'rec-par', min_time, False)
+    _plot_parallel_scatter(1, 8, 'sat', min_time, False)
 
 
 def plot_all_locality_plots(data_folder):
