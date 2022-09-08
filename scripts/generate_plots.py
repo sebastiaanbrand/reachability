@@ -84,7 +84,14 @@ def parse_args():
             exit()
         data_folder = sys.argv[2]
     
-    return which_plot, data_folder
+    plot_cores = 0
+    if (which_plot == 'parallel-scatter'):
+        if (len(sys.argv) <= 3):
+            print("argument 3 (number of cores to plot, e.g. 8) missing")
+            exit()
+        plot_cores = int(sys.argv[3])
+    
+    return which_plot, data_folder, plot_cores
 
 
 def try_load_data(key, filepath):
@@ -774,10 +781,17 @@ def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
     plt.close(fig)
 
 
-def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_merge_time):
+def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_merge_time, plot_half='both'):
+    """
+    plot_half = [top | bottom | both]
+    """
 
-    scaling = 4.8 # default = ~6.0
-    w = 1.6 # relative width
+    if (plot_half == 'both'):
+        scaling = 4.8 # default = ~6.0
+        w = 1.6 # relative width
+    else:
+        scaling = 4.6
+        w = 1.7
     fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
 
     # actually fill in the subplots
@@ -803,25 +817,28 @@ def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_m
     _yc = 'core' if y_cores == 1 else 'cores'
     x_label = 'Reachability time (s), {} {}'.format(x_cores, _xc)
     y_label = 'Reachability time (s), {} {}'.format(y_cores, _yc)
-    fig.text(0.54, 0.01, x_label, ha='center', fontsize=12)
+    if (plot_half == 'bottom' or plot_half == 'both'):
+        fig.text(0.54, 0.01, x_label, ha='center', fontsize=12)
     axs[0].set_ylabel(y_label, fontsize=12)
     axs[1].axes.yaxis.set_visible(False)
-    axs[0].set_title(axis_label[(strat0, 'bdd')])
-    axs[1].set_title(axis_label[(strat1, 'bdd')])
-    axs[0].legend(framealpha=1.0, fontsize=11)
+    if (plot_half == 'top' or plot_half == 'both'):
+        axs[0].set_title(axis_label[(strat0, 'bdd')])
+        axs[1].set_title(axis_label[(strat1, 'bdd')])
+        axs[0].legend(framealpha=1.0, fontsize=11)
     plt.tight_layout(pad=0.2)
-    fig.subplots_adjust(bottom=0.15)
+    if (plot_half == 'bottom' or plot_half == 'both'):
+        fig.subplots_adjust(bottom=0.15)
 
     # plots without data-point lables
     for fig_format in fig_formats:
         subfolder = plots_folder.format(fig_format)
-        fig_name = '{}reachtime_{}_and_{}_{}cores_vs_{}cores_incMergeTime{}.{}'.format(subfolder,
+        fig_name = '{}reachtime_{}_and_{}_{}cores_vs_{}cores_incMergeTime{}_{}.{}'.format(subfolder,
                                                           strat0, strat1, 
                                                           x_cores, y_cores,
                                                           add_merge_time,
+                                                          plot_half,
                                                           fig_format)
         fig.savefig(fig_name, dpi=300)
-    
 
 
 def plot_merge_overhead(data_label):
@@ -1279,7 +1296,7 @@ def plot_both_parallel(data_folder):
         print('no complete data found in ' + data_folder)
 
 
-def plot_all_parallel_scatter(data_folder):
+def plot_all_parallel_scatter(data_folder, plot_cores):
     load_data(data_folder)
     pre_process()
     assert_states_nodes()
@@ -1288,11 +1305,10 @@ def plot_all_parallel_scatter(data_folder):
     min_time = 0.1
 
     print(f"Writing plots to {plots_folder}")
-    #_plot_parallel_scatter(1, 8, 'rec-par', min_time, True)
-    #_plot_parallel_scatter(1, 8, 'rec-par', min_time, False)
-    #_plot_parallel_scatter(1, 8, 'sat', min_time, False)
-    _plot_parallel_scatter_sbs(1, 8, 'sat', 'rec-par', min_time, True)
-    _plot_parallel_scatter_sbs(1, 8, 'sat', 'rec-par', min_time, False)
+    _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, True)
+    _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False)
+    _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'top')
+    _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'bottom')
 
 
 def plot_all_locality_plots(data_folder):
@@ -1323,13 +1339,13 @@ def plot_paper_plots(subfolder='all'):
 
 
 if __name__ == '__main__':
-    which_plot, data_folder = parse_args()
+    which_plot, data_folder, plot_cores = parse_args()
     if (which_plot == 'saturation'): # bench_data/all/single_worker/10m/bdds_and_ldds_w_copy/
         plot_paper_plot_sat_vs_rec_copy(data_folder)
     elif (which_plot == 'parallel'): # bench_data/all/par_8/2m/
         plot_both_parallel(data_folder)
     elif (which_plot == 'parallel-scatter'):
-        plot_all_parallel_scatter(data_folder)
+        plot_all_parallel_scatter(data_folder, plot_cores)
     elif (which_plot == 'locality'): # bench_data/all/single_worker/10m/bdds_and_ldds_w_copy/
         plot_all_locality_plots(data_folder)
     elif (which_plot == 'its'):

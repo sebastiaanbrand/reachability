@@ -38,7 +38,7 @@ $ bash scripts/bench_all.sh -t 10m -w "1 8" -o for_paper/parallel/8_cores bdd pr
 
 Generate plots:
 ```
-$ python scripts/generate_plots.py parallel-scatter for_paper/parallel/8_cores/
+$ python scripts/generate_plots.py parallel-scatter bench_data/for_paper/parallel/8_cores/ 8
 ```
 
 
