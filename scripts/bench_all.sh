@@ -26,6 +26,7 @@ done
 # some defaults
 test_sat=true
 test_reach=true
+confirm=true
 
 # process arguments for running subset of all benchmarks
 for var in "$@"; do
@@ -49,6 +50,7 @@ for var in "$@"; do
     if [[ $var == 'test-par' ]]; then test_par=true; fi
     if [[ $var == 'test-par-only' ]]; then test_par=true; test_reach=false; fi
     if [[ $var == 'bfs' ]]; then test_bfs=true; fi
+    if [[ $var == 'no-confirm' ]]; then confirm=false; fi
     if [[ $var == 'overapprox' ]]; then bench_overapprox=true; fi
     if [[ $var == 'deadlocks' ]]; then deadlocks="--deadlocks"; fi
     if [[ $var == 'all' ]]; then
@@ -150,7 +152,10 @@ fi
 
 echo "timeout per run is $maxtime"
 echo "writing .csv output files to folder $outputfolder"
-read -p "Press enter to start"
+if [[ $confirm == true ]]; then
+    read -p "Press enter to start"
+fi
+
 mkdir -p $outputfolder
 
 
