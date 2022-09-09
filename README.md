@@ -45,14 +45,14 @@ $ ./reach_algs/build/lddmc models/beem/ldds/sloan/adding.1.ldd -s sat -w 1
 
 ### 5a. Reproducing experiments (subset)
 
-* To generate (a small subset of) the data used for Figures 4 and 5 in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
+* To generate (a small subset of) the data used for Figures ?? and ?? in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
 ```
-$ ./scripts/bench_subset.sh -n 10
+$ ./scripts/bench_subset.sh -n 10 small
 ``` 
 
-* To generate (a small subset of) the data used for Figure 6 in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
+* To generate (a small subset of) the data used for Figure ?? in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
 ```
-$ ./scripts/bench_subset.sh -n 10 -w "1 8" test-par-only
+$ ./scripts/bench_subset.sh -n 10 -w "1 8" test-par-only small
 ```
 
 The results of these benchmarks are written to `bench_data/subset/*/` as csv data. Running these commands multiple times appends the results of the new run to that of earlier runs.
@@ -60,20 +60,20 @@ The results of these benchmarks are written to `bench_data/subset/*/` as csv dat
 ### 5b. Reproducing experiments (full)
 From the root of the repository:
 
-* To generate the data used for Figures 4 and 5 in the paper, run 
+* To generate the data used for Figures ?? and ?? in the paper, run 
 ```
 $ ./scripts/bench_all.sh -t 10m bdd ldd beem-sloan petri-sloan promela-sloan
 ```
 
 
-* To generate the data used for Figure 6 (8 core) in the paper, run 
+* To generate the data used for Figure ?? (8 core) in the paper, run 
 ```
-$ ./scripts/bench_all.sh -w "1 8" test-par-only bdd ldd beem-sloan petri-sloan promela-sloan`
+$ ./scripts/bench_all.sh -w "1 8" test-par-only bdd beem-sloan petri-sloan promela-sloan`
 ```
 
-* To generate the data used for Figure 6 (64 core), run 
+* To generate the data used for Figure ?? (64 core), run 
 ```
-$ ./scripts/bench_all.sh -w "1 64" -t 30m test-par-only bdd ldd beem-sloan petri-sloan promela-sloan
+$ ./scripts/bench_subset.sh -n 50 -w "1 64" -t 30m test-par-only
 ```
 
 The results of these benchmarks are written to `bench_data/all/*/` as csv data.
@@ -82,15 +82,12 @@ The results of these benchmarks are written to `bench_data/all/*/` as csv data.
 The following can be used to generate plots. The `path/to/data/` argument is the path to the data generated in step 5. (The benchmark script lets you know which folder this is.)
 
 ```bash
-# Fig. 4: REACH vs saturation
+# Fig. ??: REACH vs saturation
 $ python scripts/generate_plots.py saturation path/to/data/
 
-# Fig. 5: Effect of locality
+# Fig. ??: Effect of locality
 $ python scripts/generate_plots.py locality path/to/data/
 
-# Fig. 6: Parallel performance of REACH vs saturation
-$ python scripts/generate_plots.py parallel path/to/data/
-
-# Fig. ?: Parallel performance scatter plots
+# Fig. ??: Parallel performance scatter plots
 $ python scripts/generate_plots.py parallel-scatter path/to/data/
 ```
