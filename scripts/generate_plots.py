@@ -745,7 +745,7 @@ def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
     ax, meta = _plot_time_comp('cores', ax, 'sl-bdd', 'sl-bdd', 
                                 x_cores, y_cores, strat, 
                                 min_time=min_time, 
-                                join_type='inner',
+                                join_type='outer',
                                 add_merge_time=add_merge_time)
 
     # plot diagonal lines
@@ -789,7 +789,10 @@ def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_m
     if (plot_half == 'both'):
         scaling = 4.8 # default = ~6.0
         w = 1.6 # relative width
-    else:
+    elif (plot_half == 'top'):
+        scaling = 4.6
+        w = 1.7
+    elif (plot_half == 'bottom'):
         scaling = 4.6
         w = 1.7
     fig, axs = plt.subplots(1, 2, sharey=True, figsize=(w*scaling, scaling*0.75))
@@ -817,6 +820,9 @@ def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_m
     _yc = 'core' if y_cores == 1 else 'cores'
     x_label = 'Reachability time (s), {} {}'.format(x_cores, _xc)
     y_label = 'Reachability time (s), {} {}'.format(y_cores, _yc)
+    if (plot_half == 'top'):
+        axs[0].set_xticks([])
+        axs[1].set_xticks([])
     if (plot_half == 'bottom' or plot_half == 'both'):
         fig.text(0.54, 0.01, x_label, ha='center', fontsize=12)
     axs[0].set_ylabel(y_label, fontsize=12)
@@ -825,7 +831,12 @@ def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_m
         axs[0].set_title(axis_label[(strat0, 'bdd')])
         axs[1].set_title(axis_label[(strat1, 'bdd')])
         axs[0].legend(framealpha=1.0, fontsize=11)
-    plt.tight_layout(pad=0.2)
+    if (plot_half == 'top'):
+        plt.tight_layout(pad=0.2)
+    elif (plot_half == 'bottom'):
+        plt.tight_layout(pad=0.2)
+    else:
+        plt.tight_layout(pad=0.2)
     if (plot_half == 'bottom' or plot_half == 'both'):
         fig.subplots_adjust(bottom=0.15)
 
