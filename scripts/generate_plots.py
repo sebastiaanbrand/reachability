@@ -737,7 +737,8 @@ def _plot_parallel(strat1, strat2, strat3, data_label, min_time, plot_legend=Tru
     plt.close(fig)
 
 
-def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
+def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time, 
+                           write_speedups_only=False):
 
     scaling = 4.0 # default = ~6.0
     fig, ax = plt.subplots(figsize=(scaling, scaling*0.75))
@@ -745,8 +746,17 @@ def _plot_parallel_scatter(x_cores, y_cores, strat, min_time, add_merge_time):
     ax, meta = _plot_time_comp('cores', ax, 'sl-bdd', 'sl-bdd', 
                                 x_cores, y_cores, strat, 
                                 min_time=min_time, 
-                                join_type='outer',
+                                join_type='inner',
                                 add_merge_time=add_merge_time)
+    
+    if (write_speedups_only):
+        speedups = np.array(meta['xs']) / np.array(meta['ys'])
+        print(f"\tP50   = {np.percentile(speedups, 50)}")
+        print(f"\tP95   = {np.percentile(speedups, 95)}")
+        print(f"\tP99   = {np.percentile(speedups, 99)}")
+        print(f"\tP99.5 = {np.percentile(speedups, 99.5)}")
+        return
+    
 
     # plot diagonal lines
     ax = _plot_diagonal_lines(ax, meta['max_val'], meta['min_val'], at=[x_cores/y_cores])
@@ -1321,6 +1331,9 @@ def plot_all_parallel_scatter(data_folder, plot_cores):
     _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'top')
     _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'bottom')
 
+    for alg in ['sat', 'rec-par']:
+        print(f"Speedup for {alg} with {plot_cores} cores at Percentiles: ")
+        _plot_parallel_scatter(1, plot_cores, alg, min_time, False, True)
 
 def plot_all_locality_plots(data_folder):
     load_data(data_folder)
