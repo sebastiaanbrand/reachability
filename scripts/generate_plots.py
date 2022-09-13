@@ -49,7 +49,7 @@ stratIDs     = {'bfs' : 0,
 axis_label = {('bfs','bdd') : 'BFS',
               ('sat','bdd') : 'Saturation',
               ('rec','bdd') : 'Algorithm 1',
-              ('rec-par','bdd') : 'Algorithm 2',
+              ('rec-par','bdd') : 'ReachBDD-par',
               ('bfs','ldd') : 'BFS',
               ('sat','ldd') : 'Saturation',
               ('rec','ldd') : 'Algorithm 3',
@@ -861,6 +861,72 @@ def _plot_parallel_scatter_sbs(x_cores, y_cores, strat0, strat1, min_time, add_m
                                                           fig_format)
         fig.savefig(fig_name, dpi=300)
 
+def _plot_parallel_scatter_2x2(x_cores, y_cores0, y_cores1, strat0, strat1, min_time, add_merge_time):
+    
+    scaling = 5.5 # default = ~6.0
+    w = 1.1
+    fig, axs = plt.subplots(2, 2, sharey=True, sharex=True, figsize=(w*scaling, scaling))
+
+    # actually fill in the subplots
+    axs[0,0], meta00 = _plot_time_comp('cores', axs[0,0], 'sl-bdd', 'sl-bdd', 
+                                       x_cores, y_cores0, strat0,
+                                       min_time=min_time,
+                                       join_type='inner',
+                                       add_merge_time=add_merge_time)
+    axs[0,1], meta01 = _plot_time_comp('cores', axs[0,1], 'sl-bdd', 'sl-bdd', 
+                                       x_cores, y_cores0, strat1,
+                                       min_time=min_time,
+                                       join_type='inner',
+                                       add_merge_time=add_merge_time)
+    axs[1,0], meta10 = _plot_time_comp('cores', axs[1,0], 'sl-bdd', 'sl-bdd', 
+                                       x_cores, y_cores1, strat0,
+                                       min_time=min_time,
+                                       join_type='inner',
+                                       add_merge_time=add_merge_time)
+    axs[1,1], meta11 = _plot_time_comp('cores', axs[1,1], 'sl-bdd', 'sl-bdd', 
+                                       x_cores, y_cores1, strat1,
+                                       min_time=min_time,
+                                       join_type='inner',
+                                       add_merge_time=add_merge_time)
+    
+    # plot diagonal lines
+    max_val = max(meta00['max_val'], meta01['max_val'])
+    min_val = min(meta00['min_val'], meta01['min_val'])
+    axs[0,0] = _plot_diagonal_lines(axs[0,0], max_val, min_val, at=[x_cores/y_cores0])
+    axs[0,1] = _plot_diagonal_lines(axs[0,1], max_val, min_val, at=[x_cores/y_cores0])
+    axs[1,0] = _plot_diagonal_lines(axs[1,0], max_val, min_val, at=[x_cores/y_cores1])
+    axs[1,1] = _plot_diagonal_lines(axs[1,1], max_val, min_val, at=[x_cores/y_cores1])
+    
+    # labels and styling
+    # set axis labels+ legend
+    _xc  = 'core' if x_cores == 1 else 'cores'
+    _yc0 = 'core' if y_cores0 == 1 else 'cores'
+    _yc1 = 'core' if y_cores1 == 1 else 'cores'
+    x_label  = 'Reachability time (s), {} {}'.format(x_cores, _xc)
+    y_label0 = 'time (s), {} {}'.format(y_cores0, _yc0)
+    y_label1 = 'time (s), {} {}'.format(y_cores1, _yc1)
+    fig.text(0.54, 0.01, x_label, ha='center', fontsize=11)
+    axs[0,0].axes.xaxis.set_visible(False)
+    axs[0,1].axes.xaxis.set_visible(False)
+    axs[0,1].axes.yaxis.set_visible(False)
+    axs[1,1].axes.yaxis.set_visible(False)
+    axs[0,0].set_ylabel(y_label0, fontsize=11)
+    axs[1,0].set_ylabel(y_label1, fontsize=11)
+    axs[0,0].set_title(axis_label[(strat0, 'bdd')])
+    axs[0,1].set_title(axis_label[(strat1, 'bdd')])
+    axs[0,0].legend(framealpha=1.0, fontsize=10)
+    plt.tight_layout(pad=0.2)
+    plt.subplots_adjust(wspace=0.02, hspace=0.02)
+    fig.subplots_adjust(bottom=0.09)
+
+    # plots without data-point lables
+    for fig_format in fig_formats:
+        subfolder = plots_folder.format(fig_format)
+        fig_name = '{}reachtime_par_2x2_cores_incMergeTime{}.{}'.format(subfolder,
+                                                          add_merge_time,
+                                                          fig_format)
+        fig.savefig(fig_name, dpi=300)
+
 
 def plot_merge_overhead(data_label):
     info("plotting relative merge overhead for {}".format(data_label))
@@ -1326,10 +1392,11 @@ def plot_all_parallel_scatter(data_folder, plot_cores):
     min_time = 0.1
 
     print(f"Writing plots to {plots_folder}")
-    _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, True)
-    _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False)
-    _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'top')
-    _plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'bottom')
+    _plot_parallel_scatter_2x2(1, 64, 16, 'sat', 'rec-par', min_time, False)
+    #_plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, True)
+    #_plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False)
+    #_plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'top')
+    #_plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'bottom')
 
     for alg in ['sat', 'rec-par']:
         print(f"Speedup for {alg} with {plot_cores} cores at Percentiles: ")
