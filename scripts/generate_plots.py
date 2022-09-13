@@ -1039,6 +1039,12 @@ def plot_its_vs_dd(its_type):
     xs[np.isnan(xs)] = maxtime*factor
     ys[np.isnan(ys)] = maxtime*factor
 
+    # at_least_one_finishes == all - both_timout
+    at_least_one_finishes = len(ys) - np.sum(xs == ys)
+    print(f"# of instances where at least one finishes: {at_least_one_finishes} ")
+    print(f"REACH faster: {(np.sum(xs > ys) / at_least_one_finishes)*100}% of instances")
+    print(f"ITS faster:   {(np.sum(xs < ys) / at_least_one_finishes)*100}% of instances")
+
     # scatter plot
     ax.scatter(xs, ys, s=s, marker=m, facecolors=fc, edgecolors=ec, label=legend_names['ptri'])
     all_names = joined['benchmark']
