@@ -78,11 +78,10 @@ def parse_args():
     which_plot = sys.argv[1]
 
     data_folder = None
-    if (which_plot != 'its'):
-        if (len(sys.argv) <= 2):
-            print("argument 2 (path to data folder) missing")
-            exit()
-        data_folder = sys.argv[2]
+    if (len(sys.argv) <= 2):
+        print("argument 2 (path to data folder) missing")
+        exit()
+    data_folder = sys.argv[2]
     
     plot_cores = 0
     if (which_plot == 'parallel-scatter'):
@@ -173,9 +172,9 @@ def load_its_data(its_type):
 
     return its_data
 
-def load_pnml_encode_data():
+def load_pnml_encode_data(data_folder):
     # load csv
-    data = pd.read_csv('bench_data/for_paper/reach-vs-its/reach/pnml_encode_time_ldd_hmorph.csv')
+    data = pd.read_csv(f'{data_folder}/reach/pnml_encode_time_ldd_hmorph.csv')
 
     # some pre-processing
     data.columns = data.columns.str.strip()
@@ -996,9 +995,9 @@ def plot_merge_overhead(data_label):
     plt.close(fig)
 
 
-def plot_its_vs_dd(its_type):
+def plot_its_vs_dd(data_folder, its_type):
     data_its = load_its_data(its_type)
-    data_dd  = load_pnml_encode_data()
+    data_dd  = load_pnml_encode_data(data_folder)
     
     # select relevant subset
     data_its = data_its.loc[data_its['type'] == its_type]
@@ -1364,9 +1363,9 @@ def plot_paper_plot_merge_overhead(subfolder):
     plot_merge_overhead('sl-ldd')
 
 
-def plot_paper_plot_its_tools_vs_dds():
+def plot_paper_plot_its_tools_vs_dds(data_folder):
     set_subfolder_name('all/ITS-Tools vs LDDs with hmorph nodes')
-    plot_its_vs_dd('.gal')
+    plot_its_vs_dd(data_folder, '.gal')
     #plot_its_vs_dd('.img.gal')
     #plot_its_vs_dd_deadlocks('sl-bdd', 'rec', 'RD')
 
@@ -1446,7 +1445,7 @@ if __name__ == '__main__':
     elif (which_plot == 'locality'): # bench_data/all/single_worker/10m/bdds_and_ldds_w_copy/
         plot_all_locality_plots(data_folder)
     elif (which_plot == 'its'):
-        plot_paper_plot_its_tools_vs_dds()
+        plot_paper_plot_its_tools_vs_dds(data_folder)
     elif (which_plot == 'static'):
         plot_static_vs_otf(data_folder)
     else:

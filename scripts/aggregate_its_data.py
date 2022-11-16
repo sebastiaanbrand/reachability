@@ -1,8 +1,9 @@
 import os
+import sys
 
 look_for = 'Model ,|S| ,Time ,Mem(kb) ,fin. SDD ,fin. DDD ,peak SDD ,peak DDD ,SDD Hom ,SDD cache peak ,DDD Hom ,DDD cachepeak ,SHom cache\n'
 
-output_file = 'bench_data/reach-vs-its/its_tools_petrinets.csv'
+output_file = '{}its_tools_petrinets.csv'
 
 def write_header():
     with open(output_file, 'w') as f:
@@ -20,7 +21,7 @@ def process_line(data_line):
     return [0, 0, time, memory, states]
 
 def load_file(folder, filename):
-    print("processing {}{}".format(folder, filename))
+    #print("processing {}{}".format(folder, filename))
     with open(folder + filename, 'r') as f:
         lines = f.readlines()
         for index, line in enumerate(lines):
@@ -42,9 +43,17 @@ def load_file(folder, filename):
 
 def process_data(folder):
     write_header()
+    print("Aggregating individual output files...")
     for filename in sorted(os.listdir(folder)):
         load_file(folder, filename)
+    print(f"Written aggregated results to {output_file}")
 
 
 if __name__ == '__main__':
-    process_data('bench_data/reach-vs-its/its_tools/')
+
+    if (len(sys.argv) <= 1):
+        print("Please the bench data folder which contains a folder its_tools/ with the output logs (possibly 'bench_data/reach-vs-its/')")
+        exit(1)
+    data_folder = sys.argv[1]
+    output_file = output_file.format(data_folder)
+    process_data(f'{data_folder}its_tools/')

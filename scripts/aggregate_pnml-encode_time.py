@@ -1,6 +1,5 @@
 # This script combines the wall times for encoding the hmorph LDDs (mostly
 # negligible) and the wall time for running REACH on them.
-
 import os
 import sys
 

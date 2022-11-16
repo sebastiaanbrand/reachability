@@ -3,7 +3,7 @@
 # script to run reachability benchmarks with ITSTools
 # (run from root of repo, i.e. outside of scripts/ folder)
 
-# usage: bash scripts/bench_itstools.sh [beem|petri]
+# usage: bash scripts/bench_itstools.sh
 
 maxtime=10m
 
@@ -25,11 +25,8 @@ while getopts "t:o:" opt; do
   esac
 done
 
-# process arguments for running subset of all benchmarks
-for var in "$@"; do
-    if [[ $var == 'petri' ]]; then bench_petri=true; fi
-    if [[ $var == 'beem' ]]; then bench_beem=true; fi
-done
+# just bench petri
+bench_petri=true
 
 # some info before starting benchmarks
 echo "timeout per run is $maxtime"
