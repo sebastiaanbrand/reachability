@@ -1,11 +1,13 @@
-# Decision diagram operation for reachability
+# A decision diagram operation for reachability
 
 ## Files
-* In `reach_algs/`, `bddmc.c` and `lddmc.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (line 847 in [bddmc.c](reach_algs/bddmc.c) and line 631 in [ldd_custom.c](reach_algs/ldd_custom.c)).
+* In `reach_algs/`, `bddmc.c` and `lddmc.c + ldd_custom.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (line 847 in [bddmc.c](reach_algs/bddmc.c) and line 631 in [ldd_custom.c](reach_algs/ldd_custom.c)).
 * `scripts/` contains a number of scripts for benchmarking and plotting.
 * `sylvan/` contains the source of Sylvan. (For compatibility reasons we include a specific version of Sylvan rather than using an installed version.)
 
 ## Running the code
+
+NOTE: steps 1 and 2 can be skipped when using the Docker image provided here (TODO: Zenodo link).
 
 ### 1. Dependencies
 For Ubuntu, the relevant dependencies can be installed with the following after running `sudo apt update`.
@@ -30,14 +32,14 @@ Run `./compile_sources.sh` to (re)compile. This creates, in `reach_algs/build/`,
 
 ### 4. Running on individual models
 From the root of the repository, the following runs REACH and saturation on the `adding.1.bdd` model with 1 worker/thread. Note that REACH requires `--merge-relations` to merge the partial relations.
-```bash
+```shell
 $ ./reach_algs/build/bddmc models/beem/bdds/sloan/adding.1.bdd -s rec --merge-relations -w 1
 
 $ ./reach_algs/build/bddmc models/beem/bdds/sloan/adding.1.bdd -s sat -w 1
 ```
 
 And similarly for running REACH for the LDDs:
-```bash
+```shell
 $ ./reach_algs/build/lddmc models/beem/ldds/sloan/adding.1.ldd -s rec --merge-relations -w 1
 
 $ ./reach_algs/build/lddmc models/beem/ldds/sloan/adding.1.ldd -s sat -w 1
@@ -45,14 +47,14 @@ $ ./reach_algs/build/lddmc models/beem/ldds/sloan/adding.1.ldd -s sat -w 1
 
 ### 5a. Reproducing experiments (subset)
 
-* To generate (a small subset of) the data used for Figures ?? and ?? in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
-```
+* To generate a small subset of the data used for Figures 4 and 6 in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
+```shell
 $ ./scripts/bench_subset.sh -n 10 small
 ``` 
 
-* To generate (a small subset of) the data used for Figure ?? in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
-```
-$ ./scripts/bench_subset.sh -n 10 -w "1 8" test-par-only small
+* To reproduce the data in Figure 5 in the paper, a machine with (at least) 64 cores is required. Here we provide a command to run a small scale version of this (a subset of benchmarks and fewer  (4) cores).
+```shell
+$ ./scripts/bench_subset.sh -n 10 -w "1 4" test-par-only small
 ```
 
 The results of these benchmarks are written to `bench_data/subset/*/` as csv data. Running these commands multiple times appends the results of the new run to that of earlier runs.
@@ -60,34 +62,42 @@ The results of these benchmarks are written to `bench_data/subset/*/` as csv dat
 ### 5b. Reproducing experiments (full)
 From the root of the repository:
 
-* To generate the data used for Figures ?? and ?? in the paper, run 
-```
+* To generate the data used for Figures 4 and 6 in the paper, run 
+```shell
 $ ./scripts/bench_all.sh -t 10m bdd ldd beem-sloan petri-sloan promela-sloan
 ```
 
 
-* To generate the data used for Figure ?? (8 core) in the paper, run 
-```
-$ ./scripts/bench_all.sh -w "1 8" test-par-only bdd beem-sloan petri-sloan promela-sloan`
+* To reproduce the data in Figure 5 in the paper, a machine with (at least) 64 cores is required. To generate the data, run
+```shell
+$ ./scripts/bench_all.sh -w "1 16 64" test-par-only bdd beem-sloan petri-sloan promela-sloan`
 ```
 
-* To generate the data used for Figure ?? (64 core), run 
-```
-$ ./scripts/bench_subset.sh -n 50 -w "1 64" -t 30m test-par-only
-```
 
 The results of these benchmarks are written to `bench_data/all/*/` as csv data.
+
+
+TODO: add instructions for Fig 7.
+```shell
+TODO
+```
 
 ### 6. Generating plots
 The following can be used to generate plots. The `path/to/data/` argument is the path to the data generated in step 5. (The benchmark script lets you know which folder this is.)
 
 ```bash
-# Fig. ??: REACH vs saturation
+# Fig. 4: REACH vs saturation
 $ python scripts/generate_plots.py saturation path/to/data/
 
-# Fig. ??: Effect of locality
+# Fig. 6: Effect of locality
 $ python scripts/generate_plots.py locality path/to/data/
 
-# Fig. ??: Parallel performance scatter plots
+# Fig. 5: Parallel performance scatter plots
 $ python scripts/generate_plots.py parallel-scatter path/to/data/
+```
+
+To generate the plot for Figure 7, some post-processing of the data obtained in step 5 is first required:
+
+```shell
+TODO
 ```
