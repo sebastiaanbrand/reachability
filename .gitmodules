@@ -1,3 +1,0 @@
-[submodule "extern/ltsmin"]
-	path = extern/ltsmin
-	url = https://github.com/alaarman/ltsmin.git
