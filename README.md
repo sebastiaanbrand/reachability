@@ -61,6 +61,11 @@ $ ./scripts/bench_subset.sh -n 10 small
 $ ./scripts/bench_subset.sh -n 10 -w "1 4" test-par-only small
 ```
 
+* To generate a small subset of the data used for Figure 7 in the paper, run:
+```shell
+TODO: make script to run subsets for Figure 7
+```
+
 The results of these benchmarks are written to `bench_data/subset/*/` as csv data. Running these commands multiple times appends the results of the new run to that of earlier runs.
 
 ### 5b. Reproducing experiments (full)
