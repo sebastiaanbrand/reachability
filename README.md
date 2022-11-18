@@ -85,7 +85,7 @@ $ ./scripts/bench_subset.sh -n 10 -w "1 4" -o subset/parallel test-par-only smal
 The results of these benchmarks are written to `bench_data/subset/*/` as csv data. Running these commands multiple times appends the results of the new run to that of earlier runs.
 
 #### 5b. Reproducing experiments (full)
-From the root of the repository:
+
 
 * To generate the data used for Figures 4 and 6 in the paper, run 
 ```shell
