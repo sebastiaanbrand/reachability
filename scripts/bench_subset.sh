@@ -176,43 +176,43 @@ fi # $test_bdd == true
 
 if [[ $test_ldd == true ]]; then
 
-# BEEM, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# BEEM, Sloan LDDs
 if [[ $num_workers == 1 ]]; then
   $head_or_shuf -n $amount $beem_ldd_list | while read filename; do
-    filepath=models/beem/ldds/sloan/overapprox/$filename
+    filepath=models/beem/ldds/sloan/$filename
     for nw in $num_workers; do
         if [[ $test_bfs ]]; then
           timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
         fi
-        timeout $maxtime ./$lddmc models/beem/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
+        timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$beem_sl_stats_ldd
         timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$beem_sl_stats_ldd
     done
   done
 fi
 
-# Petri nets, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# Petri nets, Sloan LDDs
 if [[ $num_workers == 1 ]]; then
   $head_or_shuf -n $amount $petri_ldd_list | while read filename; do
-    filepath=models/petrinets/ldds/sloan/overapprox/$filename
+    filepath=models/petrinets/ldds/sloan/$filename
     for nw in $num_workers; do
         if [[ $test_bfs ]]; then
           timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
         fi
-        timeout $maxtime ./$lddmc models/petrinets/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
+        timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$petri_sl_stats_ldd
         timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$petri_sl_stats_ldd
     done
   done
 fi
 
-# Promela, Sloan LDDs (merging relation for BFS and REC requires overapproximated LDDs)
+# Promela, Sloan LDDs
 if [[ $num_workers == 1 ]]; then
   $head_or_shuf -n $amount $promela_ldd_list | while read filename; do
-    filepath=models/promela/ldds/sloan/overapprox/$filename
+    filepath=models/promela/ldds/sloan/$filename
       for nw in $num_workers; do
           if [[ $test_bfs ]]; then
             timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=bfs --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
           fi
-          timeout $maxtime ./$lddmc models/promela/ldds/sloan/$(basename $filepath) --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
+          timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=sat --count-nodes --statsfile=$promela_sl_stats_ldd
           timeout $maxtime ./$lddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes --statsfile=$promela_sl_stats_ldd
       done
   done
