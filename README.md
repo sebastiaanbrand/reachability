@@ -78,10 +78,7 @@ $ ./scripts/bench_subset.sh -n 10 -o subset/reach-vs-saturation small
 $ ./scripts/bench_subset.sh -n 10 -w "1 4" -o subset/parallel test-par-only small
 ```
 
-* To generate a small subset of the data used for Figure 7 in the paper, run:
-```shell
-TODO: make script to run subsets for Figure 7
-```
+*  The current organization of different benchmark scripts makes it very difficult to run a subset of experiments for Figure 7. As of now, only instructions for running the full experiments for this figure are available.
 
 The results of these benchmarks are written to `bench_data/subset/*/` as csv data. Running these commands multiple times appends the results of the new run to that of earlier runs.
 
@@ -102,8 +99,8 @@ $ ./scripts/bench_all.sh -t 10m -w "1 16 64" -o full/parallel test-par-only bdd 
 
 * To reproduce the data in Figure 7 in the paper, run
 ```shell
-$ ./scripts/bench_itstools.sh -o reach-vs-its/its_tools
-$ ./scripts/bench_all.sh -t -o reach-vs-its/reach -t 10m ldd-static petri-sloan
+$ ./scripts/bench_itstools.sh -o full/reach-vs-its/its_tools
+$ ./scripts/bench_all.sh -t -o full/reach-vs-its/reach -t 10m ldd-static petri-sloan
 ```
 
 The results of these benchmarks are written to `bench_data/full/*/` as csv data.
@@ -129,11 +126,6 @@ $ python scripts/generate_plots.py parallel-scatter bench_data/subset/parallel/ 
 $ python scripts/aggregate_pnml-encode_time.py bench_data/full/reach-vs-its/reach/
 $ python scripts/aggregate_its_data.py bench_data/full/reach-vs-its/
 $ python scripts/generate_plots.py its bench_data/full/reach-vs-its/
-
-# Fig. 7: comparison with ITS (subset)
-$ python scripts/aggregate_pnml-encode_time.py bench_data/subset/reach-vs-its/reach/
-$ python scripts/aggregate_its_data.py bench_data/subset/reach-vs-its/
-$ python scripts/generate_plots.py its bench_data/subset/reach-vs-its/
 ```
 
 **TODO**: entire pipeline for Fig. 7 needs to be double checked
