@@ -340,6 +340,8 @@ def get_matrix_metrics(bench_names, data_label, metric):
     for i, bench_name in enumerate(bench_names):
         filepath = matrix_folders[data_label] + bench_name + ".matrix"
         metrics[i] = process_matrix(filepath, metric)
+        print(f"{i+1}/{len(bench_names)}\r", end='')
+    print()
     return metrics
 
 
