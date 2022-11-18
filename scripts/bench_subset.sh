@@ -10,13 +10,15 @@ amount=10
 bddmc=reach_algs/build/bddmc
 lddmc=reach_algs/build/lddmc
 
-while getopts "w:t:n:" opt; do
+while getopts "w:t:n:o:" opt; do
   case $opt in
     w) num_workers="$OPTARG"
     ;;
     t) maxtime="$OPTARG"
     ;;
     n) amount="$OPTARG"
+    ;;
+    o) custom_folder=bench_data/"$OPTARG"; overwrite_folder=true;
     ;;
     \?) echo "Invalid option -$OPTARG" >&1; exit 1;
     ;;
@@ -66,6 +68,11 @@ elif [[ $num_workers == "1 96" ]]; then
 else
   outputfolder=bench_data/subset/par
 fi
+
+if [[ $overwrite_folder ]]; then
+    outputfolder=$custom_folder
+fi
+
 mkdir -p $outputfolder
 
 if [[ $deadlocks ]]; then

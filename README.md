@@ -49,16 +49,33 @@ $ ./reach_algs/build/lddmc models/beem/ldds/sloan/adding.1.ldd -s rec --merge-re
 $ ./reach_algs/build/lddmc models/beem/ldds/sloan/adding.1.ldd -s sat -w 1
 ```
 
-### 5a. Reproducing experiments (subset)
+### 5. Reproducing experiments
+
+The instructions in this README are set up to produce output data in the following directory structure.
+
+```
+bench_data/
+├─ full/
+|  ├─ parallel/                 # Fig. 5
+|  ├─ reach-vs-its/             # Fig. 7
+|  |  ├─ reach/
+|  |  ├─ its/
+|  ├─ reach-vs-saturation/      # Fig. 4, 6
+├─ subset/
+|  # same subfolders as full/
+```
+
+
+#### 5a. Reproducing experiments (subset)
 
 * To generate a small subset of the data used for Figures 4 and 6 in the paper, run the command below. This runs (for each dataset; BEEM, Petri, Promela) a random selection of 10 small instances.
 ```shell
-$ ./scripts/bench_subset.sh -n 10 small
+$ ./scripts/bench_subset.sh -n 10 -o subset/reach-vs-saturation small
 ``` 
 
-* To reproduce the data in Figure 5 in the paper, a machine with (at least) 64 cores is required. Here we provide a command to run a small scale version of this (a subset of benchmarks and fewer  (4) cores).
+* To reproduce the data in Figure 5 in the paper, a machine with (at least) 64 cores is required. Here we provide a command to run a small scale version of this (a subset of small instances and fewer (4) cores). Note that running for 1 core is required, since the plots show "1 core vs n cores".
 ```shell
-$ ./scripts/bench_subset.sh -n 10 -w "1 4" test-par-only small
+$ ./scripts/bench_subset.sh -n 10 -w "1 4" -o subset/parallel test-par-only small
 ```
 
 * To generate a small subset of the data used for Figure 7 in the paper, run:
@@ -68,57 +85,56 @@ TODO: make script to run subsets for Figure 7
 
 The results of these benchmarks are written to `bench_data/subset/*/` as csv data. Running these commands multiple times appends the results of the new run to that of earlier runs.
 
-### 5b. Reproducing experiments (full)
+#### 5b. Reproducing experiments (full)
 From the root of the repository:
 
 * To generate the data used for Figures 4 and 6 in the paper, run 
 ```shell
-$ ./scripts/bench_all.sh -t 10m bdd ldd beem-sloan petri-sloan promela-sloan
+$ ./scripts/bench_all.sh -t 10m -o full/reach-vs-saturation bdd ldd beem-sloan petri-sloan promela-sloan
 ```
 
 
 * To reproduce the data in Figure 5 in the paper, a machine with (at least) 64 cores is required. To generate the data, run
 ```shell
-$ ./scripts/bench_all.sh -w "1 16 64" test-par-only bdd beem-sloan petri-sloan promela-sloan`
+$ ./scripts/bench_all.sh -t 10m -w "1 16 64" -o full/parallel test-par-only bdd beem-sloan petri-sloan promela-sloan
 ```
 
 
-The results of these benchmarks are written to `bench_data/all/*/` as csv data.
-
-
-Running experiments for the comparison with ITS-tools (Fig. 7) is more involved
-(could install ltsmin in docker img, but instead prob easier to assume pnml-encode ldds (+encode time) as given)
-```
-omitted:
-    - pnml-encode step (pnml-encoded ldds are given)
-```
-
-To run reachability with ITS and REACH respectively run
+* To reproduce the data in Figure 7 in the paper, run
 ```shell
 $ ./scripts/bench_itstools.sh -o reach-vs-its/its_tools
-$ ./scripts/bench_all.sh -t -o reach-vs-its/reach 10m ldd-static petri-sloan
+$ ./scripts/bench_all.sh -t -o reach-vs-its/reach -t 10m ldd-static petri-sloan
 ```
+
+The results of these benchmarks are written to `bench_data/full/*/` as csv data.
+
 
 ### 6. Generating plots
-The following can be used to generate plots. The `path/to/data/` argument is the path to the data generated in step 5. (The benchmark script lets you know which folder this is.)
+The following can be used to generate plots. Commands are given both for plotting full data and subset.
 
 ```bash
-# Fig. 4: REACH vs saturation
-$ python scripts/generate_plots.py saturation path/to/data/
+# Fig. 4: REACH vs saturation (full and subset)
+$ python scripts/generate_plots.py saturation bench_data/full/reach-vs-saturation/
+$ python scripts/generate_plots.py saturation bench_data/subset/reach-vs-saturation/
 
-# Fig. 6: Effect of locality
-$ python scripts/generate_plots.py locality path/to/data/
+# Fig. 6: Effect of locality (full and subset)
+$ python scripts/generate_plots.py locality bench_data/full/reach-vs-saturation/
+$ python scripts/generate_plots.py locality bench_data/subset/reach-vs-saturation/
 
-# Fig. 5: Parallel performance scatter plots
-$ python scripts/generate_plots.py parallel-scatter path/to/data/
-```
+# Fig. 5: Parallel performance scatter plots (full and subset for 4 cores)
+$ python scripts/generate_plots.py parallel-scatter bench_data/full/parallel/
+$ python scripts/generate_plots.py parallel-scatter bench_data/subset/parallel/ 4
 
-To generate the plot for Figure 7, some post-processing of the data obtained in step 5 is first required:
+# Fig. 7: comparison with ITS (full)
+$ python scripts/aggregate_pnml-encode_time.py bench_data/full/reach-vs-its/reach/
+$ python scripts/aggregate_its_data.py bench_data/full/reach-vs-its/
+$ python scripts/generate_plots.py its bench_data/full/reach-vs-its/
 
-```shell
-$ python scripts/aggregate_pnml-encode_time.py bench_data/reach-vs-its/reach/
-$ python scripts/aggregate_its_data.py bench_data/reach-vs-its/
-$ python scripts/generate_plots.py its bench_data/reach-vs-its/
+# Fig. 7: comparison with ITS (subset)
+$ python scripts/aggregate_pnml-encode_time.py bench_data/subset/reach-vs-its/reach/
+$ python scripts/aggregate_its_data.py bench_data/subset/reach-vs-its/
+$ python scripts/generate_plots.py its bench_data/subset/reach-vs-its/
 ```
 
 **TODO**: entire pipeline for Fig. 7 needs to be double checked
+**TODO**: probably also double check for other figures
