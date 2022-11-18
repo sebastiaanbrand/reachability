@@ -7,7 +7,9 @@
 
 ## Running the code
 
-NOTE: steps 1 and 2 can be skipped when using the Docker image provided here (**TODO**: Zenodo link).
+NOTE: steps 1 and 2 can be skipped when using the Docker image provided here: 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7333633.svg)](https://doi.org/10.5281/zenodo.7333633)
 
 ### 1. Dependencies
 For Ubuntu, the relevant dependencies can be installed with the following after running `sudo apt update`.
