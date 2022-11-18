@@ -122,7 +122,7 @@ $ python scripts/generate_plots.py locality bench_data/full/reach-vs-saturation/
 $ python scripts/generate_plots.py locality bench_data/subset/reach-vs-saturation/
 
 # Fig. 5: Parallel performance scatter plots (full and subset for 4 cores)
-$ python scripts/generate_plots.py parallel-scatter bench_data/full/parallel/
+$ python scripts/generate_plots.py parallel-scatter bench_data/full/parallel/ 16 64
 $ python scripts/generate_plots.py parallel-scatter bench_data/subset/parallel/ 4
 
 # Fig. 7: comparison with ITS (full)

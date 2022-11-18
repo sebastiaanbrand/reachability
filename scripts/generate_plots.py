@@ -88,7 +88,9 @@ def parse_args():
         if (len(sys.argv) <= 3):
             print("argument 3 (number of cores to plot, e.g. 8) missing")
             exit()
-        plot_cores = int(sys.argv[3])
+        plot_cores = [int(sys.argv[3])]
+        if (len(sys.argv) >= 5):
+            plot_cores = [int(sys.argv[3]), int(sys.argv[4])]
     
     return which_plot, data_folder, plot_cores
 
@@ -1397,15 +1399,18 @@ def plot_all_parallel_scatter(data_folder, plot_cores):
     min_time = 0.1
 
     print(f"Writing plots to {plots_folder}")
-    _plot_parallel_scatter_2x2(1, 64, 16, 'sat', 'rec-par', min_time, False)
-    #_plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, True)
-    #_plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False)
-    #_plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'top')
-    #_plot_parallel_scatter_sbs(1, plot_cores, 'sat', 'rec-par', min_time, False, 'bottom')
+    if len(plot_cores) == 2:
+        _plot_parallel_scatter_2x2(1, plot_cores[1], plot_cores[0], 'sat', 'rec-par', min_time, False)
+    elif len(plot_cores) == 1:
+        #_plot_parallel_scatter_sbs(1, plot_cores[0], 'sat', 'rec-par', min_time, True)
+        _plot_parallel_scatter_sbs(1, plot_cores[0], 'sat', 'rec-par', min_time, False)
+        #_plot_parallel_scatter_sbs(1, plot_cores[0], 'sat', 'rec-par', min_time, False, 'top')
+        #_plot_parallel_scatter_sbs(1, plot_cores[0], 'sat', 'rec-par', min_time, False, 'bottom')
 
-    for alg in ['sat', 'rec-par']:
-        print(f"Speedup for {alg} with {plot_cores} cores at Percentiles: ")
-        _plot_parallel_scatter(1, plot_cores, alg, min_time, False, True)
+    for cores in plot_cores:
+        for alg in ['sat', 'rec-par']:
+            print(f"Speedup for {alg} with {cores} cores at Percentiles: ")
+            _plot_parallel_scatter(1, cores, alg, min_time, False, True)
 
 def plot_all_locality_plots(data_folder):
     load_data(data_folder)
