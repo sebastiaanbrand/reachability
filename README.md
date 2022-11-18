@@ -110,16 +110,22 @@ The results of these benchmarks are written to `bench_data/full/*/` as csv data.
 The following can be used to generate plots. Commands are given both for plotting full data and subset.
 
 ```bash
-# Fig. 4: REACH vs saturation (full and subset)
+# Fig. 4: REACH vs saturation (full)
 $ python scripts/generate_plots.py saturation bench_data/full/reach-vs-saturation/
+
+# Fig. 4: REACH vs saturation (subset)
 $ python scripts/generate_plots.py saturation bench_data/subset/reach-vs-saturation/
 
-# Fig. 6: Effect of locality (full and subset)
+# Fig. 6: Effect of locality (full)
 $ python scripts/generate_plots.py locality bench_data/full/reach-vs-saturation/
+
+# Fig. 6: Effect of locality (subset)
 $ python scripts/generate_plots.py locality bench_data/subset/reach-vs-saturation/
 
-# Fig. 5: Parallel performance scatter plots (full and subset for 4 cores)
+# Fig. 5: Parallel performance scatter plots (full)
 $ python scripts/generate_plots.py parallel-scatter bench_data/full/parallel/ 16 64
+
+# Fig. 5: Parallel performance scatter plots (subset for 4 cores)
 $ python scripts/generate_plots.py parallel-scatter bench_data/subset/parallel/ 4
 
 # Fig. 7: comparison with ITS (full)
