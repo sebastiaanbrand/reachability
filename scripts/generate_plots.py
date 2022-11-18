@@ -1341,7 +1341,7 @@ def plot_pnml_encode_tests(subfolder):
                     ylabel='REACH on pnml2lts-sym LDDs')
 
 def plot_paper_plot_locality(subfolder, add_merge_time):
-    set_subfolder_name(subfolder + '/Locality metric comparison (Figure 5)')
+    set_subfolder_name(subfolder + '/Locality metric comparison (Figure 6)')
     plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-avg-bw', 'rec-copy', add_merge_time)
     plot_rec_over_sat_vs_rel_metric('sl-bdd', 'rel-avg-bw', 'rec', add_merge_time)
     #plot_rec_over_sat_vs_rel_metric('sl-ldd', 'rel-max-bw', 'rec-copy', add_merge_time)
