@@ -64,7 +64,8 @@ bench_data/
 |  |  ├─ its/
 |  ├─ reach-vs-saturation/      # Fig. 4, 6
 ├─ subset/
-|  # same subfolders as full/
+|  ├─ parallel/
+|  ├─ reach-vs-saturation/
 ```
 
 
