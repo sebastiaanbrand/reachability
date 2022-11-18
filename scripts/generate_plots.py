@@ -1395,7 +1395,7 @@ def plot_all_parallel_scatter(data_folder, plot_cores):
     load_data(data_folder)
     pre_process()
     assert_states_nodes()
-    set_subfolder_name('all/Parallel speedups scatter')
+    set_subfolder_name('all/Parallel speedups scatter (Figure 5)')
 
     min_time = 0.1
 
@@ -1403,6 +1403,7 @@ def plot_all_parallel_scatter(data_folder, plot_cores):
     if len(plot_cores) == 2:
         _plot_parallel_scatter_2x2(1, plot_cores[1], plot_cores[0], 'sat', 'rec-par', min_time, False)
     elif len(plot_cores) == 1:
+        min_time = 0
         #_plot_parallel_scatter_sbs(1, plot_cores[0], 'sat', 'rec-par', min_time, True)
         _plot_parallel_scatter_sbs(1, plot_cores[0], 'sat', 'rec-par', min_time, False)
         #_plot_parallel_scatter_sbs(1, plot_cores[0], 'sat', 'rec-par', min_time, False, 'top')
