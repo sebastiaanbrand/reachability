@@ -506,6 +506,7 @@ def plot_comparison_sbs(x1_strat, x1_dd, y1_strat, y1_dd,
     axs[1].set_title('{}s'.format(x2_dd[-3:].upper()))
     axs[1].axes.yaxis.set_visible(False)
     axs[0].legend(framealpha=1.0, fontsize=11)
+    fig.text(0.54, 0.02, x_label, ha='center')
     plt.tight_layout(pad=0.2)
     fig.subplots_adjust(bottom=0.15)
 
