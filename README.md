@@ -103,7 +103,7 @@ $ ./scripts/bench_all.sh -t 10m -w "1 16 64" -o full/parallel test-par-only bdd 
 * To reproduce the data in Figure 7 in the paper, run
 ```shell
 $ ./scripts/bench_itstools.sh -o full/reach-vs-its/its_tools
-$ ./scripts/bench_all.sh -t -o full/reach-vs-its/reach -t 10m ldd-static petri-sloan
+$ ./scripts/bench_all.sh -t 10m -o full/reach-vs-its/reach -t 10m ldd-static petri-sloan
 ```
 
 The results of these benchmarks are written to `bench_data/full/*/` as csv data.
