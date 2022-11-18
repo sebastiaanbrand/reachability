@@ -158,12 +158,12 @@ def pre_process():
         n_workers.update(_workers)
 
 
-def load_its_data(its_type):
+def load_its_data(its_type, data_folder):
     # load csv
     if (its_type == 'RD'):
-        its_data = pd.read_csv('bench_data/for_paper/reach-vs-its/its/its_tools_petrinets_deadlocks.csv')
+        its_data = pd.read_csv(f'{data_folder}its_tools_petrinets_deadlocks.csv')
     else:
-        its_data = pd.read_csv('bench_data/for_paper/reach-vs-its/its/its_tools_petrinets.csv')
+        its_data = pd.read_csv(f'{data_folder}its_tools_petrinets.csv')
 
     # some pre-processing
     its_data.columns = its_data.columns.str.strip()
@@ -1001,7 +1001,7 @@ def plot_merge_overhead(data_label):
 
 
 def plot_its_vs_dd(data_folder, its_type):
-    data_its = load_its_data(its_type)
+    data_its = load_its_data(its_type, data_folder)
     data_dd  = load_pnml_encode_data(data_folder)
     
     # select relevant subset
