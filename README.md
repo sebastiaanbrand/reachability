@@ -1,8 +1,5 @@
 # A decision diagram operation for reachability
 
-* **TODO**: create + upload Docker image (with installed dependencies + models) to Zenodo (link already in this README)
-* **TODO**: make README with some Docker specific instructions
-
 This repository contains code corresponding to the paper "A decision diagram operation for reachability" (accepted at FM'23, **TODO:** link to the paper when it is available), and instructions how to reproduce the plots.
 
 ## Files
