@@ -3,6 +3,8 @@
 * **TODO**: create + upload Docker image (with installed dependencies + models) to Zenodo (link already in this README)
 * **TODO**: make README with some Docker specific instructions
 
+This repository contains code corresponding to the paper "A decision diagram operation for reachability" (accepted at FM'23, **TODO:** link to the paper when it is available), and instructions how to reproduce the plots.
+
 ## Files
 * In `reach_algs/`, `bddmc.c` and `lddmc.c + ldd_custom.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (line 847 in [bddmc.c](reach_algs/bddmc.c) and line 631 in [ldd_custom.c](reach_algs/ldd_custom.c)).
 * `scripts/` contains a number of scripts for benchmarking and plotting.
