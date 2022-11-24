@@ -1,6 +1,7 @@
 # A decision diagram operation for reachability
 
-This repository contains code corresponding to the paper "A decision diagram operation for reachability" (accepted at FM'23, **TODO:** link to the paper when it is available), and instructions how to reproduce the plots.
+This repository contains code corresponding to the paper "A decision diagram operation for reachability", as well as instructions how to reproduce the plots.
+(accepted at FM'23, **TODO:** link to the paper when it is available)
 
 ## Files
 * In `reach_algs/`, `bddmc.c` and `lddmc.c + ldd_custom.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (line 847 in [bddmc.c](reach_algs/bddmc.c) and line 631 in [ldd_custom.c](reach_algs/ldd_custom.c)).
