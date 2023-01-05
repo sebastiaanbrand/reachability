@@ -4,8 +4,7 @@
 #include <set>
 #include <sys/time.h>
 #include <sylvan_obj.hpp>
-//#include <sylvan.h>
-//#include <sylvan_int.h>
+
 #include "bdd_reach_algs.h"
 
 

@@ -1,6 +1,6 @@
 #include <stdbool.h>
 
-#include <sylvan_int.h>
+#include <sylvan.h>
 
 #ifdef __cplusplus
 namespace sylvan {

@@ -13,6 +13,8 @@
 
 #include "bdd_reach_algs.h"
 
+#include <sylvan_int.h>
+
 #include "getrss.h"
 #include "cache_op_ids.h"
 

@@ -1,6 +1,8 @@
 #include "bdd_reach_algs.h"
 #include "cache_op_ids.h"
 
+#include <sylvan_int.h>
+
 
 /**
  * Partition relation r into r00, r01, r10, and r11
