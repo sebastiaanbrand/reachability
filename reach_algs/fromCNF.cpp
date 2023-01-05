@@ -31,7 +31,7 @@ using namespace sylvan;
 
 
 BDD S, R, T; // initial states, relation, (optional) target states
-BDDSET vars; // state vars (i.e. vars of S)
+BDDSET vars; // state vars (i.e. vars of S) (even vars starting at 0)
 
 
 /**
@@ -100,7 +100,7 @@ int nvars_from_file(std::string filepath)
 
 
 /**
- * Converts a CNF object (set of sets) into a BDD.
+ * Converts a CNF object (set of sets) into a BDD (with vars starting at 0).
  */
 Bdd cnf_to_bdd(Cnf f)
 {
@@ -109,7 +109,7 @@ Bdd cnf_to_bdd(Cnf f)
         Bdd c = Bdd::bddZero();
         for (int lit : clause) {
             if (lit != 0) {
-                Bdd l = Bdd::bddVar(abs(lit));
+                Bdd l = Bdd::bddVar(abs(lit)-1); // -1 to start vars at 0
                 if (lit < 0) l = !l;
                 c = c | l;
             }
