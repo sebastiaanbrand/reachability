@@ -6,6 +6,8 @@
 #include <sylvan_obj.hpp>
 //#include <sylvan.h>
 //#include <sylvan_int.h>
+#include "bdd_reach_algs.h"
+
 
 typedef std::set<int> Clause;
 typedef std::set<Clause> Cnf;
@@ -25,11 +27,9 @@ static double t_start;
 #define INFO(s, ...) fprintf(stdout, "[% 8.2f] " s, wctime()-t_start, ##__VA_ARGS__)
 #define Abort(...) { fprintf(stderr, __VA_ARGS__); fprintf(stderr, "Abort at line %d!\n", __LINE__); exit(-1); }
 
+
 using namespace sylvan;
 
-extern "C" {
-#include "bdd_reach_algs.h"
-}
 
 BDD S, R, T; // initial states, relation, (optional) target states
 BDDSET vars; // state vars (i.e. vars of S)
