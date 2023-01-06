@@ -344,3 +344,26 @@ TASK_IMPL_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
 
     return res;
 }
+
+TASK_IMPL_3(BDD, go_bfs_plain, BDD, s, BDD, r, BDDSET, vars) 
+{
+    BDD reachable = s;
+    BDD prev = sylvan_false;
+    BDD successors = sylvan_false;
+
+    sylvan_protect(&reachable);
+    sylvan_protect(&prev);
+    sylvan_protect(&successors);
+
+    while (prev != reachable) {
+        prev = reachable;
+        successors = sylvan_relnext(reachable, r, vars);
+        reachable = sylvan_or(reachable, successors);
+    }
+
+    sylvan_unprotect(&reachable);
+    sylvan_unprotect(&prev);
+    sylvan_unprotect(&successors);
+
+    return reachable;
+}
