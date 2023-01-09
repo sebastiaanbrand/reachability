@@ -3,8 +3,10 @@
 This repository contains code corresponding to the paper "A decision diagram operation for reachability", as well as instructions how to reproduce the plots.
 (accepted at FM'23, **TODO:** link to the paper when it is available)
 
+This repository has since been updated. The exact code as it was at the time of the paper submission can be found [here](https://github.com/sebastiaanbrand/reachability/tree/9672c03076bb2f80b079b774bdb2332a594afcc6).
+
 ## Files
-* In `reach_algs/`, `bddmc.c` and `lddmc.c + ldd_custom.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (line 847 in [bddmc.c](reach_algs/bddmc.c) and line 631 in [ldd_custom.c](reach_algs/ldd_custom.c)).
+* In `reach_algs/`, `bddmc.c + bdd_reach_algs.c` and `lddmc.c + ldd_custom.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (in [bdd_reach_algs.c](reach_algs/bdd_reach_algs.c) and [ldd_custom.c](reach_algs/ldd_custom.c)).
 * `scripts/` contains a number of scripts for benchmarking and plotting.
 * `sylvan/` contains the source of Sylvan. (For compatibility reasons we include a specific version of Sylvan rather than using an installed version.)
 
