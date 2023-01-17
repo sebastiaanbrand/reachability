@@ -197,13 +197,17 @@ int nvars_from_file(std::string filepath)
 /**
  * Converts a CNF object (set of sets) into a BDD (with vars starting at 0).
  */
-Bdd cnf_to_bdd(Cnf f)
+Bdd cnf_to_bdd(Cnf f, bool is_state)
 {
     Bdd res = Bdd::bddOne();
     for (Clause clause : f){
         Bdd c = Bdd::bddZero();
         for (int lit : clause) {
             if (lit != 0) {
+                int var = abs(lit);
+                if (is_state && (var % 2 == 0)) {
+                    Abort("Found state var %d; all state vars should be odd\n", var)
+                }
                 Bdd l = Bdd::bddVar(abs(lit)-1); // -1 to start vars at 0
                 if (lit < 0) l = !l;
                 c = c | l;
@@ -225,9 +229,9 @@ void load_cnfs_to_bdds()
 
     // Convert CNFs to BDDs
     INFO("Converting CNFs to BDDs\n");
-    S = cnf_to_bdd(cnf_s).GetBDD();
-    R = cnf_to_bdd(cnf_r).GetBDD();
-    T = cnf_to_bdd(cnf_targ).GetBDD();
+    S = cnf_to_bdd(cnf_s, true).GetBDD();
+    R = cnf_to_bdd(cnf_r, false).GetBDD();
+    T = cnf_to_bdd(cnf_targ, true).GetBDD();
 
     // Get state vars (assumes state vars = [0, 2, 4, ...,2*(n-1)])
     int nvars = nvars_from_file(s_file);
@@ -264,6 +268,7 @@ int main(int argc, char** argv)
     load_cnfs_to_bdds();
 
     INFO("Computing reachability...\n");
+    int nsteps = 0;
     BDD reachable = sylvan_false;
     if (strategy == strat_reach) {
         double t1 = wctime();
@@ -275,23 +280,29 @@ int main(int argc, char** argv)
         INFO("REACH Time: %f\n", stats.reach_time);
     } else if (strategy == strat_bfs) {
         double t1 = wctime();
-        reachable = simple_bfs(S, R, vars);
+        int steps = 0;
+        reachable = simple_bfs(S, R, T, vars, &nsteps);
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("BFS Time: %f\n", stats.reach_time);
     } else {
         Abort("Invalid strategy set?!\n");
     }
-    
-    double nstates = sylvan_satcount(reachable, vars);
-    INFO("Reachable states: %'0.0f state(s)\n", nstates);
 
-    if (T != sylvan_false) {
-        BDD intersection = sylvan_and(reachable, T);
-        if (intersection == sylvan_false) {
-            INFO("Target state is not reachable\n");
-        } else {
-            INFO("Target state is reachable\n");
+
+    double nstates = sylvan_satcount(reachable, vars);
+    INFO("Explored states: %'0.0f state(s)\n", nstates);
+    if (nsteps >= 1) {
+        INFO ("Target is reachable in %d step(s)\n", nsteps);
+    }
+    else {
+        if (T != sylvan_false) {
+            BDD intersection = sylvan_and(reachable, T);
+            if (intersection == sylvan_false) {
+                INFO("Target state is not reachable\n");
+            } else {
+                INFO("Target state is reachable\n");
+            }
         }
     }
 

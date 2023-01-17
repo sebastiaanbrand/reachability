@@ -345,7 +345,7 @@ TASK_IMPL_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
     return res;
 }
 
-TASK_IMPL_3(BDD, go_bfs_plain, BDD, s, BDD, r, BDDSET, vars) 
+TASK_IMPL_5(BDD, go_bfs_plain, BDD, s, BDD, r, BDD, t, BDDSET, vars, int*, steps) 
 {
     BDD reachable = s;
     BDD prev = sylvan_false;
@@ -355,10 +355,17 @@ TASK_IMPL_3(BDD, go_bfs_plain, BDD, s, BDD, r, BDDSET, vars)
     sylvan_protect(&prev);
     sylvan_protect(&successors);
 
+    int k = 0;
     while (prev != reachable) {
+        k++;
         prev = reachable;
         successors = sylvan_relnext(reachable, r, vars);
         reachable = sylvan_or(reachable, successors);
+
+        if (sylvan_and(t, reachable)) {
+            *steps = k;
+            break;
+        }
     }
 
     sylvan_unprotect(&reachable);
