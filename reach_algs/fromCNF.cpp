@@ -142,7 +142,7 @@ Cnf cnf_from_file(std::string filepath)
             Clause clause;
             std::istringstream ss(line);
             while (ss >> token) {
-                if (token == "p" || token == "cnf") {
+                if (token == "c" || token == "p") {
                     break;
                 }
                 int lit = std::stoi(token);
