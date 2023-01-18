@@ -27,11 +27,14 @@ std::string s_file, r_file, t_file;
 BDD S, R, T; // initial states, relation, (optional) target states
 BDDSET vars; // state vars (i.e. vars of S) (even vars starting at 0)
 
+std::string stats_filename; // filename of csv stats output file
+
 /* argp configuration */
 static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=1)", 0},
     {"strategy", 's', "<bfs|reach>", 0, "Strategy for reachability (default=bfs)", 0},
+    {"statsfile", 7, "FILENAME", 0, "Write stats to given filename (or append if exists)", 0},
     {0, 0, 0, 0, 0, 0}
 };
 
@@ -46,6 +49,9 @@ parse_opt(int key, char *arg, struct argp_state *state)
         if (strcmp(arg, "bfs")==0) strategy = strat_bfs;
         else if (strcmp(arg, "reach")==0) strategy = strat_reach;
         else argp_usage(state);
+        break;
+    case 7:
+        stats_filename = arg;
         break;
     case ARGP_KEY_ARG:
         if (state->arg_num == 0) s_file = arg;
@@ -66,6 +72,9 @@ static struct argp argp = { options, parse_opt, "<s.cnf> <r.cnf> <t.cnf>", 0, 0,
 
 typedef struct stats {
     double reach_time;
+    double load_time;
+    int reachable;
+    int nsteps;
 } stats_t;
 stats_t stats = {0};
 
@@ -221,6 +230,8 @@ Bdd cnf_to_bdd(Cnf f, bool is_state)
 
 void load_cnfs_to_bdds()
 {
+    double t1 = wctime();
+
     // Get S, R, and T
     INFO("Loading CNFs from files\n");
     Cnf cnf_s = cnf_from_file(s_file);
@@ -243,6 +254,9 @@ void load_cnfs_to_bdds()
         vars_arr[i] = 2*i;
     }
     vars = sylvan_set_fromarray(vars_arr, nvars);
+
+    double t2 = wctime();
+    stats.load_time = t2-t1;
 
     INFO("Source set has %'0.0f state(s)\n", sylvan_satcount(S, vars));
     INFO("Target set has %'0.0f state(s)\n", sylvan_satcount(T, vars));
@@ -268,7 +282,8 @@ int main(int argc, char** argv)
     load_cnfs_to_bdds();
 
     INFO("Computing reachability...\n");
-    int nsteps = 0;
+    stats.reachable = 0;
+    stats.nsteps = 0;
     BDD reachable = sylvan_false;
     if (strategy == strat_reach) {
         double t1 = wctime();
@@ -280,8 +295,7 @@ int main(int argc, char** argv)
         INFO("REACH Time: %f\n", stats.reach_time);
     } else if (strategy == strat_bfs) {
         double t1 = wctime();
-        int steps = 0;
-        reachable = simple_bfs(S, R, T, vars, &nsteps);
+        reachable = simple_bfs(S, R, T, vars, &(stats.nsteps));
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("BFS Time: %f\n", stats.reach_time);
@@ -292,8 +306,9 @@ int main(int argc, char** argv)
 
     double nstates = sylvan_satcount(reachable, vars);
     INFO("Explored states: %'0.0f state(s)\n", nstates);
-    if (nsteps >= 1) {
-        INFO ("Target is reachable in %d step(s)\n", nsteps);
+    if (stats.nsteps >= 1) {
+        INFO ("Target is reachable in %d step(s)\n", stats.nsteps);
+        stats.reachable = 1;
     }
     else {
         if (T != sylvan_false) {
@@ -302,10 +317,20 @@ int main(int argc, char** argv)
                 INFO("Target state is not reachable\n");
             } else {
                 INFO("Target state is reachable\n");
+                stats.reachable = 1;
             }
         }
     }
 
+    INFO("Writing stats to %s\n", stats_filename.c_str());
+    std::ofstream statsfile;
+    statsfile.open(stats_filename, std::ios_base::app);
+    statsfile << s_file << ", " 
+              << stats.load_time << ", " 
+              << stats.reach_time << ", "
+              << stats.reachable << ", "
+              << stats.nsteps << std::endl;
+ 
 
     sylvan_quit();
     lace_stop();
