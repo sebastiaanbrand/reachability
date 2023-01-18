@@ -24,8 +24,10 @@ typedef enum strats {
 using namespace sylvan;
 
 std::string s_file, r_file, t_file;
-BDD S, R, T; // initial states, relation, (optional) target states
-BDDSET vars; // state vars (i.e. vars of S) (even vars starting at 0)
+BDD S = sylvan::sylvan_false; // initial states
+BDD R = sylvan::sylvan_false; // relation, 
+BDD T = sylvan::sylvan_false; // target states
+BDDSET vars = sylvan::sylvan_false;; // state vars (i.e. vars of S) (even vars starting at 0)
 
 std::string stats_filename; // filename of csv stats output file
 
@@ -258,6 +260,7 @@ void load_cnfs_to_bdds()
     double t2 = wctime();
     stats.load_time = t2-t1;
 
+    INFO("counting states...\n");
     INFO("Source set has %'0.0f state(s)\n", sylvan_satcount(S, vars));
     INFO("Target set has %'0.0f state(s)\n", sylvan_satcount(T, vars));
 }
@@ -279,12 +282,15 @@ int main(int argc, char** argv)
     sylvan_init_bdd();
 
     // parse args + load cnf files
+    sylvan::sylvan_protect(&S);
+    sylvan::sylvan_protect(&T);
+    sylvan::sylvan_protect(&R);
     load_cnfs_to_bdds();
 
     INFO("Computing reachability...\n");
     stats.reachable = 0;
     stats.nsteps = 0;
-    BDD reachable = sylvan_false;
+    BDD reachable = sylvan::sylvan_false;
     if (strategy == strat_reach) {
         double t1 = wctime();
         // TODO: not sure if this works in all cases, since R has vars (a) which
@@ -311,9 +317,9 @@ int main(int argc, char** argv)
         stats.reachable = 1;
     }
     else {
-        if (T != sylvan_false) {
+        if (T != sylvan::sylvan_false) {
             BDD intersection = sylvan_and(reachable, T);
-            if (intersection == sylvan_false) {
+            if (intersection == sylvan::sylvan_false) {
                 INFO("Target state is not reachable\n");
             } else {
                 INFO("Target state is reachable\n");
@@ -330,7 +336,10 @@ int main(int argc, char** argv)
               << stats.reach_time << ", "
               << stats.reachable << ", "
               << stats.nsteps << std::endl;
- 
+    
+    sylvan::sylvan_unprotect(&S);
+    sylvan::sylvan_unprotect(&T);
+    sylvan::sylvan_unprotect(&R);
 
     sylvan_quit();
     lace_stop();
