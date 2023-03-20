@@ -1,9 +1,6 @@
-# A decision diagram operation for reachability
+# A Decision Diagram Operation for Reachability
 
-This repository contains code corresponding to the paper "A decision diagram operation for reachability", as well as instructions how to reproduce the plots.
-(accepted at FM'23, **TODO:** link to the paper when it is available)
-
-This repository has since been updated. The exact code as it was at the time of the paper submission can be found [here](https://github.com/sebastiaanbrand/reachability/tree/9672c03076bb2f80b079b774bdb2332a594afcc6).
+This repository contains code corresponding to the paper "A Decision Diagram Operation for Reachability" ([FM 2023](https://doi.org/10.1007/978-3-031-27481-7_29), [arXiv](https://doi.org/10.48550/arXiv.2212.03684)), as well as instructions how to reproduce the plots. Alternatively, the code and required dependencies are also contained in this Docker image: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7333633.svg)](https://doi.org/10.5281/zenodo.7333633)
 
 ## Files
 * In `reach_algs/`, `bddmc.c + bdd_reach_algs.c` and `lddmc.c + ldd_custom.c` contain implementations of multiple reachability algorithms for BDDs and LDDs. The original implementations come from [here](https://github.com/trolando/sylvan/tree/master/examples), to which we have added the REACH algorithms presented in the paper. The BDD and LDD versions of REACH are internally called `go_rec` (in [bdd_reach_algs.c](reach_algs/bdd_reach_algs.c) and [ldd_custom.c](reach_algs/ldd_custom.c)).
