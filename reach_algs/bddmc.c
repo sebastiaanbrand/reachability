@@ -26,6 +26,7 @@ static int strategy = 0; // 0 = BFS, 1 = PAR, 2 = SAT, 3 = CHAINING, 4 = REC
 static int loop_order = 0; // 0 = sequential, 10 = parallel
 static int check_deadlocks = 0; // set to 1 to check for deadlocks on-the-fly (only bfs/par)
 static int merge_relations = 0; // merge relations to 1 relation
+static int extend_relations = 0; // extend relations (but don't merge)
 static int print_transition_matrix = 0; // print transition relation matrix
 static int workers = 0; // autodetect
 static char* model_filename = NULL; // filename of model
@@ -65,10 +66,11 @@ static struct argp_option options[] =
     {"count-nodes", 5, 0, 0, "Report #nodes for BDDs", 1},
     {"count-states", 1, 0, 0, "Report #states at each level", 1},
     {"count-table", 2, 0, 0, "Report table usage at each level", 1},
-    {"merge-relations", 6, 0, 0, "Merge transition relations into one transition relation", 1},
+    {"merge-relations", 6, 0, 0, "Extend and merge transition relations into one transition relation", 1},
+    {"extend-relations", 7, 0, 0, "Extend partial rels to full domain (but don't merge).", 1},
     {"print-matrix", 4, 0, 0, "Print transition matrix", 1},
     {"write-matrix", 8, "FILENAME", 0, "Write transition matrix to given file", 0},
-    {"statsfile", 7, "FILENAME", 0, "Write stats to given filename (or append if exists)", 0},
+    {"statsfile", 9, "FILENAME", 0, "Write stats to given filename (or append if exists)", 0},
     {0, 0, 0, 0, 0, 0}
 };
 static error_t
@@ -109,14 +111,18 @@ parse_opt(int key, char *arg, struct argp_state *state)
         report_nodes = 1;
         break;
     case 6:
+        extend_relations = 1;
         merge_relations = 1;
         break;
     case 7:
-        stats_filename = arg;
+        extend_relations = 1;
         break;
     case 8:
         print_transition_matrix = 1;
         matrix_filename = arg;
+        break;
+    case 9:
+        stats_filename = arg;
         break;
 #ifdef HAVE_PROFILER
     case 'p':
@@ -742,77 +748,6 @@ VOID_TASK_1(chaining, set_t, set)
     bdd_refs_popptr(3);
 }
 
-/**
- * Partition relation r into r00, r01, r10, and r11
- */
-static void
-partition_rel(BDD r, BDDVAR topvar, BDD *r00, BDD *r01, BDD *r10, BDD *r11)
-{
-    // Check if unprimed var is skipped
-    BDD r0, r1;
-    if (!sylvan_isconst(r)) {
-        bddnode_t n = MTBDD_GETNODE(r);
-        if (bddnode_getvariable(n) == topvar) {
-            r0 = node_low(r, n);
-            r1 = node_high(r, n);
-        } else {
-            r0 = r1 = r;
-        }
-    } else {
-        r0 = r1 = r;
-    }
-
-    // Check if primed var is skipped
-    if (!sylvan_isconst(r0)) {
-        bddnode_t n0 = MTBDD_GETNODE(r0);
-        if (bddnode_getvariable(n0) == topvar + 1) {
-            *r00 = node_low(r0, n0);
-            *r01 = node_high(r0, n0);
-        } else {
-            *r00 = *r01 = r0;
-        }
-    } else {
-        *r00 = *r01 = r0;
-    }
-    if (!sylvan_isconst(r1)) {
-        bddnode_t n1 = MTBDD_GETNODE(r1);
-        if (bddnode_getvariable(n1) == topvar + 1) {
-            *r10 = node_low(r1, n1);
-            *r11 = node_high(r1, n1);
-        } else {
-            *r10 = *r11 = r1;
-        }
-    } else {
-        *r10 = *r11 = r1;
-    }
-}
-
-/**
- * Partition states s into s0 and s1
- * TODO: maybe pass nodes so that this function doesn't need to call get_node
- */
-static void
-partition_state(BDD s, BDDVAR topvar, BDD *s0, BDD *s1)
-{
-    // 
-    // 
-
-    // Check if topvar is skipped
-    if (!sylvan_isconst(s)) {
-        bddnode_t n = MTBDD_GETNODE(s);
-        BDDVAR var = bddnode_getvariable(n);
-        if (var == topvar) {
-            *s0 = node_low(s, n);
-            *s1 = node_high(s, n);
-        } else {
-            assert(var > topvar);
-            *s0 = *s1 = s;
-        }
-    } else {
-        *s0 = *s1 = s;
-    }
-}
-
 
 /**
  * Pain bfs implementation for some sanity checks
@@ -856,10 +791,20 @@ prime_variables(BDD a)
 
 VOID_TASK_1(rec, set_t, set)
 {
-    if (next_count != 1) Abort("Strategy rec requires merge-relations");
     bool par = false;
     if (loop_order == loop_par) par = true;
-    set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, next[0]->variables, par);
+    if (next_count == 1) {
+        set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, next[0]->variables, par);
+    } else if (extend_relations) {
+        // put all rels into LDD (TODO: protect this from gc?)
+        MDD rels = sylvan_false;
+        for (int k = next_count-1; k >= 0; k--) {
+            rels = lddmc_makenode(k, (MDD)next[k]->bdd, rels);
+        }
+        set->bdd = CALL(go_rec_union, set->bdd, rels, next[0]->variables, par);
+    } else {
+        Abort("Strategy rec requires --merge-relations or --extend-relations\n");
+    }
     if (check_deadlocks) {
         BDD primed_vars = prime_variables(set->variables);
         sylvan_protect(&primed_vars);
@@ -1123,9 +1068,10 @@ main(int argc, char **argv)
         exit(0);
     }
 
-    /* merge all relations to one big transition relation if requested */
-    if (merge_relations) {
+    /* extend and/or merge all relations if requested */
+    if (extend_relations) {
         double t1 = wctime();
+
         BDD newvars = sylvan_set_empty();
         bdd_refs_pushptr(&newvars);
         for (int i=totalbits-1; i>=0; i--) {
@@ -1141,14 +1087,17 @@ main(int argc, char **argv)
 
         bdd_refs_popptr(1);
 
-        INFO("Taking union of all transition relations.\n");
-        next[0]->bdd = big_union(0, next_count);
+        if (merge_relations) {
+            INFO("Taking union of all transition relations.\n");
+            next[0]->bdd = big_union(0, next_count);
 
-        for (int i=1; i<next_count; i++) {
-            next[i]->bdd = sylvan_false;
-            next[i]->variables = sylvan_true;
+            for (int i=1; i<next_count; i++) {
+                next[i]->bdd = sylvan_false;
+                next[i]->variables = sylvan_true;
+            }
+            next_count = 1;
         }
-        next_count = 1;
+
         double t2 = wctime();
         stats.merge_rel_time = t2-t1;
     }

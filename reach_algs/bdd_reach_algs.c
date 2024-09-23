@@ -171,6 +171,105 @@ TASK_IMPL_4(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars, bool, par)
 
 
 /**
+ * ReachBDD-Union: Version of ReachBDD where r is given as a list (encoded in an
+ * LDD for technical reasons) of transition relations [r[1], r[2], ..., r[k].
+ * 
+ * This function computes R*(S) = (R1 v R2 v ... v ... v R[k])*(S) without first
+ * needing to compute R = R1 v R2 v ... v ... v R[k].
+ */
+TASK_IMPL_4(BDD, go_rec_union, BDD, s, MDD, r, BDDSET, vars, bool, par)
+{
+    // /* Terminal cases */
+    // if (s == sylvan_false) return sylvan_false; // empty.R* = empty
+    // if (r == sylvan_false) return s; // s.empty* = s.(empty union I)^+ = s
+    // if (s == sylvan_true || r == sylvan_true) return sylvan_true;
+    // // all.r* = all, s.all* = all (if s is not empty)
+
+    // /* Consult cache */
+    // int cachenow = 1;
+    // if (cachenow) {
+    //     BDD res;
+    //     if (cache_get3(CACHE_BDD_REACH, s, r, 0, &res)) {
+    //         return res;
+    //     }
+    // }
+
+    // /* Determine top level */
+    // bddnode_t ns = sylvan_isconst(s) ? 0 : MTBDD_GETNODE(s);
+    // bddnode_t nr = sylvan_isconst(r) ? 0 : MTBDD_GETNODE(r);
+
+    // BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
+    // BDDVAR vr = nr ? bddnode_getvariable(nr) : 0xffffffff;
+    // BDDVAR level = vs < vr ? vs : vr;
+
+    // /* Relations, states, and vars for next level of recursion */
+    // BDD r00, r01, r10, r11, s0, s1;
+    // BDDSET next_vars = sylvan_set_next(vars);
+    // bdd_refs_pushptr(&next_vars);
+    
+    // partition_rel(r, level, &r00, &r01, &r10, &r11);
+    // partition_state(s, level, &s0, &s1);
+
+    // bdd_refs_pushptr(&s0);
+    // bdd_refs_pushptr(&s1);
+    // bdd_refs_pushptr(&r00);
+    // bdd_refs_pushptr(&r01);
+    // bdd_refs_pushptr(&r10);
+    // bdd_refs_pushptr(&r11);
+
+    // BDD prev0 = sylvan_false;
+    // BDD prev1 = sylvan_false;
+    // bdd_refs_pushptr(&prev0);
+    // bdd_refs_pushptr(&prev1);
+
+    // while (s0 != prev0 || s1 != prev1) {
+    //     prev0 = s0;
+    //     prev1 = s1;
+
+    //     if (!par) {
+    //         // sequential calls (in specific order)
+    //         s0 = CALL(go_rec, s0, r00, next_vars, par);
+    //         s1 = sylvan_or(s1, sylvan_relnext(s0, r01, next_vars));
+    //         s1 = CALL(go_rec, s1, r11, next_vars, par);
+    //         s0 = sylvan_or(s0, sylvan_relnext(s1, r10, next_vars));
+    //     }
+    //     else { // par
+    //         // 2 recursive REACH calls in parallel
+    //         bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars, par));
+    //         s1 = CALL(go_rec, s1, r11, next_vars, par);
+    //         s0 = bdd_refs_sync(SYNC(go_rec)); // syncs s0 = s0.r00*
+
+    //         // 2 relnext calls in parallel
+    //         bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
+    //         BDD t0 = CALL(sylvan_relnext, s1, r10, next_vars, 0);
+    //         bdd_refs_push(t0);
+    //         BDD t1 = bdd_refs_sync(SYNC(sylvan_relnext)); // syncs t1 = s0.r01
+    //         bdd_refs_push(t1);
+
+    //         // 2 or's in parallel ( or is implemented via !(!A ^ !B) )
+    //         bdd_refs_spawn(SPAWN(sylvan_and, sylvan_not(s0), sylvan_not(t0), 0));
+    //         s1 = sylvan_not(CALL(sylvan_and, sylvan_not(s1), sylvan_not(t1), 0));
+    //         s0 = sylvan_not(bdd_refs_sync(SYNC(sylvan_and))); // syncs s0 = !(!s0 ^ !t0)
+
+    //         bdd_refs_pop(2); // pops t0, t1
+    //     }
+    // }
+
+    // bdd_refs_popptr(9);
+
+    // /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
+    // BDD res = sylvan_makenode(level, s0, s1);
+
+    // /* Put in cache */
+    // if (cachenow)
+    //     cache_put3(CACHE_BDD_REACH, s, r, 0, res);
+
+    // return res;
+    return sylvan_false;
+}
+
+
+/**
  * Implementation of recursive reachability algorithm for a partial relation
  * over given vars.
  */
