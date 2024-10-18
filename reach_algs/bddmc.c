@@ -797,7 +797,8 @@ VOID_TASK_1(rec, set_t, set)
         set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, next[0]->variables, par);
     } else if (extend_relations) {
         // put all rels into LDD (TODO: protect this from gc?)
-        MDD rels = sylvan_false;
+        MDD rels = lddmc_false;
+        INFO("storing rels in MDD\n");
         for (int k = next_count-1; k >= 0; k--) {
             rels = lddmc_makenode(k, (MDD)next[k]->bdd, rels);
         }
@@ -986,7 +987,7 @@ main(int argc, char **argv)
 
     sylvan_set_limits(max, 1, 6);
     //sylvan_set_limits(max, 1, 1);
-    //sylvan_gc_disable();
+    sylvan_gc_disable(); // disable gc for testing
     sylvan_init_package();
     sylvan_init_bdd();
     sylvan_gc_hook_pregc(TASK(gc_start));
