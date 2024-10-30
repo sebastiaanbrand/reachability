@@ -11,7 +11,8 @@ TASK_DECL_4(BDD, go_rec, BDD, BDD, BDDSET, bool);
 #define bdd_reach(S, R, vars) RUN(go_rec, S, R, vars, 0)
 
 TASK_DECL_4(BDD, go_rec_union, BDD, MDD, BDDSET, bool);
-#define bdd_reach_union(S, R, vars) RUN(go_rec_union_CALL, S, R, vars, 0)
+TASK_DECL_4(BDD, go_rec_union2, BDD, MDD, BDDSET, bool);
+#define bdd_reach_union(S, R, vars) RUN(go_rec_union, S, R, vars, 0)
 
 TASK_DECL_3(BDD, go_rec_partial, BDD, BDD, BDDSET);
 

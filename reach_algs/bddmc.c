@@ -168,7 +168,7 @@ static rel_t *next; // each partition of the transition relation
 
 typedef struct stats {
     double reach_time;
-    double merge_rel_time;
+    double prep_time;
     double total_time;
     double final_states;
     int found_deadlock; // is set to 1 if found
@@ -219,7 +219,7 @@ write_stats()
     fseek (fp, 0, SEEK_END);
         long size = ftell(fp);
         if (size == 0)
-            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, merge_time, total_time, final_states, deadlocks, final_nodecount, peaknodes");
+            fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, prep_time, total_time, final_states, deadlocks, final_nodecount, peaknodes");
     // append stats of this run
     char* benchname = basename((char*)model_filename);
     fprintf(fp, "%s, %d, %d, %d, %f, %f, %f, %0.0f, %d, %ld, %ld\n",
@@ -228,7 +228,7 @@ write_stats()
             merge_relations,
             lace_workers(),
             stats.reach_time,
-            stats.merge_rel_time,
+            stats.prep_time,
             stats.total_time,
             stats.final_states,
             stats.found_deadlock,
@@ -798,9 +798,19 @@ VOID_TASK_1(rec, set_t, set)
     } else if (extend_relations) {
         // put all rels into LDD (TODO: protect this from gc?)
         MDD rels = lddmc_false;
-        INFO("storing rels in MDD\n");
+        INFO("Storing %d rels in MDD\n", next_count);
+        // NOTE: MTBDD complement bit is lost when storing in MDD, since
+        // combining MDDs and MTBDDs is not really intended.
+        // As a workaround, we store the complement bit in the MDD value:
+        // - MDD value % 2 == 1  <-->  MTBDD had complement bit
+        // - MDD value % 2 == 0  <-->  MTBDD had no complement bit
         for (int k = next_count-1; k >= 0; k--) {
-            rels = lddmc_makenode(k, (MDD)next[k]->bdd, rels);
+            if (mtbdd_hascomp(next[k]->bdd)) {
+                rels = lddmc_makenode(2*k+1, (MDD)next[k]->bdd, rels);
+            }
+            else {
+                rels = lddmc_makenode(2*k, (MDD)next[k]->bdd, rels);
+            }
         }
         set->bdd = CALL(go_rec_union, set->bdd, rels, next[0]->variables, par);
     } else {
@@ -987,7 +997,7 @@ main(int argc, char **argv)
 
     sylvan_set_limits(max, 1, 6);
     //sylvan_set_limits(max, 1, 1);
-    sylvan_gc_disable(); // disable gc for testing
+    //sylvan_gc_disable(); // disable gc for testing
     sylvan_init_package();
     sylvan_init_bdd();
     sylvan_gc_hook_pregc(TASK(gc_start));
@@ -1100,7 +1110,7 @@ main(int argc, char **argv)
         }
 
         double t2 = wctime();
-        stats.merge_rel_time = t2-t1;
+        stats.prep_time = t2-t1;
     }
 
     if (report_nodes) {
@@ -1174,8 +1184,8 @@ main(int argc, char **argv)
         Abort("Invalid strategy set?!\n");
     }
 
-    if (merge_relations) {
-        INFO("Merge time: %f\n", stats.merge_rel_time);
+    if (extend_relations) {
+        INFO("Pre-process relations time: %f\n", stats.prep_time);
     }
 
 #ifdef HAVE_PROFILER

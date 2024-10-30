@@ -49,6 +49,32 @@ partition_rel(BDD r, BDDVAR topvar, BDD *r00, BDD *r01, BDD *r10, BDD *r11)
     }
 }
 
+
+/**
+ * Store the complement bit of r in the parity of val (assumes val's last bit
+ * is available for this)
+ */
+static uint32_t
+store_comp_bit(uint32_t val, BDD r)
+{
+    if (mtbdd_hascomp(r)) return val | 0x1; // set last bit to 1 (return odd)
+    else return val & 0xfffffffe; // set last bit to 0 (return even)
+}
+
+/**
+ * Follow an MDD down (expecting a BDD), and add complement bit to BDD if
+ * MDD value is odd.
+ * TODO: this function and it's uses can be slightly optimized to access the
+ * node table less.
+ */
+static BDD
+follow_mdd_to_bdd(MDD mdd, uint32_t value)
+{
+    BDD res = lddmc_follow(mdd, value);
+    if (value % 2 == 1) res = mtbdd_comp(res);
+    return res;
+}
+
 /**
  * Partition rel list r = MDD([r[1], r[2], ... r[k]]) into 
  */
@@ -59,21 +85,19 @@ partition_rel_list(MDD r, BDDVAR topvar, MDD *r00, MDD *r01, MDD *r10, MDD *r11)
     *r01 = lddmc_false;
     *r10 = lddmc_false;
     *r11 = lddmc_false;
-    //printf("partitioning rel list\n");
     for (MDD rk = r; rk != lddmc_false; rk = lddmc_getright(rk)) {
         BDDVAR k = lddmc_getvalue(rk);
-        BDD rk_bdd = lddmc_getdown(rk);
-        //printf("    k=%d\n", k);
+        BDD rk_bdd = follow_mdd_to_bdd(rk, k);
         BDD rk00, rk01, rk10, rk11;
         partition_rel(rk_bdd, topvar, &rk00, &rk01, &rk10, &rk11);
         // NOTE: extend_node is not the most efficient
         // TODO: more efficient to run over all entries of r from left to right
         // (as is happening now) and then in a loop *from right to left* use
         // lddmc_makenode (instead of lddmc_extendnode) to create r00 etc.
-        *r00 = lddmc_extendnode(*r00, k, (MDD)rk00);
-        *r01 = lddmc_extendnode(*r01, k, (MDD)rk01);
-        *r10 = lddmc_extendnode(*r10, k, (MDD)rk10);
-        *r11 = lddmc_extendnode(*r11, k, (MDD)rk11);
+        *r00 = lddmc_extendnode(*r00, store_comp_bit(k, rk00), (MDD)rk00);
+        *r01 = lddmc_extendnode(*r01, store_comp_bit(k, rk01), (MDD)rk01);
+        *r10 = lddmc_extendnode(*r10, store_comp_bit(k, rk10), (MDD)rk10);
+        *r11 = lddmc_extendnode(*r11, store_comp_bit(k, rk11), (MDD)rk11);
     }
 }
 
@@ -84,11 +108,9 @@ static BDDVAR
 get_topvar_rel_list(MDD r)
 {
     BDDVAR topvar = 0xffffffff;
-    //printf("finding topvar of rel list\n");
     for (MDD rk = r; rk != lddmc_false; rk = lddmc_getright(rk)) {
-        //BDDVAR k = lddmc_getvalue(rk);
-        BDD rk_bdd = lddmc_getdown(rk);
-        //printf("    k=%d\n", k);
+        BDDVAR k = lddmc_getvalue(rk);
+        BDD rk_bdd = follow_mdd_to_bdd(rk, k);
         bddnode_t node = sylvan_isconst(rk_bdd) ? 0 : MTBDD_GETNODE((BDD)rk_bdd);
         BDDVAR v = node ? bddnode_getvariable(node) : 0xffffffff;
         topvar = v < topvar ? v : topvar;
@@ -104,9 +126,6 @@ get_topvar_rel_list(MDD r)
 static void
 partition_state(BDD s, BDDVAR topvar, BDD *s0, BDD *s1)
 {
-    // 
-    // 
-
     // Check if topvar is skipped
     if (!sylvan_isconst(s)) {
         bddnode_t n = MTBDD_GETNODE(s);
@@ -227,42 +246,41 @@ TASK_3(BDD, relnext_union_naive, BDD, s, MDD, r, BDDSET, vars)
 {
     BDD res = sylvan_false;
     for (MDD rk = r; rk != lddmc_false; rk = lddmc_getright(rk)) {
-        BDD rk_bdd = lddmc_getdown(rk);
+        BDD rk_bdd = follow_mdd_to_bdd(rk, lddmc_getvalue(rk));
         res = sylvan_or(res, sylvan_relnext(s, rk_bdd, vars));
     }
     return res;
 }
 
+BDD bfs_union(BDD s, MDD r, BDDSET vars)
+{
+    BDD prev = sylvan_false;
+    while (prev != s) {
+        prev = s;
+        s = sylvan_or(s, RUN(relnext_union_naive, s, r, vars));
+    }
+    return s;
+}
 
-/**
- * ReachBDD-Union: ReachBDD where r is given as a list of transition relations 
- * [r[0], r[1], ..., r[k-1]] (encoded in an LDD for caching).
- * 
- * This function computes R*(S) = (R_0 v R_1 v ... v ... v R_{k-1})*(S) without
- * first needing to compute R = R_0 v R_1 v ... v ... v R_{k-1}.
- */
+
+// TODO: we loop over r[k]'s a few times in this function, might be more
+// efficient to unpack r[k]'s as array once, and then loop over array?
+// (Although that might be tricky with gc?)
 TASK_IMPL_4(BDD, go_rec_union, BDD, s, MDD, r, BDDSET, vars, bool, par)
 {
     /* Terminal cases */
     if (s == sylvan_false) return sylvan_false; // empty.R* = empty
-    if (s == sylvan_true) return sylvan_true; // all.r* = all (also when r = empty)
-    // if forall k, r[k] == sylvan_false : return s
-    // if exists k, r[k] == sylvan_true : return sylvan_true
-    // TODO: we loop over r[k]'s a few times in this function, might be more
-    // efficient to unpack r[k]'s as array once, and then loop over array?
-    // (Although that might be tricky with gc?)
-    bool all_false = true;
-    //printf("checking terminal cases for rel list\n");
+    if (r == lddmc_false) return s; // s.empty* = s.(empty union I)^+ = s
+    if (s == sylvan_true) return sylvan_true; // all.r* = all
+    // if at least one r[k] == all, then s.all* = all
     for (MDD rk = r; rk != lddmc_false; rk = lddmc_getright(rk)) {
         BDDVAR k = lddmc_getvalue(rk);
-        BDD rk_bdd = lddmc_getdown(rk);
-        //printf("    k=%d\n", k);
-        if (rk_bdd == sylvan_true)       { return sylvan_true; }
-        else if (rk_bdd != sylvan_false) { all_false = false; break; }
+        BDD rk_bdd = follow_mdd_to_bdd(rk, k);
+        assert (k == 0);
+        if (rk_bdd == sylvan_true) return sylvan_true;
     }
-    if (all_false) return s;
 
-    // /* Consult cache */
+    /* Consult cache */
     int cachenow = 1;
     if (cachenow) {
         BDD res;
@@ -272,20 +290,27 @@ TASK_IMPL_4(BDD, go_rec_union, BDD, s, MDD, r, BDDSET, vars, bool, par)
     }
 
     /* Determine top level */
-    bddnode_t ns = sylvan_isconst(s) ? 0 : MTBDD_GETNODE(s);
-    BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
-    BDDVAR vr = get_topvar_rel_list(r);
-    BDDVAR level = vs < vr ? vs : vr;
+    //bddnode_t ns = sylvan_isconst(s) ? 0 : MTBDD_GETNODE(s);
+    //BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
+    //BDDVAR vr = get_topvar_rel_list(r);
+    //BDDVAR level = vs < vr ? vs : vr;
+    BDDVAR level = mtbdd_getvar(vars);
 
     /* Relations, states, and vars for next level of recursion */
     BDD s0, s1;
     MDD r00, r01, r10, r11;
-    BDDSET next_vars = sylvan_set_next(vars);
+    BDDSET next_vars = sylvan_set_next(sylvan_set_next(vars));
+    //BDDSET next_vars = vars;
+    //while (mtbdd_getvar(next_vars) < level) {
+    //    next_vars = sylvan_set_next(next_vars);
+    //}
     // bdd_refs_pushptr(&next_vars);
-    
+
     partition_rel_list(r, level, &r00, &r01, &r10, &r11);
     partition_state(s, level, &s0, &s1);
 
+    // TODO: how to protect r00, etc. from gc? 
+    // (since they're LDDs on top, with BDDs below)
     // bdd_refs_pushptr(&s0);
     // bdd_refs_pushptr(&s1);
     // bdd_refs_pushptr(&r00);
@@ -295,8 +320,8 @@ TASK_IMPL_4(BDD, go_rec_union, BDD, s, MDD, r, BDDSET, vars, bool, par)
 
     BDD prev0 = sylvan_false;
     BDD prev1 = sylvan_false;
-    // bdd_refs_pushptr(&prev0);
-    // bdd_refs_pushptr(&prev1);
+    bdd_refs_pushptr(&prev0);
+    bdd_refs_pushptr(&prev1);
 
     while (s0 != prev0 || s1 != prev1) {
          prev0 = s0;
@@ -304,41 +329,35 @@ TASK_IMPL_4(BDD, go_rec_union, BDD, s, MDD, r, BDDSET, vars, bool, par)
 
         if (!par) {
             // sequential calls (in specific order)
-            //s0 = CALL(go_rec_union, s0, r00, next_vars, par);
-            s0 = sylvan_or(s0, CALL(relnext_union_naive, s0, r00, next_vars));
-            
-            s1 = sylvan_or(s1, CALL(relnext_union_naive, s0, r01, next_vars));
-
-            //s1 = CALL(go_rec_union, s1, r11, next_vars, par);
-            s1 = sylvan_or(s1, CALL(relnext_union_naive, s1, r11, next_vars));
-            
-            
+            s0 = CALL(go_rec_union, s0, r00, next_vars, par);
+            s1 = sylvan_or(s1, CALL(relnext_union_naive, s0, r01, next_vars));;
+            s1 = CALL(go_rec_union, s1, r11, next_vars, par);
             s0 = sylvan_or(s0, CALL(relnext_union_naive, s1, r10, next_vars));
         }
         else { // par
-            break; // TODO: enable later
-    //         // 2 recursive REACH calls in parallel
-    //         bdd_refs_spawn(SPAWN(go_rec, s0, r00, next_vars, par));
-    //         s1 = CALL(go_rec, s1, r11, next_vars, par);
-    //         s0 = bdd_refs_sync(SYNC(go_rec)); // syncs s0 = s0.r00*
+            exit(1); // TODO: enable later
+            // 2 recursive REACH calls in parallel
+            bdd_refs_spawn(SPAWN(go_rec_union, s0, r00, next_vars, par));
+            s1 = CALL(go_rec_union, s1, r11, next_vars, par);
+            s0 = bdd_refs_sync(SYNC(go_rec_union)); // syncs s0 = s0.r00*
 
-    //         // 2 relnext calls in parallel
-    //         bdd_refs_spawn(SPAWN(sylvan_relnext, s0, r01, next_vars, 0));
-    //         BDD t0 = CALL(sylvan_relnext, s1, r10, next_vars, 0);
-    //         bdd_refs_push(t0);
-    //         BDD t1 = bdd_refs_sync(SYNC(sylvan_relnext)); // syncs t1 = s0.r01
-    //         bdd_refs_push(t1);
+            // 2 relnext calls in parallel
+            bdd_refs_spawn(SPAWN(relnext_union_naive, s0, r01, next_vars));
+            BDD t0 = CALL(relnext_union_naive, s1, r10, next_vars);
+            bdd_refs_push(t0);
+            BDD t1 = bdd_refs_sync(SYNC(relnext_union_naive)); // syncs t1 = s0.r01
+            bdd_refs_push(t1);
 
-    //         // 2 or's in parallel ( or is implemented via !(!A ^ !B) )
-    //         bdd_refs_spawn(SPAWN(sylvan_and, sylvan_not(s0), sylvan_not(t0), 0));
-    //         s1 = sylvan_not(CALL(sylvan_and, sylvan_not(s1), sylvan_not(t1), 0));
-    //         s0 = sylvan_not(bdd_refs_sync(SYNC(sylvan_and))); // syncs s0 = !(!s0 ^ !t0)
+            // 2 or's in parallel ( or is implemented via !(!A ^ !B) )
+            bdd_refs_spawn(SPAWN(sylvan_and, sylvan_not(s0), sylvan_not(t0), 0));
+            s1 = sylvan_not(CALL(sylvan_and, sylvan_not(s1), sylvan_not(t1), 0));
+            s0 = sylvan_not(bdd_refs_sync(SYNC(sylvan_and))); // syncs s0 = !(!s0 ^ !t0)
 
-    //         bdd_refs_pop(2); // pops t0, t1
+            bdd_refs_pop(2); // pops t0, t1
         }
     }
 
-    // bdd_refs_popptr(9);
+    bdd_refs_popptr(2); // 9
 
     // /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
     BDD res = sylvan_makenode(level, s0, s1);
@@ -348,7 +367,6 @@ TASK_IMPL_4(BDD, go_rec_union, BDD, s, MDD, r, BDDSET, vars, bool, par)
         cache_put3(CACHE_BDD_REACH_UNION, s, r, 0, res);
 
     return res;
-    //return sylvan_false;
 }
 
 
