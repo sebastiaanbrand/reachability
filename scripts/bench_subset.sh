@@ -27,6 +27,7 @@ done
 
 test_sat=true
 test_reach=true
+test_reach_union=true
 test_bdd=true
 test_ldd=true
 
@@ -125,6 +126,9 @@ $head_or_shuf -n $amount $beem_bdd_list | while read filename; do
       if [[ $test_reach == true ]]; then
         timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
       fi
+      if [[ $test_reach_union == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --extend-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
+      fi
       if [[ $test_par ]]; then
           timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
       fi
@@ -144,6 +148,9 @@ $head_or_shuf -n $amount $petri_bdd_list | while read filename; do
       if [[ $test_reach == true ]]; then
         timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
       fi
+      if [[ $test_reach_union == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --extend-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
+      fi
       if [[ $test_par ]]; then
           timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
       fi
@@ -162,6 +169,9 @@ $head_or_shuf -n $amount $promela_bdd_list | while read filename; do
       fi
       if [[ $test_reach == true ]]; then
         timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
+      fi
+      if [[ $test_reach_union == true ]]; then
+        timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --extend-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
       fi
       if [[ $test_par ]]; then
           timeout $maxtime ./$bddmc $filepath --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats

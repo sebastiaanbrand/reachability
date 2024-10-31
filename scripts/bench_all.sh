@@ -26,6 +26,7 @@ done
 # some defaults
 test_sat=true
 test_reach=true
+test_reach_union=true
 confirm=true
 
 # process arguments for running subset of all benchmarks
@@ -172,6 +173,9 @@ if [[ $bench_beem_sl && $bench_bdd ]]; then
             if [[ $test_reach == true ]]; then
                 timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
             fi
+            if [[ $test_reach_union == true ]]; then
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --extend-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
+            fi
             if [[ $test_par ]]; then
                 timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$beem_sl_stats
             fi
@@ -191,6 +195,9 @@ if [[ $bench_ptri_sl && $bench_bdd ]]; then
             fi
             if [[ $test_reach == true ]]; then
                 timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
+            fi
+            if [[ $test_reach_union == true ]]; then
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --extend-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
             fi
             if [[ $test_par ]]; then
                 timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$petri_sl_stats
@@ -220,6 +227,9 @@ if [[ $bench_prom_sl && $bench_bdd ]]; then
             fi
             if [[ $test_reach == true ]]; then
                 timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
+            fi
+            if [[ $test_reach_union == true ]]; then
+                timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --extend-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
             fi
             if [[ $test_par ]]; then
                 timeout $maxtime ./$bddmc $filename --workers=$nw --strategy=rec --loop-order=par --merge-relations --count-nodes $deadlocks --statsfile=$promela_sl_stats
