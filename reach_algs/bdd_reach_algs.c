@@ -211,8 +211,6 @@ TASK_IMPL_4(BDD, go_rec, BDD, s, BDD, r, BDDSET, vars, bool, par)
 
 /**
  * Compute the union of images, i.e. R_0.S v R_1.S v ... v R_{k-1}.S
- * 
- * TODO: more "native" implementation of this function like rec_union?
  */
 TASK_4(BDD, relnext_union_naive, BDD, s, BDD*, r, int, m, BDDSET, vars)
 {
@@ -223,7 +221,82 @@ TASK_4(BDD, relnext_union_naive, BDD, s, BDD*, r, int, m, BDDSET, vars)
     return res;
 }
 
+/**
+ * Compute S.(R_0 v R_1 v ... v R_{m-1}) "natively" inside the relnext op
+ * (Assumes all vars in r)
+ */
+TASK_IMPL_3(BDD, relnext_union, BDD, s, BDD*, r, int, m)
+{
+    /* Terminal cases */
+    if (s == sylvan_false) return sylvan_false;
+    bool all_rk_false = true;
+    bool exist_rk_true = false;
+    for (int k = 0; k < m; k++) {
+        if (r[k] == sylvan_true) exist_rk_true = true;
+        if (r[k] != sylvan_false) all_rk_false = false;
+    }
+    if (s == sylvan_true && exist_rk_true) return sylvan_true;
+    if (all_rk_false) return sylvan_false;
 
+    /* Consult cache */
+    int cachenow = 1;
+    if (cachenow) {
+        BDD res;
+        if (cache_get3(CACHE_BDD_RELNEXT_UNION, s, hash_rel_list(r, m), 0, &res)) {
+            return res;
+        }
+    }
+
+    /* Determine top level */
+    bddnode_t ns = sylvan_isconst(s) ? 0 : MTBDD_GETNODE(s);
+    BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
+    BDDVAR vr = get_topvar_rel_list(r, m);
+    BDDVAR level = vs < vr ? vs : vr;
+    level = level % 2 == 1 ? level-1 : level; // only sync on even (unprimed) levels
+
+    /* Relations, states, and vars for next level of recursion */
+    BDD s0, s1;
+    partition_state(s, level, &s0, &s1);
+    BDD *r00 = (BDD*)malloc(sizeof(BDD) * m);
+    BDD *r01 = (BDD*)malloc(sizeof(BDD) * m);
+    BDD *r10 = (BDD*)malloc(sizeof(BDD) * m);
+    BDD *r11 = (BDD*)malloc(sizeof(BDD) * m);
+    for (int k = 0; k < m; k++) {
+        partition_rel(r[k], level, &(r00[k]), &(r01[k]), &(r10[k]), &(r11[k]));
+    }
+
+    bdd_refs_spawn(SPAWN(relnext_union, s0, r00, m));
+    bdd_refs_spawn(SPAWN(relnext_union, s0, r01, m));
+    bdd_refs_spawn(SPAWN(relnext_union, s1, r10, m));
+    BDD t11 = bdd_refs_push(CALL(relnext_union, s1, r11, m));
+    BDD t10 = bdd_refs_push(bdd_refs_sync(SYNC(relnext_union)));
+    BDD t01 = bdd_refs_push(bdd_refs_sync(SYNC(relnext_union)));
+    BDD t00 = bdd_refs_push(bdd_refs_sync(SYNC(relnext_union)));
+
+    bdd_refs_spawn(SPAWN(sylvan_and, sylvan_not(t00), sylvan_not(t10), 0));
+    BDD t1 = bdd_refs_push(sylvan_not(CALL(sylvan_and, sylvan_not(t01), sylvan_not(t11), 0)));
+    BDD t0 = bdd_refs_push(sylvan_not(bdd_refs_sync(SYNC(sylvan_and))));
+
+    bdd_refs_pop(6);
+    free(r00);
+    free(r01);
+    free(r10);
+    free(r11);
+
+    // /* res = ((!level) ^ s0)  v  ((level) ^ s1) */
+    BDD res = sylvan_makenode(level, t0, t1);
+
+    // /* Put in cache */
+    if (cachenow)
+        cache_put3(CACHE_BDD_RELNEXT_UNION, s, hash_rel_list(r, m), 0, res);
+
+    return res;
+}
+
+
+/**
+ * ReachBDD-Union: compute S.(R_0 v R_1 v ... v R_{m-1})* recursively.
+ */
 TASK_IMPL_5(BDD, go_rec_union, BDD, s, BDD*, r, int, m, BDDSET, vars, bool, par)
 {
     /* Terminal cases */
@@ -253,6 +326,7 @@ TASK_IMPL_5(BDD, go_rec_union, BDD, s, BDD*, r, int, m, BDDSET, vars, bool, par)
     BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
     BDDVAR vr = get_topvar_rel_list(r, m);
     BDDVAR level = vs < vr ? vs : vr;
+    level = level % 2 == 1 ? level-1 : level; // only sync on even (unprimed) levels
 
     /* Relations, states, and vars for next level of recursion */
     BDD s0, s1;
@@ -283,9 +357,9 @@ TASK_IMPL_5(BDD, go_rec_union, BDD, s, BDD*, r, int, m, BDDSET, vars, bool, par)
         if (!par) {
             // sequential calls (in specific order)
             s0 = CALL(go_rec_union, s0, r00, m, next_vars, par);
-            s1 = sylvan_or(s1, CALL(relnext_union_naive, s0, r01, m, next_vars));
+            s1 = sylvan_or(s1, CALL(relnext_union, s0, r01, m));
             s1 = CALL(go_rec_union, s1, r11, m, next_vars, par);
-            s0 = sylvan_or(s0, CALL(relnext_union_naive, s1, r10, m, next_vars));
+            s0 = sylvan_or(s0, CALL(relnext_union, s1, r10, m));
         }
         else { // par
             // 2 recursive REACH calls in parallel
@@ -294,10 +368,10 @@ TASK_IMPL_5(BDD, go_rec_union, BDD, s, BDD*, r, int, m, BDDSET, vars, bool, par)
             s0 = bdd_refs_sync(SYNC(go_rec_union)); // syncs s0 = s0.r00*
 
             // 2 relnext calls in parallel
-            bdd_refs_spawn(SPAWN(relnext_union_naive, s0, r01, m, next_vars));
-            BDD t0 = CALL(relnext_union_naive, s1, r10, m, next_vars);
+            bdd_refs_spawn(SPAWN(relnext_union, s0, r01, m));
+            BDD t0 = CALL(relnext_union, s1, r10, m);
             bdd_refs_push(t0);
-            BDD t1 = bdd_refs_sync(SYNC(relnext_union_naive)); // syncs t1 = s0.r01
+            BDD t1 = bdd_refs_sync(SYNC(relnext_union)); // syncs t1 = s0.r01
             bdd_refs_push(t1);
 
             // 2 or's in parallel ( or is implemented via !(!A ^ !B) )
@@ -356,6 +430,7 @@ TASK_IMPL_3(BDD, go_rec_partial, BDD, s, BDD, r, BDDSET, vars)
     BDDVAR vs = ns ? bddnode_getvariable(ns) : 0xffffffff;
     BDDVAR vr = nr ? bddnode_getvariable(nr) : 0xffffffff;
     BDDVAR level = vs < vr ? vs : vr;
+    level = level % 2 == 1 ? level-1 : level; // only sync on even (unprimed) levels
 
     /* Skip variables not in `vars` */
     int is_s_or_t = 0;

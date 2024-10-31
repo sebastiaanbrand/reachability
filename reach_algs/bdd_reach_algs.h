@@ -10,8 +10,11 @@ extern "C" {
 TASK_DECL_4(BDD, go_rec, BDD, BDD, BDDSET, bool);
 #define bdd_reach(S, R, vars) RUN(go_rec, S, R, vars, 0)
 
+TASK_DECL_3(BDD, relnext_union, BDD, BDD*, int);
+#define relnext_union(S, R, m) RUN(relnext_union, S, R, m)
+
 TASK_DECL_5(BDD, go_rec_union, BDD, BDD*, int, BDDSET, bool);
-#define bdd_reach_union(S, R, vars) RUN(go_rec_union, S, R, vars, 0)
+#define bdd_reach_union(S, R, m, vars) RUN(go_rec_union, S, R, m, vars, 0)
 
 TASK_DECL_3(BDD, go_rec_partial, BDD, BDD, BDDSET);
 

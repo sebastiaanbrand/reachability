@@ -43,6 +43,7 @@ typedef enum strats {
     strat_chaining,
     strat_rec,
     strat_bfs_plain,
+    strat_bfs_union,
     strat_chain_rec,
     num_strats
 } strategy_t;
@@ -56,7 +57,7 @@ typedef enum loop_order {
 static struct argp_option options[] =
 {
     {"workers", 'w', "<workers>", 0, "Number of workers (default=0: autodetect)", 0},
-    {"strategy", 's', "<bfs|par|sat|chaining|rec|bfs-plain|chain-rec>", 0, 
+    {"strategy", 's', "<bfs|par|sat|chaining|rec|bfs-plain|bfs-union|chain-rec>", 0, 
      "Strategy for reachability (default=bfs)", 0},
     {"loop-order", 'o', "<seq|par>", 0, "Loop order in rec alg (default=seq)", 0},
 #ifdef HAVE_PROFILER
@@ -87,6 +88,7 @@ parse_opt(int key, char *arg, struct argp_state *state)
         else if (strcmp(arg, "chaining")==0) strategy = strat_chaining;
         else if (strcmp(arg, "rec")==0) strategy = strat_rec;
         else if (strcmp(arg, "bfs-plain")==0) strategy = strat_bfs_plain;
+        else if (strcmp(arg, "bfs-union")==0) strategy = strat_bfs_union;
         else if (strcmp(arg, "chain-rec")==0) strategy = strat_chain_rec;
         else argp_usage(state);
         break;
@@ -778,6 +780,40 @@ VOID_TASK_1(bfs_plain, set_t, set)
 }
 
 
+/**
+ * BFS using relnext_union
+ */
+VOID_TASK_1(bfs_union, set_t, set)
+{
+    if (!extend_relations) Abort("Strategy bfs-union requires extend-relations");
+    BDD* rels = malloc(sizeof(BDD) * next_count);
+    for (int k = 0; k < next_count; k++) {
+        rels[k] = next[k]->bdd;
+    }
+
+    BDD visited = set->bdd;
+    BDD prev = sylvan_false;
+    BDD successors = sylvan_false;
+
+    sylvan_protect(&visited);
+    sylvan_protect(&prev);
+    sylvan_protect(&successors);
+    // next[k]->bdd, next[k]->vars, set->bdd, set->vars already protected
+
+    while (prev != visited) {
+        prev = visited;
+        successors = relnext_union(visited, rels, next_count);
+        visited = sylvan_or(visited, successors);
+    }
+
+    sylvan_unprotect(&visited);
+    sylvan_unprotect(&prev);
+    sylvan_unprotect(&successors);
+
+    set->bdd = visited;
+}
+
+
 BDD
 prime_variables(BDD a)
 {
@@ -1162,6 +1198,12 @@ main(int argc, char **argv)
         double t2 = wctime();
         stats.reach_time = t2-t1;
         INFO("BFS-PLAIN Time: %f\n", stats.reach_time);
+    } else if (strategy == strat_bfs_union) {
+        double t1 = wctime();
+        RUN(bfs_union, states);
+        double t2 = wctime();
+        stats.reach_time = t2-t1;
+        INFO("BFS-UNION Time: %f\n", stats.reach_time);
     } else if (strategy == strat_chain_rec) {
         double t1 = wctime();
         RUN(chain_rec, states);
