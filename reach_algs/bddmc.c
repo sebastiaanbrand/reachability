@@ -796,23 +796,12 @@ VOID_TASK_1(rec, set_t, set)
     if (next_count == 1) {
         set->bdd = CALL(go_rec, set->bdd, next[0]->bdd, next[0]->variables, par);
     } else if (extend_relations) {
-        // put all rels into LDD (TODO: protect this from gc?)
-        MDD rels = lddmc_false;
-        INFO("Storing %d rels in MDD\n", next_count);
-        // NOTE: MTBDD complement bit is lost when storing in MDD, since
-        // combining MDDs and MTBDDs is not really intended.
-        // As a workaround, we store the complement bit in the MDD value:
-        // - MDD value % 2 == 1  <-->  MTBDD had complement bit
-        // - MDD value % 2 == 0  <-->  MTBDD had no complement bit
-        for (int k = next_count-1; k >= 0; k--) {
-            if (mtbdd_hascomp(next[k]->bdd)) {
-                rels = lddmc_makenode(2*k+1, (MDD)next[k]->bdd, rels);
-            }
-            else {
-                rels = lddmc_makenode(2*k, (MDD)next[k]->bdd, rels);
-            }
+        BDD* rels = malloc(sizeof(BDD) * next_count);
+        for (int k = 0; k < next_count; k++) {
+            rels[k] = next[k]->bdd;
         }
-        set->bdd = CALL(go_rec_union, set->bdd, rels, next[0]->variables, par);
+        set->bdd = CALL(go_rec_union, set->bdd, rels, next_count, next[0]->variables, par);
+        free(rels);
     } else {
         Abort("Strategy rec requires --merge-relations or --extend-relations\n");
     }
