@@ -45,7 +45,8 @@ stratIDs     = {'bfs' : 0,
                 'rec-copy' : 104,
                 'rec-copy-rr' : 206,
                 'bfs-plain-copy' : 105,
-                'bfs-plain-copy-rr' : 205}
+                'bfs-plain-copy-rr' : 205,
+                'rec-union' : 1004}
 axis_label = {('bfs','bdd') : 'BFS',
               ('sat','bdd') : 'Saturation',
               ('rec','bdd') : 'Algorithm 1',
@@ -147,7 +148,7 @@ def pre_process():
         datamap[key] = datamap[key].astype(
                         {"benchmark" : str, "strategy" : int, 
                          "merg_rels" : int, "workers" : int,
-                         "reach_time" : float, "merge_time" : float,
+                         "reach_time" : float, "prep_time" : float,
                          "final_states" : float, "final_nodecount" : int})
     
     # get all the unique number of workers
@@ -388,8 +389,8 @@ def _plot_time_comp(compare, ax, x_dd, y_dd, x_select, y_select, z_select=None,
         xs = joined['reach_time_x'].to_numpy()
         ys = joined['reach_time_y'].to_numpy()
         if (add_merge_time):
-            xs += joined['merge_time_x'].to_numpy()
-            ys += joined['merge_time_y'].to_numpy()
+            xs += joined['prep_time_x'].to_numpy()
+            ys += joined['prep_time_y'].to_numpy()
         
         # some styling
         s = marker_size[ds_name]
@@ -560,8 +561,8 @@ def plot_rec_over_sat_vs_rel_metric(data_label, metric, strat_rec, add_merge_tim
         rec_times = joined['reach_time_rec'].to_numpy()
 
         if (add_merge_time):
-            sat_times += joined['merge_time_sat'].to_numpy()
-            rec_times += joined['merge_time_rec'].to_numpy()
+            sat_times += joined['prep_time_sat'].to_numpy()
+            rec_times += joined['prep_time_rec'].to_numpy()
 
         relative_rec_times = rec_times / sat_times
 
@@ -952,7 +953,7 @@ def plot_merge_overhead(data_label):
 
     # rec_reach_time / sat_reach_time
     relative_reach = joined['reach_time_rec'] / joined['reach_time_sat']
-    relative_merge = joined['merge_time_rec'] / joined['reach_time_sat']
+    relative_merge = joined['prep_time_rec'] / joined['reach_time_sat']
 
     # create buckets (log scale)
     lowest = 10**(np.floor(np.log10(min(joined['reach_time_sat']))))
@@ -1393,6 +1394,23 @@ def plot_both_parallel(data_folder):
         print('no complete data found in ' + data_folder)
 
 
+def plot_reach_union_comparison(data_folder):
+    load_data(data_folder)
+    pre_process()
+    assert_states_nodes()
+
+    set_subfolder_name('Reach-Union comparison')
+    plot_comparison('rec', 'sl-bdd', 'rec-union', 'sl-bdd', True,
+                    xlabel='ReachBDD + merge time (s)',
+                    ylabel='ReachBDD-Union time (s)')
+    plot_comparison('sat', 'sl-bdd', 'rec-union', 'sl-bdd', True,
+                    xlabel='Saturation time (s)',
+                    ylabel='ReachBDD-Union time (s)')
+    plot_comparison('sat', 'sl-bdd', 'rec', 'sl-bdd', True,
+                    xlabel='Saturation time (s)',
+                    ylabel='ReachBDD + merge time (s)')
+
+
 def plot_all_parallel_scatter(data_folder, plot_cores):
     load_data(data_folder)
     pre_process()
@@ -1416,30 +1434,12 @@ def plot_all_parallel_scatter(data_folder, plot_cores):
             print(f"Speedup for {alg} with {cores} cores at Percentiles: ")
             _plot_parallel_scatter(1, cores, alg, min_time, False, True)
 
+
 def plot_all_locality_plots(data_folder):
     load_data(data_folder)
     pre_process()
     assert_states_nodes()
     plot_paper_plot_locality('all', add_merge_time=False)
-
-def plot_paper_plots(subfolder='all'):   
-    # Plot Fig 9, Fig 10, New Fig
-    data_folder = 'bench_data/'+ subfolder + '/single_worker/10m/20220419_164504/'
-    load_data(data_folder)
-    pre_process()
-    assert_states_nodes()
-
-    # Plot saturation vs REACH on Sloan BDDs/LDDs (Figure 9)
-    #plot_paper_plot_sat_vs_rec(subfolder, add_merge_time) # /single_worker/10m/20220419_164504/
-#    plot_paper_plot_sat_vs_rec_copy(subfolder)
-
-    #plot_pnml_encode_tests(subfolder) # '/single_worker/10m/pnml-encode/'
-    #plot_copy_nodes_test(subfolder) # '/single_worker/10m/20220407_191756/'
-    #plot_right_recursion_test(subfolder) # '/custom_image_test/20220411_210135/'
-    # Plot locality metric correlation (Figure 10) (on same data)
-
-    # Plot relative merge time overhead (New Figure)
-    #plot_paper_plot_merge_overhead(subfolder)
 
 
 
@@ -1457,6 +1457,8 @@ if __name__ == '__main__':
         plot_paper_plot_its_tools_vs_dds(data_folder)
     elif (which_plot == 'static'):
         plot_static_vs_otf(data_folder)
+    elif (which_plot == 'reach-union'):
+        plot_reach_union_comparison(data_folder)
     else:
         print("First argument must be [saturation|parallel|parallel-scatter|locality|its|static]")
     

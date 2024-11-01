@@ -224,6 +224,7 @@ write_stats()
             fprintf(fp, "%s\n", "benchmark, strategy, merg_rels, workers, reach_time, prep_time, total_time, final_states, deadlocks, final_nodecount, peaknodes");
     // append stats of this run
     char* benchname = basename((char*)model_filename);
+    if (strategy ==  strat_rec && !merge_relations) strategy += 1000; // reach-union
     fprintf(fp, "%s, %d, %d, %d, %f, %f, %f, %0.0f, %d, %ld, %ld\n",
             benchname,
             strategy+loop_order,
